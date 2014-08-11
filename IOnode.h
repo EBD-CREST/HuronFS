@@ -10,38 +10,63 @@
 #ifndef IONODE_H_
 #define IONODE_H_
 
+#include <string>
+#include <map>
+#include <vector>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <stdexcept>
+#include <exception>
+#include <stdlib.h>
+
+#include "IO_const.h"
+
 class IOnode
 {
 //nested class
 private:
 
-	struct block
+	struct block 
 	{
 		block(unsigned long size, int block_id) throw(std::bad_alloc);
 		~block();
 		block(const block&);
 		unsigned long size;
 		void *data;
-		const int block_id;
+		const unsigned int block_id;
 	};
 //API
 public:
-	IOnode(std::string my_ip, std::string master_ip);
+	IOnode(std::string my_ip, std::string master_ip,  int master_port) throw(std::runtime_error);
 	~IOnode();
 	int insert_block(unsigned long size);
 	int delete_block();
 
 public:
 	const std::string ip;
-	const int node_id;
-
+	unsigned int node_id;
+//private member
 private:
 	//map : block_id , block
-	std::map<int,std::vector<class block>> _blocks;
+	std::map<int,std::vector<class block> > _blocks;
 	unsigned int _current_block_number;
-	static unsigned int MAX_BLOCK_NUMBER;
+	unsigned int MAX_BLOCK_NUMBER;
 	unsigned long _memory;
-	int init(std::string master_ip);
+	int port; 
+	struct sockaddr_in node_server_addr; 
+	struct sockaddr_in master_conn_addr; 
+	struct sockaddr_in master_addr;
+	int node_server_socket; 
+	int master_socket;
+//private function
+private:
+	//regist IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
+	int regist(std::string&  master, int master_port) throw(std::runtime_error);
+	//start IO server on failure throw runtime_error
+	void start_server() throw(std::runtime_error); 
+	//unregist IOnode from master
+	void unregist(); 
 };
 
 #endif

@@ -1,6 +1,6 @@
 MASTER = Master
 IONODE = IOnode
-CC = gcc
+CC = g++
 FLAG = -O2
 
 master:
