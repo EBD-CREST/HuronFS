@@ -19,11 +19,19 @@
 #include <stdexcept>
 #include <exception>
 #include <stdlib.h>
+#include <set>
 
 #include "IO_const.h"
 
 class IOnode
 {
+//API
+public:
+	IOnode(std::string my_ip, std::string master_ip,  int master_port) throw(std::runtime_error);
+	~IOnode();
+	//start_io_server
+	void start_server(); 
+
 //nested class
 private:
 
@@ -36,37 +44,50 @@ private:
 		void *data;
 		const unsigned int block_id;
 	};
-//API
-public:
-	IOnode(std::string my_ip, std::string master_ip,  int master_port) throw(std::runtime_error);
-	~IOnode();
-	int insert_block(unsigned long size);
-	int delete_block();
 
-public:
-	const std::string ip;
-	unsigned int node_id;
 //private member
 private:
 	//map : block_id , block
-	std::map<int,std::vector<class block> > _blocks;
+	typedef std::map<int, class block > block_info; 
+	//map : file_name,  block_ids
+	typedef std::map<int, std::set<int> > file_info; 
+	//ip address
+	const std::string _ip;
+	//node id
+	unsigned int _node_id;
+	block_info _blocks;
+	file_info _files;  
+	
 	unsigned int _current_block_number;
-	unsigned int MAX_BLOCK_NUMBER;
+	unsigned int _MAX_BLOCK_NUMBER;
+	//remain available memory; 
 	unsigned long _memory;
-	int port; 
-	struct sockaddr_in node_server_addr; 
-	struct sockaddr_in master_conn_addr; 
-	struct sockaddr_in master_addr;
-	int node_server_socket; 
-	int master_socket;
+	//master_conn_port
+	int _master_port;
+	//IO-node_server_address
+	struct sockaddr_in _node_server_addr; 
+	//address and port used to connect with master
+	struct sockaddr_in _master_conn_addr; 
+	//master address and port
+	struct sockaddr_in _master_addr;
+	//IO-node server socket
+	int _node_server_socket;
+	//socket used to connect with master
+	int _master_socket;
+
 //private function
 private:
+	//don't allow copy
+	IOnode(const IOnode&); 
 	//regist IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
-	int regist(std::string&  master, int master_port) throw(std::runtime_error);
+	int _regist(std::string&  master, int master_port) throw(std::runtime_error);
 	//start IO server on failure throw runtime_error
-	void start_server() throw(std::runtime_error); 
+	void _init_server() throw(std::runtime_error); 
 	//unregist IOnode from master
-	void unregist(); 
+	void _unregist(); 
+	//insert block,  on success return block_id,  on failure throw bad_alloc
+	int _insert_block(unsigned long size) throw(std::bad_alloc);
+	void _delete_block(int block_id);
 };
 
 #endif
