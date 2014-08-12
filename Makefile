@@ -4,4 +4,4 @@ CC = g++
 FLAG = -O2
 
 master:
-	$(CC) $(FLAG) -o $(MASTER) $(MASTER).cpp
+	$(CC) $(FLAG) -c -o $(MASTER) $(MASTER).cpp

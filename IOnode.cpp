@@ -1,5 +1,5 @@
 /*
- * IOnode.c
+ * IOnode.cpp
  *
  *  Created on: Aug 8, 2014
  *      Author: xtq
@@ -11,12 +11,12 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-IOnode::block::block(unsigned long size, int block_id) throw(std::bad_alloc):size(size),block_id(block_id),data(NULL)
+IOnode::block::block(unsigned long start_point, unsigned long size) throw(std::bad_alloc):size(size),start_point(start_point),data(NULL)
 {
 	data=malloc(size);
 	if( NULL == data)
 	{
-	   throw std::bad_alloc(); 
+	   throw std::bad_alloc();
 	}
 	return;
 }
@@ -26,13 +26,12 @@ IOnode::block::~block()
 	free(data);
 }
 
-IOnode::block::block(const block & src):size(src.size),block_id(src.block_id),data(src.data){};
+IOnode::block::block(const block & src):size(src.size),start_point(src.start_point),data(src.data){};
 
 IOnode::IOnode(std::string my_ip, std::string master_ip,  int master_port) throw(std::runtime_error):
 	_ip(my_ip),
 	_node_id(-1),
-	_blocks(block_info()),  
-	_files(file_info()), 
+	_files(file_blocks()), 
 	_current_block_number(0), 
 	_MAX_BLOCK_NUMBER(MAX_BLOCK_NUMBER), 
 	_memory(MEMORY), 
@@ -65,7 +64,7 @@ void IOnode::_init_server() throw(std::runtime_error)
 	{
 		throw std::runtime_error("Create Socket Failed");  
 	}
-	if(0 != bind(_node_server_socket, (struct sockaddr*)&_node_server_addr, sizeof(_node_server_addr)))
+	if(0 != bind(_node_server_socket, reinterpret_cast<struct sockaddr*>(&_node_server_addr), sizeof(_node_server_addr)))
 	{
 		throw std::runtime_error("Server Bind Port Failed"); 
 	}
@@ -84,7 +83,6 @@ IOnode::~IOnode()
 		close(_node_server_socket); 
 	}
 	_unregist(); 
-	delete &_blocks; 
 }
 
 int IOnode::_regist(std::string& master_ip, int master_port) throw(std::runtime_error)
@@ -100,7 +98,7 @@ int IOnode::_regist(std::string& master_ip, int master_port) throw(std::runtime_
 		throw std::runtime_error("Create Socket Failed"); 
 	}
 
-	if(bind(_master_socket,  (struct sockaddr*)&_master_conn_addr, sizeof(_master_conn_addr)))
+	if(bind(_master_socket,  reinterpret_cast<struct sockaddr*>(&_master_conn_addr), sizeof(_master_conn_addr)))
 	{
 		//perror("Client Bind Port Failed");
 		throw std::runtime_error("Client Bind Port Failed");  
@@ -114,7 +112,7 @@ int IOnode::_regist(std::string& master_ip, int master_port) throw(std::runtime_
 	}
 
 	_master_addr.sin_port = htons(_master_port); 
-	if( connect(_master_socket,  (struct sockaddr*)&_master_addr,  sizeof(_master_addr)))
+	if( connect(_master_socket,  reinterpret_cast<struct sockaddr*>(&_master_addr),  sizeof(_master_addr)))
 	{
 		throw std::runtime_error("Can Not Connect To master");  
 	}
@@ -134,30 +132,53 @@ void IOnode::_unregist()
 	}
 }
 
-int IOnode::_insert_block(unsigned long size) throw(std::bad_alloc)
+int IOnode::_insert_block(block_info blocks,  unsigned long start_point,  unsigned long size) throw(std::bad_alloc,  std::invalid_argument)
 {
 	if( MAX_BLOCK_NUMBER < _current_block_number)
 	{
 		throw std::bad_alloc(); 
 	}
-	int id = _current_block_number++; 
+	_current_block_number++; 
+	block_info::iterator it; 
+	for(it = blocks.begin(); it != blocks.end()  &&  start_point < (*it)->start_point; ++it); 
+	if(it != blocks.end()  &&  (*it)->start_point  ==  start_point)
+	{
+		throw std::invalid_argument("block exists"); 
+	}
 	try
 	{
-		_blocks.insert(std::make_pair(id,  block(size, id))); 
+		blocks.push_back(new block(start_point, size)); 
 	}
 	catch(std::bad_alloc)
 	{
 		throw; 
 	}
-	return id; 
+	return start_point; 
 }
 
-void IOnode::_delete_block(int block_id)
+void IOnode::_delete_block( block_info blocks, unsigned long start_point)
 {
-	block_info::iterator it; 
-	if((it = _blocks.find(block_id))  !=  _blocks.end())
+	block_info::iterator iterator; 
+	for(iterator = blocks.begin(); iterator != blocks.end() && start_point != (*iterator)->start_point;  ++iterator); 
+	if(blocks.end() != iterator)
 	{
-		delete &(it->second); 
-		_blocks.erase(it); 
+		delete *iterator;
+		blocks.erase(iterator);
 	}
 }
+
+int IOnode::_add_file(int file_no) throw(std::invalid_argument)
+{
+	file_blocks::iterator it; 
+	if(_files.end() == (it = _files.find(file_no)))
+	{
+		_files.insert(std::make_pair(file_no,  block_info())); 
+		return 1; 
+	}
+	else
+	{
+		throw std::invalid_argument("file_no exists"); 
+	}
+}
+
+

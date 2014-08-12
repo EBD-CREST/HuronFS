@@ -37,26 +37,31 @@ private:
 
 	struct block 
 	{
-		block(unsigned long size, int block_id) throw(std::bad_alloc);
+		block(unsigned long start_point, unsigned long size) throw(std::bad_alloc);
 		~block();
 		block(const block&);
 		unsigned long size;
-		void *data;
-		const unsigned int block_id;
+		void* data;
+		const unsigned int start_point;
 	};
 
 //private member
 private:
-	//map : block_id , block
+	/*map : block_id , block
 	typedef std::map<int, class block > block_info; 
-	//map : file_name,  block_ids
-	typedef std::map<int, std::set<int> > file_info; 
+	//map : file_no,  block_ids
+	typedef std::map<int, std::set<int> > file_info; */
+
+	typedef std::vector<block*> block_info; 
+	typedef std::map<int, block_info > file_blocks; 
 	//ip address
 	const std::string _ip;
 	//node id
 	unsigned int _node_id;
-	block_info _blocks;
-	file_info _files;  
+	/*block_info _blocks;
+	file_info _files;*/
+
+	file_blocks _files;
 	
 	unsigned int _current_block_number;
 	unsigned int _MAX_BLOCK_NUMBER;
@@ -85,9 +90,14 @@ private:
 	void _init_server() throw(std::runtime_error); 
 	//unregist IOnode from master
 	void _unregist(); 
-	//insert block,  on success return block_id,  on failure throw bad_alloc
-	int _insert_block(unsigned long size) throw(std::bad_alloc);
-	void _delete_block(int block_id);
+	//insert block,  on success return start_point,  on failure throw bad_alloc
+	int _insert_block(block_info blocks, unsigned long start_point,  unsigned long size) throw(std::bad_alloc,  std::invalid_argument);
+	//delete block
+	void _delete_block(block_info blocks,  unsigned long start_point);  
+	
+	int _add_file(int file_no) throw(std::invalid_argument);  
+
+	int _delete_file(int file_no) throw(std::invalid_argument); 
 };
 
 #endif
