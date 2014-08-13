@@ -35,7 +35,15 @@ private:
 	}
 
 private:
-	std::vector<class node_info> IOnodes;
+	class node_info
+	{
+	public:
+		node_info();
+		
+		std::
+
+private:
+	std::vector<> IOnodes;
 	static int number_node;
 	std::queue<class block> buffer_queue;
 	
