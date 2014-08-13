@@ -37,12 +37,12 @@ private:
 
 	struct block 
 	{
-		block(unsigned long start_point, unsigned long size) throw(std::bad_alloc);
+		block(std::size_t start_point, std::size_t size) throw(std::bad_alloc);
 		~block();
 		block(const block&);
-		unsigned long size;
+		std::size_t size;
 		void* data;
-		const unsigned int start_point;
+		const std::size_t  start_point;
 	};
 
 //private member
@@ -66,7 +66,7 @@ private:
 	unsigned int _current_block_number;
 	unsigned int _MAX_BLOCK_NUMBER;
 	//remain available memory; 
-	unsigned long _memory;
+	std::size_t _memory;
 	//master_conn_port
 	int _master_port;
 	//IO-node_server_address
@@ -91,9 +91,9 @@ private:
 	//unregist IOnode from master
 	void _unregist(); 
 	//insert block,  on success return start_point,  on failure throw bad_alloc
-	int _insert_block(block_info blocks, unsigned long start_point,  unsigned long size) throw(std::bad_alloc,  std::invalid_argument);
+	int _insert_block(block_info blocks, std::size_t start_point, std::size_t size) throw(std::bad_alloc,  std::invalid_argument);
 	//delete block
-	void _delete_block(block_info blocks,  unsigned long start_point);  
+	void _delete_block(block_info blocks, std::size_t start_point);  
 	
 	int _add_file(int file_no) throw(std::invalid_argument);  
 

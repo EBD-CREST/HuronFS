@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-IOnode::block::block(unsigned long start_point, unsigned long size) throw(std::bad_alloc):size(size),start_point(start_point),data(NULL)
+IOnode::block::block(std::size_t start_point, std::size_t size) throw(std::bad_alloc):size(size),start_point(start_point),data(NULL)
 {
 	data=malloc(size);
 	if( NULL == data)
@@ -132,7 +132,7 @@ void IOnode::_unregist()
 	}
 }
 
-int IOnode::_insert_block(block_info blocks,  unsigned long start_point,  unsigned long size) throw(std::bad_alloc,  std::invalid_argument)
+int IOnode::_insert_block(block_info blocks, std::size_t start_point, std::size_t size) throw(std::bad_alloc,  std::invalid_argument)
 {
 	if( MAX_BLOCK_NUMBER < _current_block_number)
 	{
@@ -156,7 +156,7 @@ int IOnode::_insert_block(block_info blocks,  unsigned long start_point,  unsign
 	return start_point; 
 }
 
-void IOnode::_delete_block( block_info blocks, unsigned long start_point)
+void IOnode::_delete_block( block_info blocks, std::size_t start_point)
 {
 	block_info::iterator iterator; 
 	for(iterator = blocks.begin(); iterator != blocks.end() && start_point != (*iterator)->start_point;  ++iterator); 
@@ -181,4 +181,7 @@ int IOnode::_add_file(int file_no) throw(std::invalid_argument)
 	}
 }
 
-
+void IOnode::start_server()
+{
+	
+}
