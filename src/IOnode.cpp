@@ -5,13 +5,14 @@
  *      Author: xtq
  */
 
-#include "IOnode.h"
 #include <cstring>
 #include <iostream>
 #include <unistd.h>
 #include <arpa/inet.h>
 
-IOnode::block::block(std::size_t start_point, std::size_t size) throw(std::bad_alloc):size(size),start_point(start_point),data(NULL)
+#include "include/IOnode.h"
+
+IOnode::block::block(std::size_t start_point, std::size_t size) throw(std::bad_alloc):size(size),data(NULL), start_point(start_point)
 {
 	data=malloc(size);
 	if( NULL == data)
@@ -26,9 +27,9 @@ IOnode::block::~block()
 	free(data);
 }
 
-IOnode::block::block(const block & src):size(src.size),start_point(src.start_point),data(src.data){};
+IOnode::block::block(const block & src):size(src.size),data(src.data), start_point(src.start_point){};
 
-IOnode::IOnode(std::string my_ip, std::string master_ip,  int master_port) throw(std::runtime_error):
+IOnode::IOnode(const std::string& my_ip, const std::string& master_ip,  int master_port) throw(std::runtime_error):
 	_ip(my_ip),
 	_node_id(-1),
 	_files(file_blocks()), 
@@ -85,7 +86,7 @@ IOnode::~IOnode()
 	_unregist(); 
 }
 
-int IOnode::_regist(std::string& master_ip, int master_port) throw(std::runtime_error)
+int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::runtime_error)
 { 
 	memset(&_master_addr, 0, sizeof(_master_addr)); 
 	_master_conn_addr.sin_family = AF_INET;
@@ -132,7 +133,7 @@ void IOnode::_unregist()
 	}
 }
 
-int IOnode::_insert_block(block_info blocks, std::size_t start_point, std::size_t size) throw(std::bad_alloc,  std::invalid_argument)
+int IOnode::_insert_block(block_info& blocks, std::size_t start_point, std::size_t size) throw(std::bad_alloc,  std::invalid_argument)
 {
 	if( MAX_BLOCK_NUMBER < _current_block_number)
 	{
@@ -156,7 +157,7 @@ int IOnode::_insert_block(block_info blocks, std::size_t start_point, std::size_
 	return start_point; 
 }
 
-void IOnode::_delete_block( block_info blocks, std::size_t start_point)
+void IOnode::_delete_block(block_info& blocks, std::size_t start_point)
 {
 	block_info::iterator iterator; 
 	for(iterator = blocks.begin(); iterator != blocks.end() && start_point != (*iterator)->start_point;  ++iterator); 

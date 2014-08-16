@@ -7,6 +7,9 @@ const int MEMORY = 10000;
 const int MAX_BLOCK_NUMBER = 10; 
 const int MAX_QUEUE = 100; 
 const int BLOCK_SIZE = 1000; 
+const int MAX_NODE_NUMBER = 10; 
+const int LENGTH_OF_LISTEN_QUEUE = 10; 
+const int MAX_SERVER_BUFFER = 1000; 
 
 const int REGIST = 1; 
 const int UNREGIST = 2; 

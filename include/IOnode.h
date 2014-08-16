@@ -21,13 +21,13 @@
 #include <stdlib.h>
 #include <set>
 
-#include "IO_const.h"
+#include "include/IO_const.h"
 
 class IOnode
 {
 //API
 public:
-	IOnode(std::string my_ip, std::string master_ip,  int master_port) throw(std::runtime_error);
+	IOnode(const std::string& my_ip, const std::string& master_ip,  int master_port) throw(std::runtime_error);
 	~IOnode();
 	//start_io_server
 	void start_server(); 
@@ -45,6 +45,27 @@ private:
 		const std::size_t  start_point;
 	};
 
+//private function
+private:
+	typedef std::vector<block*> block_info; 
+	typedef std::map<int, block_info > file_blocks; 
+	//don't allow copy
+	IOnode(const IOnode&); 
+	//regist IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
+	int _regist(const std::string&  master, int master_port) throw(std::runtime_error);
+	//start IO server on failure throw runtime_error
+	void _init_server() throw(std::runtime_error); 
+	//unregist IOnode from master
+	void _unregist(); 
+	//insert block,  on success return start_point,  on failure throw bad_alloc
+	int _insert_block(block_info& blocks, std::size_t start_point, std::size_t size) throw(std::bad_alloc,  std::invalid_argument);
+	//delete block
+	void _delete_block(block_info& blocks, std::size_t start_point);  
+	
+	int _add_file(int file_no) throw(std::invalid_argument);  
+
+	int _delete_file(int file_no) throw(std::invalid_argument); 
+
 //private member
 private:
 	/*map : block_id , block
@@ -52,19 +73,17 @@ private:
 	//map : file_no,  block_ids
 	typedef std::map<int, std::set<int> > file_info; */
 
-	typedef std::vector<block*> block_info; 
-	typedef std::map<int, block_info > file_blocks; 
 	//ip address
 	const std::string _ip;
 	//node id
-	unsigned int _node_id;
+	int _node_id;
 	/*block_info _blocks;
 	file_info _files;*/
 
 	file_blocks _files;
 	
-	unsigned int _current_block_number;
-	unsigned int _MAX_BLOCK_NUMBER;
+	int _current_block_number;
+	int _MAX_BLOCK_NUMBER;
 	//remain available memory; 
 	std::size_t _memory;
 	//master_conn_port
@@ -79,25 +98,6 @@ private:
 	int _node_server_socket;
 	//socket used to connect with master
 	int _master_socket;
-
-//private function
-private:
-	//don't allow copy
-	IOnode(const IOnode&); 
-	//regist IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
-	int _regist(std::string&  master, int master_port) throw(std::runtime_error);
-	//start IO server on failure throw runtime_error
-	void _init_server() throw(std::runtime_error); 
-	//unregist IOnode from master
-	void _unregist(); 
-	//insert block,  on success return start_point,  on failure throw bad_alloc
-	int _insert_block(block_info blocks, std::size_t start_point, std::size_t size) throw(std::bad_alloc,  std::invalid_argument);
-	//delete block
-	void _delete_block(block_info blocks, std::size_t start_point);  
-	
-	int _add_file(int file_no) throw(std::invalid_argument);  
-
-	int _delete_file(int file_no) throw(std::invalid_argument); 
 };
 
 #endif
