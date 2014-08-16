@@ -45,10 +45,10 @@ private:
 
 private:
 	std::vector<node_info> IOnodes;
-	unsigned int number_node;
+	int number_node;
 	file_info files; 
 	bool *_id_pool; 
-	unsigned int _now_node_number; 
+	int _now_node_number; 
 	struct sockaddr_in _server_addr; 
 	int _server_socket;
 
