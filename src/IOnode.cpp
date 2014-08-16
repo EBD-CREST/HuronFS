@@ -116,6 +116,7 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 	send(_master_socket, &REGIST, sizeof(REGIST),  0);
 	char id[sizeof(int)]; 
 	recv(_master_socket, id,  sizeof(id), 0);
+	printf("id = %d\n ", atoi(id)); 
 	return atoi(id); 
 }
 

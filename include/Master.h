@@ -48,7 +48,7 @@ private:
 	int _add_IO_node(const std::string& node_ip, std::size_t avaliable_memory)throw(std::bad_alloc);
 	int _add_file(const std::string& file_path);
 	int _get_file_blocks(const std::string& file_path);  
-	int _get_node_id()throw(std::bad_alloc); 
+	int _get_node_id(); 
 	void _init_server()throw(std::runtime_error); 
 	//support dynamic node info query
 	void _command(); 

@@ -59,8 +59,13 @@ int Master::_add_IO_node(const std::string& node_ip, std::size_t total_memory)th
 	return 1; 
 }
 
-int Master::_get_node_id()throw(std::bad_alloc)
+int Master::_get_node_id()
 {
+	if(-1  == _now_node_number)
+	{
+		return -1; 
+	}
+
 	for(; _now_node_number<MAX_NODE_NUMBER; ++_now_node_number)
 	{
 		if(!_id_pool[_now_node_number])
@@ -77,7 +82,7 @@ int Master::_get_node_id()throw(std::bad_alloc)
 			return _now_node_number;
 		}
 	}
-	throw std::bad_alloc(); 
+	return -1; 
 }
 
 void Master::_init_server() throw(std::runtime_error)
@@ -118,8 +123,8 @@ void Master::start_server()
 			close(new_client); 
 			continue; 
 		}
-		char buffer[MAX_SERVER_BUFFER]; 
-		int len=recv(new_client, buffer, MAX_SERVER_BUFFER, 0); 
+		char recv_buffer[MAX_SERVER_BUFFER]; 
+		int len=recv(new_client, recv_buffer, MAX_SERVER_BUFFER, 0); 
 		if(0 > len)
 		{
 			fprintf(stderr, "Server Recvieve Data Failed\n"); 
@@ -127,7 +132,14 @@ void Master::start_server()
 			continue; 
 		}
 		printf("A New Client\n"); 
-		printf("Recieve Data\n%s\n", buffer); 
+		if(!strcmp(recv_buffer, REGIST_STR))
+		{
+			int new_id=_get_node_id(); 
+			char send_buffer[sizeof(int)]; 
+			printf("Regist IOnode id=%d\n", new_id); 
+			sprintf(send_buffer, "%d", new_id); 
+			send(new_client, send_buffer, sizeof(send_buffer), 0); 
+		}
 		close(new_client); 
 	}
 	return; 

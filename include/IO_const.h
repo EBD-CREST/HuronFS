@@ -13,6 +13,8 @@ const int MAX_SERVER_BUFFER = 1000;
 const int MAX_COMMAND_SIZE = 1000; 
 
 const int REGIST = 1; 
+const char REGIST_STR[]="1"; 
 const int UNREGIST = 2; 
+const char UNREGIST_STR[]="2"; 
 
 #endif
