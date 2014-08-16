@@ -138,3 +138,32 @@ void Master::stop_server()
 	close(_server_socket); 
 	return; 
 }
+
+void Master::_command()
+{
+	printf("command:\nprint_node_info\n"); 
+}
+
+void Master::_parse_input()
+{
+	char buffer[MAX_COMMAND_SIZE]; 
+	scanf("%s", buffer); 
+	if(!strcmp(buffer, "print_node_info"))
+	{
+		_print_node_info(); 
+		return; 
+	}
+	_command(); 
+}
+
+void Master::_print_node_info()
+{
+	int count=0; 
+	for(nodes::const_iterator it=IOnodes.begin(); it!=IOnodes.end(); ++it)
+	{
+		printf("IOnode %d:\nip=%s\ntotal_memory=%lu\navaliable_memory=%lu\n", ++count, it->ip.c_str(), it->avaliable_memory, it->total_memory);
+	}
+	return; 
+}
+
+

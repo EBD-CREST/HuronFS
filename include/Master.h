@@ -31,7 +31,6 @@ private:
 	//map file_no, vector<start_point>
 	typedef std::map<int, std::vector<std::size_t> > block_info; 
 	typedef std::map<std::string,  int> file_info; 
-
 	class node_info
 	{
 	public:
@@ -42,15 +41,8 @@ private:
 		std::size_t avaliable_memory; 
 		std::size_t total_memory; 
 	}; 
+	typedef std::vector<node_info> nodes; 
 
-private:
-	std::vector<node_info> IOnodes;
-	int number_node;
-	file_info files; 
-	bool *_id_pool; 
-	int _now_node_number; 
-	struct sockaddr_in _server_addr; 
-	int _server_socket;
 
 private:
 	int _add_IO_node(const std::string& node_ip, std::size_t avaliable_memory)throw(std::bad_alloc);
@@ -58,6 +50,20 @@ private:
 	int _get_file_blocks(const std::string& file_path);  
 	int _get_node_id()throw(std::bad_alloc); 
 	void _init_server()throw(std::runtime_error); 
+	//support dynamic node info query
+	void _command(); 
+	void _parse_input(); 
+	void _print_node_info(); 
+
+private:
+	nodes IOnodes;
+	int number_node;
+	file_info files; 
+	bool *_id_pool; 
+	int _now_node_number; 
+	struct sockaddr_in _server_addr; 
+	int _server_socket;
+
 };
 
 #endif

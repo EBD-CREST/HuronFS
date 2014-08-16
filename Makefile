@@ -8,8 +8,8 @@ LIB = lib
 BIN = bin
 
 CC = g++
-FLAG = -O3 -Wall
-
+#FLAG = -O3 -Wall
+FLAG = -g -Wall
 run:
 	@echo 'run make master'
 	@echo 'or make ionode'
