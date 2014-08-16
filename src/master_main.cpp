@@ -5,8 +5,16 @@
 
 int main(int argc, char **argv)
 {
-	Master master; 
-	master.start_server(); 
-	master.stop_server(); 
+	try
+	{
+		Master master; 
+		master.start_server(); 
+		master.stop_server(); 
+	}
+	catch(std::runtime_error &e)
+	{
+		fprintf(stderr, "%s\n", e.what()); 
+		exit(1); 
+	}
 	return 0; 
 }

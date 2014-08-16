@@ -12,7 +12,7 @@
 #include "include/Master.h"
 #include "include/IO_const.h"
 
-Master::node_info::node_info(const std::string& ip, std::size_t total_memory,  unsigned int node_id):
+Master::node_info::node_info(const std::string& ip, std::size_t total_memory, int node_id):
 	ip(ip), 
 	blocks(block_info()), 
 	node_id(node_id), 
@@ -20,7 +20,7 @@ Master::node_info::node_info(const std::string& ip, std::size_t total_memory,  u
 	total_memory(total_memory)
 {}
 
-Master::Master():
+Master::Master()throw(std::runtime_error):
 	IOnodes(std::vector<node_info>()), 
 	number_node(0), 
 	files(file_info()), 
@@ -29,6 +29,14 @@ Master::Master():
 {
 	memset(_id_pool, 0, MAX_NODE_NUMBER*sizeof(bool)); 
 	memset(&_server_addr, 0, sizeof(_server_addr)); 
+	try
+	{
+		_init_server(); 
+	}
+	catch(std::runtime_error)
+	{
+		throw; 
+	}
 }
 
 Master::~Master()

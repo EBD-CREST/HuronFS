@@ -22,7 +22,7 @@ class Master
 {
 	//API
 public:
-	Master();
+	Master()throw(std::runtime_error);
 	~Master();
 	void start_server(); 
 	void stop_server(); 
@@ -35,10 +35,10 @@ private:
 	class node_info
 	{
 	public:
-		node_info(const std::string& ip, std::size_t total_memory,  unsigned int node_id); 
+		node_info(const std::string& ip, std::size_t total_memory, int node_id); 
 		std::string ip; 
 		block_info blocks;
-		unsigned int node_id; 
+		int node_id; 
 		std::size_t avaliable_memory; 
 		std::size_t total_memory; 
 	}; 
