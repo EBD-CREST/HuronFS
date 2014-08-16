@@ -9,6 +9,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <stdio.h>
 
 #include "include/IOnode.h"
 
@@ -74,7 +75,7 @@ void IOnode::_init_server() throw(std::runtime_error)
 		throw std::runtime_error("Server Listen PORT ERROR");  
 	}
 	
-	std::cout << "Start IO node Server" << std::endl; 
+	printf("Start IO node Server\n");
 }	
 
 IOnode::~IOnode()
@@ -99,11 +100,6 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 		throw std::runtime_error("Create Socket Failed"); 
 	}
 
-	if(bind(_master_socket,  reinterpret_cast<struct sockaddr*>(&_master_conn_addr), sizeof(_master_conn_addr)))
-	{
-		//perror("Client Bind Port Failed");
-		throw std::runtime_error("Client Bind Port Failed");  
-	}
 	memset(&_master_addr, 0,  sizeof(_master_addr)); 
 	_master_addr.sin_family = AF_INET; 
 	if( 0  ==  inet_aton(master_ip.c_str(), &_master_addr.sin_addr))
@@ -112,10 +108,10 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 		throw std::runtime_error("Server IP Address Error");
 	}
 
-	_master_addr.sin_port = htons(_master_port); 
-	if( connect(_master_socket,  reinterpret_cast<struct sockaddr*>(&_master_addr),  sizeof(_master_addr)))
+	_master_addr.sin_port = htons(MASTER_PORT); 
+	if(0 !=  connect(_master_socket,  reinterpret_cast<struct sockaddr*>(&_master_addr),  sizeof(_master_addr)))
 	{
-		throw std::runtime_error("Can Not Connect To master");  
+		throw std::runtime_error("Can Not Connect To Master");  
 	}
 	send(_master_socket, &REGIST, sizeof(REGIST),  0);
 	char id[sizeof(int)]; 
