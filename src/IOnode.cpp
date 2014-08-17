@@ -33,14 +33,14 @@ IOnode::block::~block()
 IOnode::block::block(const block & src):size(src.size),data(src.data), start_point(src.start_point){};
 
 IOnode::IOnode(const std::string& my_ip, const std::string& master_ip,  int master_port) throw(std::runtime_error):
+	Server(IONODE_PORT), 
 	_ip(my_ip),
 	_node_id(-1),
 	_files(file_blocks()), 
 	_current_block_number(0), 
 	_MAX_BLOCK_NUMBER(MAX_BLOCK_NUMBER), 
 	_memory(MEMORY), 
-	_master_port(MASTER_PORT), 
-	_node_server_socket(-1) 
+	_master_port(MASTER_CONN_PORT)
 {
 	if(-1  ==  (_node_id=_regist(master_ip,  master_port)))
 	{
@@ -48,7 +48,7 @@ IOnode::IOnode(const std::string& my_ip, const std::string& master_ip,  int mast
 	}
 	try
 	{
-		_init_server(); 
+		Server::_init_server();
 	}
 	catch(std::runtime_error& e)
 	{
@@ -57,7 +57,7 @@ IOnode::IOnode(const std::string& my_ip, const std::string& master_ip,  int mast
 	}
 }
 
-void IOnode::_init_server() throw(std::runtime_error)
+/*void IOnode::_init_server() throw(std::runtime_error)
 {
 	memset(&_node_server_addr, 0, sizeof(_node_server_addr));
 	_node_server_addr.sin_family = AF_INET; 
@@ -79,22 +79,23 @@ void IOnode::_init_server() throw(std::runtime_error)
 		throw std::runtime_error("Server Listen PORT ERROR");  
 	}
 	
-}	
+}	*/
 
 IOnode::~IOnode()
 {
-	if(-1 != _node_server_socket)
-	{
-		close(_node_server_socket); 
-	}
 	_unregist(); 
 }
 
 int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::runtime_error)
 { 
-	memset(&_master_addr, 0, sizeof(_master_addr)); 
+	memset(&_master_conn_addr, 0, sizeof(_master_conn_addr));
 	_master_conn_addr.sin_family = AF_INET;
-	_master_conn_addr.sin_addr.s_addr = htons(MASTER_CONN_PORT); 
+	_master_conn_addr.sin_port = htons(_master_port); 
+	if( 0  ==  inet_aton(master_ip.c_str(), &_master_conn_addr.sin_addr))
+	{
+		perror("Server IP Address Error"); 
+		throw std::runtime_error("Server IP Address Error");
+	}
 	
 	int master_socket = socket(PF_INET,  SOCK_STREAM, 0); 
 	if( 0 > master_socket)
@@ -102,18 +103,8 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 		perror("Create Socket Failed"); 
 		throw std::runtime_error("Create Socket Failed"); 
 	}
-
-	memset(&_master_addr, 0,  sizeof(_master_addr)); 
-	_master_addr.sin_family = AF_INET; 
-	if( 0  ==  inet_aton(master_ip.c_str(), &_master_addr.sin_addr))
-	{
-		perror("Server IP Address Error"); 
-		throw std::runtime_error("Server IP Address Error");
-	}
-
-	_master_addr.sin_port = htons(MASTER_PORT); 
 	int count=0;
-	while( MAX_CONNECT_TIME > count && 0 !=  connect(master_socket,  reinterpret_cast<struct sockaddr*>(&_master_addr),  sizeof(_master_addr)));
+	while( MAX_CONNECT_TIME > count && 0 !=  connect(master_socket,  reinterpret_cast<struct sockaddr*>(&_master_conn_addr),  sizeof(_master_conn_addr)));
 	if(MAX_CONNECT_TIME == count)
 	{
 		close(master_socket);
@@ -137,7 +128,7 @@ void IOnode::_unregist()throw(std::runtime_error)
 		throw std::runtime_error("Create Socket Failed"); 
 	}
 	int count=0;
-	while( MAX_CONNECT_TIME > count && 0 !=  connect(master_socket,  reinterpret_cast<struct sockaddr*>(&_master_addr),  sizeof(_master_addr)));
+	while( MAX_CONNECT_TIME > count && 0 !=  connect(master_socket,  reinterpret_cast<struct sockaddr*>(&_master_conn_addr),  sizeof(_master_conn_addr)));
 	if(MAX_CONNECT_TIME == count)
 	{
 		close(master_socket);
@@ -197,7 +188,28 @@ int IOnode::_add_file(int file_no) throw(std::invalid_argument)
 	}
 }
 
-void IOnode::start_server()
+/*void IOnode::start_server()
 {
 	printf("Start IO node Server\n");
+	while(1)
+	{
+		struct sockaddr_in client_addr; 
+		socklen_t length=sizeof(client_addr); 
+		int new_client=accept(_node_server_socket, reinterpret_cast<sockaddr *>(&client_addr), &length); 
+
+		if(0 > new_client)
+		{
+			perror("Server Accpet Failed"); 
+			close(new_client); 
+		}
+		fprintf(stderr, "A New Client\n"); 
+		_parse_request(new_client, client_addr); 
+		close(new_client); 
+	}
+	return; 
+}*/
+
+void IOnode::_parse_request(int sockfd, const struct sockaddr_in& client_addr)
+{
 }
+

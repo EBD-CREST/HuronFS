@@ -21,14 +21,14 @@
 #include <stdlib.h>
 #include <set>
 
-class IOnode
+#include "include/Server.h"
+
+class IOnode:public Server
 {
 //API
 public:
 	IOnode(const std::string& my_ip, const std::string& master_ip,  int master_port) throw(std::runtime_error);
 	~IOnode();
-	//start_io_server
-	void start_server(); 
 
 //nested class
 private:
@@ -51,8 +51,6 @@ private:
 	IOnode(const IOnode&); 
 	//regist IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
 	int _regist(const std::string&  master, int master_port) throw(std::runtime_error);
-	//start IO server on failure throw runtime_error
-	void _init_server() throw(std::runtime_error); 
 	//unregist IOnode from master
 	void _unregist() throw(std::runtime_error); 
 	//insert block,  on success return start_point,  on failure throw bad_alloc
@@ -64,6 +62,7 @@ private:
 
 	int _delete_file(int file_no) throw(std::invalid_argument); 
 	
+	virtual void _parse_request(int sockfd, const struct sockaddr_in& client_addr); 
 //private member
 private:
 	/*map : block_id , block
@@ -87,13 +86,7 @@ private:
 	//master_conn_port
 	int _master_port;
 	//IO-node_server_address
-	struct sockaddr_in _node_server_addr; 
-	//address and port used to connect with master
 	struct sockaddr_in _master_conn_addr; 
-	//master address and port
-	struct sockaddr_in _master_addr;
-	//IO-node server socket
-	int _node_server_socket;
 };
 
 #endif

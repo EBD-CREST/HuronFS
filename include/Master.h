@@ -12,13 +12,13 @@
 #include <vector>
 #include <string>
 #include <sys/types.h>
-#include <netinet/in.h>
 #include <stdexcept>
 #include <stdlib.h>
 
 #include "include/IO_const.h"
+#include "include/Server.h"
 
-class Master
+class Master:public Server
 {
 	//API
 public:
@@ -49,13 +49,13 @@ private:
 	int _add_file(const std::string& file_path);
 	int _get_file_blocks(const std::string& file_path);  
 	int _get_node_id(); 
-	void _init_server()throw(std::runtime_error); 
+//	void _init_server()throw(std::runtime_error); 
 	//support dynamic node info query
 	void _command()const; 
 	void _parse_input(); 
 	void _print_node_info();
 	nodes::iterator _find(const std::string&);
-	void _parse_request(int clientfd, const struct sockaddr_in& client_addr);
+	virtual void _parse_request(int fd, const struct sockaddr_in& client_addr); 
 
 private:
 	nodes IOnodes;
@@ -63,9 +63,8 @@ private:
 	file_info files; 
 	bool *_id_pool; 
 	int _now_node_number; 
-	struct sockaddr_in _server_addr; 
-	int _server_socket;
-
+	//struct sockaddr_in _server_addr; 
+	//int _server_socket;
 };
 
 #endif

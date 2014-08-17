@@ -22,14 +22,14 @@ Master::node_info::node_info(const std::string& ip, std::size_t total_memory):
 {}
 
 Master::Master()throw(std::runtime_error):
+	Server(MASTER_PORT), 
 	IOnodes(nodes()), 
 	number_node(0), 
 	files(file_info()), 
 	_id_pool(new bool[MAX_NODE_NUMBER]), 
-	_now_node_number(0)
+	_now_node_number(0) 
 {
 	memset(_id_pool, 0, MAX_NODE_NUMBER*sizeof(bool)); 
-	memset(&_server_addr, 0, sizeof(_server_addr)); 
 	try
 	{
 		_init_server(); 
@@ -42,7 +42,7 @@ Master::Master()throw(std::runtime_error):
 
 Master::~Master()
 {
-	stop_server(); 
+	Server::_stop_server(); 
 }
 
 int Master::_add_IO_node(const std::string& node_ip, std::size_t total_memory)
@@ -104,7 +104,7 @@ int Master::_get_node_id()
 	return -1; 
 }
 
-void Master::_init_server() throw(std::runtime_error)
+/*void Master::_init_server() throw(std::runtime_error)
 {
 	_server_addr.sin_family=AF_INET; 
 	_server_addr.sin_addr.s_addr=htons(INADDR_ANY); 
@@ -125,34 +125,7 @@ void Master::_init_server() throw(std::runtime_error)
 		throw std::runtime_error("Server Listen Failed!"); 
 	}
 	return; 
-}
-
-void Master::start_server()
-{
-	while(1)
-	{
-		struct sockaddr_in client_addr; 
-		socklen_t length=sizeof(client_addr); 
-		int new_client=accept(_server_socket, reinterpret_cast<sockaddr *>(&client_addr), &length); 
-
-		if( 0 > new_client)
-		{
-			fprintf(stderr, "Server Accept Failed\n"); 
-			close(new_client); 
-			continue; 
-		}
-		fprintf(stderr, "A New Client\n");
-		_parse_request(new_client, client_addr);
-		close(new_client); 
-	}
-	return; 
-}
-
-void Master::stop_server()
-{
-	close(_server_socket); 
-	return; 
-}
+}*/
 
 void Master::_command()const
 {
