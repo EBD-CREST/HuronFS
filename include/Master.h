@@ -34,26 +34,28 @@ private:
 	class node_info
 	{
 	public:
-		node_info(const std::string& ip, std::size_t total_memory, int node_id); 
+		node_info(const std::string& ip, std::size_t total_memory); 
 		std::string ip; 
 		block_info blocks;
-		int node_id; 
 		std::size_t avaliable_memory; 
-		std::size_t total_memory; 
+		std::size_t total_memory;
 	}; 
-	typedef std::vector<node_info> nodes; 
-
+	//map node_id, node_info
+	typedef std::map<int, node_info> nodes;
 
 private:
-	int _add_IO_node(const std::string& node_ip, std::size_t avaliable_memory)throw(std::bad_alloc);
+	int _add_IO_node(const std::string& node_ip, std::size_t avaliable_memory);
+	int _delete_IO_node(const std::string& node_ip);
 	int _add_file(const std::string& file_path);
 	int _get_file_blocks(const std::string& file_path);  
 	int _get_node_id(); 
 	void _init_server()throw(std::runtime_error); 
 	//support dynamic node info query
-	void _command(); 
+	void _command()const; 
 	void _parse_input(); 
-	void _print_node_info(); 
+	void _print_node_info();
+	nodes::iterator _find(const std::string&);
+	void _parse_request(int clientfd, const struct sockaddr_in& client_addr);
 
 private:
 	nodes IOnodes;

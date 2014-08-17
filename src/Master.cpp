@@ -8,20 +8,21 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <cstring>
+#include <arpa/inet.h>
 
 #include "include/Master.h"
 #include "include/IO_const.h"
+#include "include/Communication.h"
 
-Master::node_info::node_info(const std::string& ip, std::size_t total_memory, int node_id):
+Master::node_info::node_info(const std::string& ip, std::size_t total_memory):
 	ip(ip), 
 	blocks(block_info()), 
-	node_id(node_id), 
 	avaliable_memory(total_memory), 
 	total_memory(total_memory)
 {}
 
 Master::Master()throw(std::runtime_error):
-	IOnodes(std::vector<node_info>()), 
+	IOnodes(nodes()), 
 	number_node(0), 
 	files(file_info()), 
 	_id_pool(new bool[MAX_NODE_NUMBER]), 
@@ -44,20 +45,37 @@ Master::~Master()
 	stop_server(); 
 }
 
-int Master::_add_IO_node(const std::string& node_ip, std::size_t total_memory)throw(std::bad_alloc)
+int Master::_add_IO_node(const std::string& node_ip, std::size_t total_memory)
 {
 	int id=0; 
-	try
+	if(-1 == (id=_get_node_id()))
 	{
-		id=_get_node_id(); 
+		return -1;
 	}
-	catch(std::bad_alloc &e)
+	if(IOnodes.end() != _find(node_ip))
 	{
-		throw; 
+		return -1;
 	}
-	IOnodes.push_back(node_info(node_ip, total_memory, id));
-	return 1; 
+	IOnodes.insert(std::make_pair(id, node_info(node_ip, total_memory)));
+	return id; 
 }
+
+int Master::_delete_IO_node(const std::string& node_ip)
+{
+	nodes::iterator it=_find(node_ip);
+	if(it != IOnodes.end())
+	{
+		int id=it->first;
+		IOnodes.erase(it);
+		_id_pool[id]=false;
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
 
 int Master::_get_node_id()
 {
@@ -82,6 +100,7 @@ int Master::_get_node_id()
 			return _now_node_number;
 		}
 	}
+	_now_node_number=-1;
 	return -1; 
 }
 
@@ -116,30 +135,14 @@ void Master::start_server()
 		socklen_t length=sizeof(client_addr); 
 		int new_client=accept(_server_socket, reinterpret_cast<sockaddr *>(&client_addr), &length); 
 
-
 		if( 0 > new_client)
 		{
 			fprintf(stderr, "Server Accept Failed\n"); 
 			close(new_client); 
 			continue; 
 		}
-		char recv_buffer[MAX_SERVER_BUFFER]; 
-		int len=recv(new_client, recv_buffer, MAX_SERVER_BUFFER, 0); 
-		if(0 > len)
-		{
-			fprintf(stderr, "Server Recvieve Data Failed\n"); 
-			close(new_client); 
-			continue; 
-		}
-		printf("A New Client\n"); 
-		if(!strcmp(recv_buffer, REGIST_STR))
-		{
-			int new_id=_get_node_id(); 
-			char send_buffer[sizeof(int)]; 
-			printf("Regist IOnode id=%d\n", new_id); 
-			sprintf(send_buffer, "%d", new_id); 
-			send(new_client, send_buffer, sizeof(send_buffer), 0); 
-		}
+		fprintf(stderr, "A New Client\n");
+		_parse_request(new_client, client_addr);
 		close(new_client); 
 	}
 	return; 
@@ -151,7 +154,7 @@ void Master::stop_server()
 	return; 
 }
 
-void Master::_command()
+void Master::_command()const
 {
 	printf("command:\nprint_node_info\n"); 
 }
@@ -173,9 +176,36 @@ void Master::_print_node_info()
 	int count=0; 
 	for(nodes::const_iterator it=IOnodes.begin(); it!=IOnodes.end(); ++it)
 	{
-		printf("IOnode %d:\nip=%s\ntotal_memory=%lu\navaliable_memory=%lu\n", ++count, it->ip.c_str(), it->avaliable_memory, it->total_memory);
+		const node_info &node=it->second;
+		printf("IOnode %d:\nip=%s\ntotal_memory=%lu\navaliable_memory=%lu\n", ++count, node.ip.c_str(), node.avaliable_memory, node.total_memory);
 	}
 	return; 
 }
 
+Master::nodes::iterator Master::_find(const std::string &ip)
+{
+	nodes::iterator it=IOnodes.begin();
+	for(; it != IOnodes.end() && ! (it->second.ip == ip); ++it);
+	return it;
+}
+
+void Master::_parse_request(int clientfd, const struct sockaddr_in& client_addr)
+{
+	int request,tmp;
+	Recv(clientfd, request);
+	switch(request)
+	{
+	case REGIST:
+		fprintf(stderr, "regist IOnode\n");
+		Recv(clientfd, tmp);
+		Send(clientfd, _add_IO_node(std::string(inet_ntoa(client_addr.sin_addr)), tmp));break;
+	case UNREGIST:
+		fprintf(stderr, "unregist IOnode\n");
+		_delete_IO_node(std::string(inet_ntoa(client_addr.sin_addr)));break;
+	default:
+		printf("unrecogisted communication\n");
+	}
+	_print_node_info();
+	return;
+}
 

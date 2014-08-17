@@ -21,8 +21,6 @@
 #include <stdlib.h>
 #include <set>
 
-#include "include/IO_const.h"
-
 class IOnode
 {
 //API
@@ -56,7 +54,7 @@ private:
 	//start IO server on failure throw runtime_error
 	void _init_server() throw(std::runtime_error); 
 	//unregist IOnode from master
-	void _unregist(); 
+	void _unregist() throw(std::runtime_error); 
 	//insert block,  on success return start_point,  on failure throw bad_alloc
 	int _insert_block(block_info& blocks, std::size_t start_point, std::size_t size) throw(std::bad_alloc,  std::invalid_argument);
 	//delete block
@@ -65,7 +63,7 @@ private:
 	int _add_file(int file_no) throw(std::invalid_argument);  
 
 	int _delete_file(int file_no) throw(std::invalid_argument); 
-
+	
 //private member
 private:
 	/*map : block_id , block
@@ -96,8 +94,6 @@ private:
 	struct sockaddr_in _master_addr;
 	//IO-node server socket
 	int _node_server_socket;
-	//socket used to connect with master
-	int _master_socket;
 };
 
 #endif

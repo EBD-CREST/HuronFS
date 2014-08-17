@@ -12,6 +12,8 @@
 #include <stdio.h>
 
 #include "include/IOnode.h"
+#include "include/IO_const.h"
+#include "include/Communication.h"
 
 IOnode::block::block(std::size_t start_point, std::size_t size) throw(std::bad_alloc):size(size),data(NULL), start_point(start_point)
 {
@@ -38,8 +40,7 @@ IOnode::IOnode(const std::string& my_ip, const std::string& master_ip,  int mast
 	_MAX_BLOCK_NUMBER(MAX_BLOCK_NUMBER), 
 	_memory(MEMORY), 
 	_master_port(MASTER_PORT), 
-	_node_server_socket(-1), 
-	_master_socket(-1) 
+	_node_server_socket(-1) 
 {
 	if(-1  ==  (_node_id=_regist(master_ip,  master_port)))
 	{
@@ -64,18 +65,20 @@ void IOnode::_init_server() throw(std::runtime_error)
 	_node_server_addr.sin_port = htons(_master_port); 
 	if( 0 > (_node_server_socket = socket(PF_INET, SOCK_STREAM, 0)))
 	{
+		perror("Create Socket Failed"); 
 		throw std::runtime_error("Create Socket Failed");  
 	}
 	if(0 != bind(_node_server_socket, reinterpret_cast<struct sockaddr*>(&_node_server_addr), sizeof(_node_server_addr)))
 	{
+		perror("Server Bind Port Failed"); 
 		throw std::runtime_error("Server Bind Port Failed"); 
 	}
 	if(0 != listen(_node_server_socket, MAX_QUEUE))
 	{
+		perror("Server Listen PORT ERROR"); 
 		throw std::runtime_error("Server Listen PORT ERROR");  
 	}
 	
-	printf("Start IO node Server\n");
 }	
 
 IOnode::~IOnode()
@@ -93,10 +96,10 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 	_master_conn_addr.sin_family = AF_INET;
 	_master_conn_addr.sin_addr.s_addr = htons(MASTER_CONN_PORT); 
 	
-	_master_socket = socket(PF_INET,  SOCK_STREAM, 0); 
-	if( 0 > _master_socket)
+	int master_socket = socket(PF_INET,  SOCK_STREAM, 0); 
+	if( 0 > master_socket)
 	{
-		//perror("Create Socket Failed"); 
+		perror("Create Socket Failed"); 
 		throw std::runtime_error("Create Socket Failed"); 
 	}
 
@@ -104,30 +107,45 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 	_master_addr.sin_family = AF_INET; 
 	if( 0  ==  inet_aton(master_ip.c_str(), &_master_addr.sin_addr))
 	{
-		//perror("Server IP Address Error"); 
+		perror("Server IP Address Error"); 
 		throw std::runtime_error("Server IP Address Error");
 	}
 
 	_master_addr.sin_port = htons(MASTER_PORT); 
-	if(0 !=  connect(_master_socket,  reinterpret_cast<struct sockaddr*>(&_master_addr),  sizeof(_master_addr)))
+	int count=0;
+	while( MAX_CONNECT_TIME > count && 0 !=  connect(master_socket,  reinterpret_cast<struct sockaddr*>(&_master_addr),  sizeof(_master_addr)));
+	if(MAX_CONNECT_TIME == count)
 	{
-		throw std::runtime_error("Can Not Connect To Master");  
+		close(master_socket);
+		perror("Can not Connect to Master"); 
+		throw std::runtime_error("Can not Connect to Master");
 	}
-	send(_master_socket, &REGIST, sizeof(REGIST),  0);
-	char id[sizeof(int)]; 
-	recv(_master_socket, id,  sizeof(id), 0);
-	printf("id = %d\n ", atoi(id)); 
-	return atoi(id); 
+	Send(master_socket, REGIST);
+	Send(master_socket, _memory);
+	int id=-1;
+	Recv(master_socket, id);
+	close(master_socket);
+	return id; 
 }
 
-void IOnode::_unregist()
+void IOnode::_unregist()throw(std::runtime_error)
 {
-	if(-1 != _master_socket)
+	int master_socket = socket(PF_INET,  SOCK_STREAM, 0); 
+	if( 0 > master_socket)
 	{
-		send(_master_socket,  &UNREGIST,  sizeof(UNREGIST),  0);
-		close(_master_socket); 
-		_master_socket = -1; 
+		perror("Create Socket Failed"); 
+		throw std::runtime_error("Create Socket Failed"); 
 	}
+	int count=0;
+	while( MAX_CONNECT_TIME > count && 0 !=  connect(master_socket,  reinterpret_cast<struct sockaddr*>(&_master_addr),  sizeof(_master_addr)));
+	if(MAX_CONNECT_TIME == count)
+	{
+		close(master_socket);
+		perror("Can not Connect to Master"); 
+		throw std::runtime_error("Can not Connect to Master");
+	}
+	Send(master_socket, UNREGIST);
+	close(master_socket);
 }
 
 int IOnode::_insert_block(block_info& blocks, std::size_t start_point, std::size_t size) throw(std::bad_alloc,  std::invalid_argument)
@@ -181,5 +199,5 @@ int IOnode::_add_file(int file_no) throw(std::invalid_argument)
 
 void IOnode::start_server()
 {
-	
+	printf("Start IO node Server\n");
 }

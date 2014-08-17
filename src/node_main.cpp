@@ -4,6 +4,7 @@
 #include <sys/types.h>
 
 #include "include/IOnode.h"
+#include "include/IO_const.h"
 
 int main(int argc, char**argv)
 {
@@ -17,10 +18,11 @@ int main(int argc, char**argv)
 	try
 	{
 		IOnode node(master_ip, my_ip, MASTER_PORT); 
+		node.start_server();
 	}
 	catch(std::runtime_error& e)
 	{
-		fprintf(stderr, "%s\n", e.what()); 
+		fprintf(stderr, "IOnode regist Failed\n");
 		exit(1); 
 	}
 }
