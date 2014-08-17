@@ -42,7 +42,7 @@ Master::Master()throw(std::runtime_error):
 
 Master::~Master()
 {
-	Server::_stop_server(); 
+	Server::stop_server(); 
 }
 
 int Master::_add_IO_node(const std::string& node_ip, std::size_t total_memory)
