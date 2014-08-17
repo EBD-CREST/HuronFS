@@ -24,8 +24,6 @@ class Master:public Server
 public:
 	Master()throw(std::runtime_error);
 	~Master();
-	void start_server(); 
-	void stop_server(); 
 
 private:
 	//map file_no, vector<start_point>
