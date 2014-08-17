@@ -40,8 +40,10 @@ IOnode::IOnode(const std::string& my_ip, const std::string& master_ip,  int mast
 	_current_block_number(0), 
 	_MAX_BLOCK_NUMBER(MAX_BLOCK_NUMBER), 
 	_memory(MEMORY), 
-	_master_port(MASTER_CONN_PORT)
+	_master_port(MASTER_PORT)
 {
+	memset(&_master_conn_addr, 0, sizeof(_master_conn_addr));
+	memset(&_master_addr, 0, sizeof(_master_addr));
 	if(-1  ==  (_node_id=_regist(master_ip,  master_port)))
 	{
 		throw std::runtime_error("Get Node Id Error"); 
@@ -86,30 +88,53 @@ IOnode::~IOnode()
 	_unregist(); 
 }
 
-int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::runtime_error)
-{ 
-	memset(&_master_conn_addr, 0, sizeof(_master_conn_addr));
-	_master_conn_addr.sin_family = AF_INET;
-	_master_conn_addr.sin_port = htons(_master_port); 
-	if( 0  ==  inet_aton(master_ip.c_str(), &_master_conn_addr.sin_addr))
-	{
-		perror("Server IP Address Error"); 
-		throw std::runtime_error("Server IP Address Error");
-	}
-	
+int IOnode::_connect_to_master() throw(std::runtime_error)
+{
 	int master_socket = socket(PF_INET,  SOCK_STREAM, 0); 
 	if( 0 > master_socket)
 	{
 		perror("Create Socket Failed"); 
 		throw std::runtime_error("Create Socket Failed"); 
 	}
+	if(bind(master_socket, reinterpret_cast<struct sockaddr*>(&_master_conn_addr), sizeof(_master_conn_addr)))
+	{
+		perror("client bind port failed\n");
+		throw std::runtime_error("client bind port failed\n");
+	}
+	
 	int count=0;
-	while( MAX_CONNECT_TIME > count && 0 !=  connect(master_socket,  reinterpret_cast<struct sockaddr*>(&_master_conn_addr),  sizeof(_master_conn_addr)));
+	while( MAX_CONNECT_TIME > ++count && 0 !=  connect(master_socket,  reinterpret_cast<struct sockaddr*>(&_master_addr),  sizeof(_master_addr)));
 	if(MAX_CONNECT_TIME == count)
 	{
 		close(master_socket);
 		perror("Can not Connect to Master"); 
 		throw std::runtime_error("Can not Connect to Master");
+	}
+	return master_socket;
+}
+
+int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::runtime_error)
+{ 
+	_master_conn_addr.sin_family = AF_INET;
+	_master_conn_addr.sin_addr.s_addr = htons(INADDR_ANY);
+	_master_conn_addr.sin_port = htons(MASTER_CONN_PORT);
+
+	_master_addr.sin_family = AF_INET;
+	_master_addr.sin_port = htons(_master_port);
+	if( 0  ==  inet_aton(master_ip.c_str(), &_master_addr.sin_addr))
+	{
+		perror("Server IP Address Error"); 
+		throw std::runtime_error("Server IP Address Error");
+	}
+	std::cout << "Master" << master_ip <<":" << _master_port << std::endl;
+	int master_socket;
+	try
+	{
+		master_socket=_connect_to_master();
+	}
+	catch(std::runtime_error &e)
+	{
+		throw;
 	}
 	Send(master_socket, REGIST);
 	Send(master_socket, _memory);
@@ -121,19 +146,14 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 
 void IOnode::_unregist()throw(std::runtime_error)
 {
-	int master_socket = socket(PF_INET,  SOCK_STREAM, 0); 
-	if( 0 > master_socket)
+	int master_socket;
+	try
 	{
-		perror("Create Socket Failed"); 
-		throw std::runtime_error("Create Socket Failed"); 
+		master_socket=_connect_to_master();
 	}
-	int count=0;
-	while( MAX_CONNECT_TIME > count && 0 !=  connect(master_socket,  reinterpret_cast<struct sockaddr*>(&_master_conn_addr),  sizeof(_master_conn_addr)));
-	if(MAX_CONNECT_TIME == count)
+	catch(std::runtime_error &e)
 	{
-		close(master_socket);
-		perror("Can not Connect to Master"); 
-		throw std::runtime_error("Can not Connect to Master");
+		throw;
 	}
 	Send(master_socket, UNREGIST);
 	close(master_socket);

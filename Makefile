@@ -24,7 +24,7 @@ $(MASTER):$(SERVER_LIB).o $(MASTER).o $(SRC)/$(MASTER).cpp
 	$(CC) $(FLAG) -I . -o $(MASTER) $(SERVER_LIB).o $(MASTER_LIB).o $(SRC)/$(MASTER).cpp
 
 $(IONODE).o:$(SRC)/$(IONODE_LIB).cpp $(INCLUDE)/$(IONODE_LIB).h
-	$(CC) -c $(FLAG) -I . -o $(IONODE_LIB).o $(SRC)/$(IONODE_LIB).cpp $(SERVER_LIB).o
+	$(CC) -c $(FLAG) -I . -o $(IONODE_LIB).o $(SRC)/$(IONODE_LIB).cpp
 
 $(IONODE):$(SERVER_LIB).o $(IONODE).o $(SRC)/$(IONODE).cpp
 	$(CC) $(FLAG) -I . -o $(IONODE) $(SERVER_LIB).o $(IONODE_LIB).o $(SRC)/$(IONODE).cpp

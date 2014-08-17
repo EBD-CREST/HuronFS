@@ -49,6 +49,7 @@ private:
 	typedef std::map<int, block_info > file_blocks; 
 	//don't allow copy
 	IOnode(const IOnode&); 
+	int _connect_to_master()throw(std::runtime_error);
 	//regist IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
 	int _regist(const std::string&  master, int master_port) throw(std::runtime_error);
 	//unregist IOnode from master
@@ -86,7 +87,9 @@ private:
 	//master_conn_port
 	int _master_port;
 	//IO-node_server_address
-	struct sockaddr_in _master_conn_addr; 
+	struct sockaddr_in _master_conn_addr;
+
+	struct sockaddr_in _master_addr;
 };
 
 #endif
