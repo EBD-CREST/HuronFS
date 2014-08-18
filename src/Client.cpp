@@ -4,8 +4,9 @@
 #include <stdlib.h>
 
 #include "include/Client.h"
+#include "include/IO_const.h"
 
-int Client::_connect_to_master(const struct sockaddr& client_addr, const struct sockaddr& server_addr) throw(std::runtime_error)
+int Client::_connect_to_server(struct sockaddr_in& client_addr, struct sockaddr_in& server_addr) throw(std::runtime_error)
 {
 	int client_socket = socket(PF_INET,   SOCK_STREAM,  0);  
 	if( 0 > client_socket)
@@ -22,9 +23,9 @@ int Client::_connect_to_master(const struct sockaddr& client_addr, const struct 
 	while( MAX_CONNECT_TIME > ++count  &&  0 !=  connect(client_socket, reinterpret_cast<struct sockaddr*>(&server_addr), sizeof(server_addr))); 
 	if(MAX_CONNECT_TIME  ==  count)
 	{
-		close(server_socket); 
-		perror("Can not Connect to Master");  
-		throw std::runtime_error("Can not Connect to Master"); 
+		close(client_socket); 
+		perror("Can not Connect to Server");  
+		throw std::runtime_error("Can not Connect to Server"); 
 	}
-	return server_socket; 
+	return client_socket; 
 }

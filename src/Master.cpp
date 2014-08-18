@@ -14,18 +14,24 @@
 #include "include/IO_const.h"
 #include "include/Communication.h"
 
+Master::file_info::file_info(const std::string& path, std::size_t size):
+	path(path), 
+	IOnodes(node_t()), 
+	size(size)
+{}
+
 Master::node_info::node_info(const std::string& ip, std::size_t total_memory):
 	ip(ip), 
-	blocks(block_info()), 
+	stored_files(file_t()), 
 	avaliable_memory(total_memory), 
 	total_memory(total_memory)
 {}
 
 Master::Master()throw(std::runtime_error):
 	Server(MASTER_PORT), 
-	IOnodes(nodes()), 
-	number_node(0), 
-	files(file_info()), 
+	_registed_IOnodes(IOnode_t()), 
+	_buffered_files(file_no_t()), 
+	_number_node(0), 
 	_id_pool(new bool[MAX_NODE_NUMBER]), 
 	_now_node_number(0) 
 {
@@ -42,42 +48,49 @@ Master::Master()throw(std::runtime_error):
 
 Master::~Master()
 {
+	delete _id_pool; 
 	Server::stop_server(); 
 }
 
-int Master::_add_IO_node(const std::string& node_ip, std::size_t total_memory)
+ssize_t Master::_add_IO_node(const std::string& node_ip, std::size_t total_memory)
 {
-	int id=0; 
+	ssize_t id=0; 
 	if(-1 == (id=_get_node_id()))
 	{
 		return -1;
 	}
-	if(IOnodes.end() != _find(node_ip))
+	if(_registed_IOnodes.end() != _find_by_ip(node_ip))
 	{
 		return -1;
 	}
-	IOnodes.insert(std::make_pair(id, node_info(node_ip, total_memory)));
+	_registed_IOnodes.insert(std::make_pair(id, node_info(node_ip, total_memory)));
+	++_number_node; 
 	return id; 
 }
 
-int Master::_delete_IO_node(const std::string& node_ip)
+ssize_t Master::_delete_IO_node(const std::string& node_ip)
 {
-	nodes::iterator it=_find(node_ip);
-	if(it != IOnodes.end())
+	IOnode_t::iterator it=_find_by_ip(node_ip);
+	if(it != _registed_IOnodes.end())
 	{
-		int id=it->first;
-		IOnodes.erase(it);
+		ssize_t id=it->first;
+		_registed_IOnodes.erase(it);
 		_id_pool[id]=false;
-		return 1;
+		if(-1 == _now_node_number)
+		{
+			_now_node_number=id; 
+		}
+		--_number_node; 
+		return id;
 	}
 	else
 	{
-		return 0;
+		return -1;
 	}
 }
 
 
-int Master::_get_node_id()
+ssize_t Master::_get_node_id()
 {
 	if(-1  == _now_node_number)
 	{
@@ -124,7 +137,7 @@ void Master::_parse_input()
 void Master::_print_node_info()
 {
 	int count=0; 
-	for(nodes::const_iterator it=IOnodes.begin(); it!=IOnodes.end(); ++it)
+	for(IOnode_t::const_iterator it=_registed_IOnodes.begin(); it!=_registed_IOnodes.end(); ++it)
 	{
 		const node_info &node=it->second;
 		printf("IOnode %d:\nip=%s\ntotal_memory=%lu\navaliable_memory=%lu\n", ++count, node.ip.c_str(), node.avaliable_memory, node.total_memory);
@@ -132,10 +145,10 @@ void Master::_print_node_info()
 	return; 
 }
 
-Master::nodes::iterator Master::_find(const std::string &ip)
+Master::IOnode_t::iterator Master::_find_by_ip(const std::string &ip)
 {
-	nodes::iterator it=IOnodes.begin();
-	for(; it != IOnodes.end() && ! (it->second.ip == ip); ++it);
+	IOnode_t::iterator it=_registed_IOnodes.begin();
+	for(; it != _registed_IOnodes.end() && ! (it->second.ip == ip); ++it);
 	return it;
 }
 

@@ -22,8 +22,9 @@
 #include <set>
 
 #include "include/Server.h"
+#include "include/Client.h"
 
-class IOnode:public Server
+class IOnode:public Server, Client
 {
 //API
 public:

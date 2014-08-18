@@ -1,6 +1,7 @@
 MASTER_LIB = Master
 IONODE_LIB = IOnode
 SERVER_LIB = Server
+CLIENT_LIB = Client
 MASTER = master_main
 IONODE = node_main
 INCLUDE = include
@@ -17,6 +18,9 @@ run:
 $(SERVER_LIB).o:$(SRC)/$(SERVER_LIB).cpp $(INCLUDE)/$(SERVER_LIB).h
 	$(CC) -c $(FLAG) -I . -o $(SERVER_LIB).o $(SRC)/$(SERVER_LIB).cpp
 
+$(CLIENT_LIB).o:$(SRC)/$(CLIENT_LIB).cpp  $(INCLUDE)/$(CLIENT_LIB).h
+	$(CC) -c $(FLAG) -I . -o $(CLIENT_LIB).o $(SRC)/$(CLIENT_LIB).cpp
+
 $(MASTER).o:$(SRC)/$(MASTER_LIB).cpp $(INCLUDE)/$(MASTER_LIB).h
 	$(CC) -c $(FLAG) -I . -o $(MASTER_LIB).o $(SRC)/$(MASTER_LIB).cpp
 
@@ -26,8 +30,8 @@ $(MASTER):$(SERVER_LIB).o $(MASTER).o $(SRC)/$(MASTER).cpp
 $(IONODE).o:$(SRC)/$(IONODE_LIB).cpp $(INCLUDE)/$(IONODE_LIB).h
 	$(CC) -c $(FLAG) -I . -o $(IONODE_LIB).o $(SRC)/$(IONODE_LIB).cpp
 
-$(IONODE):$(SERVER_LIB).o $(IONODE).o $(SRC)/$(IONODE).cpp
-	$(CC) $(FLAG) -I . -o $(IONODE) $(SERVER_LIB).o $(IONODE_LIB).o $(SRC)/$(IONODE).cpp
+$(IONODE):$(SERVER_LIB).o $(IONODE).o $(SRC)/$(IONODE).cpp $(CLIENT_LIB).o
+	$(CC) $(FLAG) -I . -o $(IONODE) $(SERVER_LIB).o $(CLIENT_LIB).o $(IONODE_LIB).o $(SRC)/$(IONODE).cpp
 
 .PHONY:
 Master:$(MASTER)
