@@ -24,7 +24,6 @@ class Master:public Server
 public:
 	Master()throw(std::runtime_error);
 	~Master();
-
 private:
 	//map file_no, vector<start_point>
 	typedef std::map<int, std::vector<std::size_t> > block_info; 

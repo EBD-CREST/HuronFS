@@ -29,7 +29,6 @@ class IOnode:public Server
 public:
 	IOnode(const std::string& my_ip, const std::string& master_ip,  int master_port) throw(std::runtime_error);
 	~IOnode();
-
 //nested class
 private:
 
@@ -88,7 +87,6 @@ private:
 	int _master_port;
 	//IO-node_server_address
 	struct sockaddr_in _master_conn_addr;
-
 	struct sockaddr_in _master_addr;
 };
 

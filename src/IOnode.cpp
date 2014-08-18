@@ -59,30 +59,6 @@ IOnode::IOnode(const std::string& my_ip, const std::string& master_ip,  int mast
 	}
 }
 
-/*void IOnode::_init_server() throw(std::runtime_error)
-{
-	memset(&_node_server_addr, 0, sizeof(_node_server_addr));
-	_node_server_addr.sin_family = AF_INET; 
-	_node_server_addr.sin_addr.s_addr = htons(INADDR_ANY); 
-	_node_server_addr.sin_port = htons(_master_port); 
-	if( 0 > (_node_server_socket = socket(PF_INET, SOCK_STREAM, 0)))
-	{
-		perror("Create Socket Failed"); 
-		throw std::runtime_error("Create Socket Failed");  
-	}
-	if(0 != bind(_node_server_socket, reinterpret_cast<struct sockaddr*>(&_node_server_addr), sizeof(_node_server_addr)))
-	{
-		perror("Server Bind Port Failed"); 
-		throw std::runtime_error("Server Bind Port Failed"); 
-	}
-	if(0 != listen(_node_server_socket, MAX_QUEUE))
-	{
-		perror("Server Listen PORT ERROR"); 
-		throw std::runtime_error("Server Listen PORT ERROR");  
-	}
-	
-}	*/
-
 IOnode::~IOnode()
 {
 	_unregist(); 
@@ -207,27 +183,6 @@ int IOnode::_add_file(int file_no) throw(std::invalid_argument)
 		throw std::invalid_argument("file_no exists"); 
 	}
 }
-
-/*void IOnode::start_server()
-{
-	printf("Start IO node Server\n");
-	while(1)
-	{
-		struct sockaddr_in client_addr; 
-		socklen_t length=sizeof(client_addr); 
-		int new_client=accept(_node_server_socket, reinterpret_cast<sockaddr *>(&client_addr), &length); 
-
-		if(0 > new_client)
-		{
-			perror("Server Accpet Failed"); 
-			close(new_client); 
-		}
-		fprintf(stderr, "A New Client\n"); 
-		_parse_request(new_client, client_addr); 
-		close(new_client); 
-	}
-	return; 
-}*/
 
 void IOnode::_parse_request(int sockfd, const struct sockaddr_in& client_addr)
 {

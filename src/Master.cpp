@@ -104,29 +104,6 @@ int Master::_get_node_id()
 	return -1; 
 }
 
-/*void Master::_init_server() throw(std::runtime_error)
-{
-	_server_addr.sin_family=AF_INET; 
-	_server_addr.sin_addr.s_addr=htons(INADDR_ANY); 
-	_server_addr.sin_port=htons(MASTER_PORT); 
-	
-	_server_socket=socket(PF_INET, SOCK_STREAM, 0); 
-	if(0 > _server_socket)
-	{
-		throw std::runtime_error("Create Socket Failed"); 
-	}
-
-	if(0 != bind(_server_socket, reinterpret_cast<sockaddr *>(&_server_addr), sizeof(_server_addr)))
-	{
-		throw std::runtime_error("Server Bind Port Failed"); 
-	}
-	if(0 != listen(_server_socket, LENGTH_OF_LISTEN_QUEUE))
-	{
-		throw std::runtime_error("Server Listen Failed!"); 
-	}
-	return; 
-}*/
-
 void Master::_command()const
 {
 	printf("command:\nprint_node_info\n"); 
