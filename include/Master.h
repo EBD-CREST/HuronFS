@@ -61,7 +61,7 @@ private:
 	int _add_file(const std::string& file_path);
 	int _get_file_blocks(const std::string& file_path);  
 	ssize_t _get_node_id(); 
-	void _print_node_info(int socket);
+	void _print_node_info(int socket)const;
 	IOnode_t::iterator _find_by_ip(const std::string& ip);
 	virtual void _parse_request(int fd, const struct sockaddr_in& client_addr); 
 

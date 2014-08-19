@@ -4,10 +4,11 @@
  *  Created on: Aug 8, 2014
  *      Author: xtq
  */
+#include <sstream>
+#include <cstring>
 
 #include <unistd.h>
 #include <stdio.h>
-#include <cstring>
 #include <arpa/inet.h>
 
 #include "include/Master.h"
@@ -117,19 +118,19 @@ ssize_t Master::_get_node_id()
 	return -1; 
 }
 
-void Master::_print_node_info(int clientfd)
+void Master::_print_node_info(int clientfd)const 
 {
 	int count=0;
-	char *buffer=new char[100*_registed_IOnodes.size()], *tmp=buffer; 
-	Send(client, _registed_IOnodes.size()); 
+	std::ostringstream output; 
 	for(IOnode_t::const_iterator it=_registed_IOnodes.begin(); it!=_registed_IOnodes.end(); ++it)
 	{
 		const node_info &node=it->second;
-		sprintf(tmp, "IOnode %d:\nip=%s\ntotal_memory=%lu\navaliable_memory=%lu\n", ++count, node.ip.c_str(), node.avaliable_memory, node.total_memory);
-		while(0 != ++tmp); 
+		output << "IOnode :" << ++count  << std::endl << "ip=" << node.ip << std::endl<< "total_memory=" << node.total_memory << std::endl << "avaliable_memory=" << node.avaliable_memory << std::endl;
 	}
-	Sendv(clientfd, buffer, tmp-buffer); 
-	delete buffer; 
+	const std::string &s=output.str(); 
+	printf("%s",  s.c_str()); 
+	Send(clientfd, s.size()); 
+	Sendv(clientfd, s.c_str(), s.size()); 
 	return; 
 }
 
