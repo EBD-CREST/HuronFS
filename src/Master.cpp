@@ -117,31 +117,19 @@ ssize_t Master::_get_node_id()
 	return -1; 
 }
 
-void Master::_command()const
+void Master::_print_node_info(int clientfd)
 {
-	printf("command:\nprint_node_info\n"); 
-}
-
-void Master::_parse_input()
-{
-	char buffer[MAX_COMMAND_SIZE]; 
-	scanf("%s", buffer); 
-	if(!strcmp(buffer, "print_node_info"))
-	{
-		_print_node_info(); 
-		return; 
-	}
-	_command(); 
-}
-
-void Master::_print_node_info()
-{
-	int count=0; 
+	int count=0;
+	char *buffer=new char[100*_registed_IOnodes.size()], *tmp=buffer; 
+	Send(client, _registed_IOnodes.size()); 
 	for(IOnode_t::const_iterator it=_registed_IOnodes.begin(); it!=_registed_IOnodes.end(); ++it)
 	{
 		const node_info &node=it->second;
-		printf("IOnode %d:\nip=%s\ntotal_memory=%lu\navaliable_memory=%lu\n", ++count, node.ip.c_str(), node.avaliable_memory, node.total_memory);
+		sprintf(tmp, "IOnode %d:\nip=%s\ntotal_memory=%lu\navaliable_memory=%lu\n", ++count, node.ip.c_str(), node.avaliable_memory, node.total_memory);
+		while(0 != ++tmp); 
 	}
+	Sendv(clientfd, buffer, tmp-buffer); 
+	delete buffer; 
 	return; 
 }
 
@@ -165,10 +153,12 @@ void Master::_parse_request(int clientfd, const struct sockaddr_in& client_addr)
 	case UNREGIST:
 		fprintf(stderr, "unregist IOnode\n");
 		_delete_IO_node(std::string(inet_ntoa(client_addr.sin_addr)));break;
+	case PRINT_NODE_INFO:
+		fprintf(stderr, "requery for IOnode info\n"); 
+		_print_node_info(clientfd); 
 	default:
 		printf("unrecogisted communication\n");
 	}
-	_print_node_info();
 	return;
 }
 

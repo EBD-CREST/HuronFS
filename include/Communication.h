@@ -10,17 +10,17 @@
 #include <sys/types.h>
 
 //API declearation
-template<class T> std::size_t Recv(int sockfd, T& buffer);
+template<class T> size_t Recv(int sockfd, T& buffer);
 
-template<class T> std::size_t Send(int sockfd, const T& buffer);
+template<class T> size_t Send(int sockfd, const T& buffer);
 
-template<class T> int Recvv(int sockfd, T* buffer, int count);
+template<class T> size_t Recvv(int sockfd, T* buffer, int count);
 
-template<class T> int Sendv(int sockfd, const T* buffer, int count);
+template<class T> size_t Sendv(int sockfd, const T* buffer, int count);
 
 //implementation
 
-template<class T> std::size_t Recv(int sockfd, T& buffer)
+template<class T> size_t Recv(int sockfd, T& buffer)
 {
 	size_t length = sizeof(buffer);
 	ssize_t ret = 0;
@@ -42,7 +42,7 @@ template<class T> std::size_t Recv(int sockfd, T& buffer)
 	return sizeof(buffer)-length;
 }
 
-template<class T> std::size_t Send(int sockfd, const T& buffer)
+template<class T> size_t Send(int sockfd, const T& buffer)
 {
 	size_t length = sizeof(buffer);
 	ssize_t ret = 0;
@@ -64,30 +64,58 @@ template<class T> std::size_t Send(int sockfd, const T& buffer)
 	return sizeof(buffer)-length;
 }
 
-template<class T> std::size_t Recvv(int sockfd, T* buffer, int count)
+template<class T> size_t Recvv(int sockfd, T* buffer, size_t count)
 {
-	int i=0;
-	for(;i<count;++i)
+	size_t length = count*sizeof(T);
+	ssize_t ret = 0;
+	char *buffer_tmp = reinterpret_cast<char *>(&buffer);
+	struct iovec iov; 
+	iov.iov_base=reinterpret_cast<void*>(&buffer); 
+	iov.iov_len=length; 
+
+	while(0 != length && 0 != (ret=readv(sockfd, &iov, 1)))
 	{
-		if(sizeof(T) != Recv(sockfd, buffer[i]))
+		if(-1 == ret)
 		{
-			break;
+			if(EINVAL == errno)
+			{
+				continue; 
+			}
+			break; 
 		}
+		buffer_tmp += ret; 
+		length -= ret; 
+		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
+		iov.iov_len=length; 
 	}
-	return i;
+	return count*sizeof(T)-length;
 }
 
-template<class T> std::size_t Sendv(int sockfd, const T* buffer, int count)
+template<class T> size_t Sendv(int sockfd, const T* buffer, int count)
 {
-	int i=0;
-	for(;i<count;++i)
+	size_t length = count*sizeof(T);
+	ssize_t ret = 0;
+	const char *buffer_tmp = reinterpret_cast<const char *>(&buffer);
+	struct iovec iov; 
+	iov.iov_base=reinterpret_cast<void*>(&buffer); 
+	iov.iov_len=length; 
+
+	while(0 != length && 0 != (ret=writev(sockfd, &iov, 1)))
 	{
-		if(sizeof(T) != Send(sockfd, buffer[i]))
+		if(-1 == ret)
 		{
-			break;
+			if(EINVAL == errno)
+			{
+				continue; 
+			}
+			break; 
 		}
+		buffer_tmp += ret; 
+		length -= ret; 
+		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
+		iov.iov_len=length; 
 	}
-	return i;
+	return count*sizeof(T)-length;
 }
 
 #endif

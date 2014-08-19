@@ -29,9 +29,12 @@ void Server::_init_server()throw(std::runtime_error)
 		perror("Create Socket Failed");  
 		throw std::runtime_error("Create Socket Failed");   
 	}
+	int on = 1; 
+	setsockopt( _server_socket,  SOL_SOCKET,  SO_REUSEADDR,  &on,  sizeof(on) ); 
 	if(0 != bind(_server_socket,  reinterpret_cast<struct sockaddr*>(&_server_addr),  sizeof(_server_addr)))
 	{
-		perror("Server Bind Port Failed");  
+		perror("Server Bind Port Failed"); 
+		fprintf(stderr, "port=%d\n", _port); 
 		throw std::runtime_error("Server Bind Port Failed");  
 	}
 	if(0 != listen(_server_socket,  MAX_QUEUE))

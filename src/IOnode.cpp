@@ -78,7 +78,6 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 		perror("Server IP Address Error"); 
 		throw std::runtime_error("Server IP Address Error");
 	}
-	std::cout << "Master" << master_ip <<":" << _master_port << std::endl;
 	int master_socket;
 	try
 	{

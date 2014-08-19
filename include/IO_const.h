@@ -4,6 +4,7 @@
 const int MASTER_PORT = 9000; 
 const int MASTER_CONN_PORT = 9001; 
 const int IONODE_PORT = 8000; 
+
 const int MEMORY = 10000; 
 const int MAX_BLOCK_NUMBER = 10; 
 const int MAX_QUEUE = 100; 
@@ -13,8 +14,11 @@ const int LENGTH_OF_LISTEN_QUEUE = 10;
 const int MAX_SERVER_BUFFER = 1000; 
 const int MAX_COMMAND_SIZE = 1000; 
 const int MAX_CONNECT_TIME = 10;
+const int MAX_QUERY_LENGTH = 100; 
 
 const int REGIST = 1; 
 const int UNREGIST = 2; 
+
+const int PRINT_NODE_INFO = 20; 
 
 #endif
