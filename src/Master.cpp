@@ -15,28 +15,36 @@
 #include "include/IO_const.h"
 #include "include/Communication.h"
 
-Master::file_info::file_info(const std::string& path, std::size_t size):
+Master::file_info::file_info(const std::string& path, std::size_t size, const node_t& IOnodes, int flag):
 	path(path), 
-	IOnodes(node_t()), 
-	size(size)
+	IOnodes(IOnodes), 
+	size(size), 
+	flag(flag)
 {}
 
-Master::node_info::node_info(const std::string& ip, std::size_t total_memory):
+Master::node_info::node_info(const std::string& ip, std::size_t total_memory, int socket):
 	ip(ip), 
 	stored_files(file_t()), 
 	avaliable_memory(total_memory), 
-	total_memory(total_memory)
+	total_memory(total_memory), 
+	socket(socket)
 {}
 
 Master::Master()throw(std::runtime_error):
 	Server(MASTER_PORT), 
 	_registed_IOnodes(IOnode_t()), 
-	_buffered_files(file_no_t()), 
-	_number_node(0), 
-	_id_pool(new bool[MAX_NODE_NUMBER]), 
-	_now_node_number(0) 
+	_file_no(file_no_t()), 
+	_buffered_files(File_t()), 
+	_IOnode_socket(IOnode_sock_t()), 
+	_node_number(0), 
+	_file_number(0), 
+	_node_id_pool(new bool[MAX_NODE_NUMBER]), 
+	_file_no_pool(new bool[MAX_FILE_NUMBER]), 
+	_now_node_number(0), 
+	_now_file_no(0) 
 {
-	memset(_id_pool, 0, MAX_NODE_NUMBER*sizeof(bool)); 
+	memset(_node_id_pool, 0, MAX_NODE_NUMBER*sizeof(bool)); 
+	memset(_file_no_pool, 0, MAX_FILE_NUMBER*sizeof(bool)); 
 	try
 	{
 		_init_server(); 
@@ -49,11 +57,12 @@ Master::Master()throw(std::runtime_error):
 
 Master::~Master()
 {
-	delete _id_pool; 
 	Server::stop_server(); 
+	delete _node_id_pool;
+	delete _file_no_pool; 
 }
 
-ssize_t Master::_add_IO_node(const std::string& node_ip, std::size_t total_memory)
+ssize_t Master::_add_IO_node(const std::string& node_ip, std::size_t total_memory, int socket)
 {
 	ssize_t id=0; 
 	if(-1 == (id=_get_node_id()))
@@ -64,8 +73,11 @@ ssize_t Master::_add_IO_node(const std::string& node_ip, std::size_t total_memor
 	{
 		return -1;
 	}
-	_registed_IOnodes.insert(std::make_pair(id, node_info(node_ip, total_memory)));
-	++_number_node; 
+	_registed_IOnodes.insert(std::make_pair(id, node_info(node_ip, total_memory, socket)));
+	node_info *node=&(_registed_IOnodes.at(id)); 
+	_IOnode_socket.insert(std::make_pair(socket, node)); 
+	Server::_add_socket(socket); 
+	++_node_number; 
 	return id; 
 }
 
@@ -75,13 +87,13 @@ ssize_t Master::_delete_IO_node(const std::string& node_ip)
 	if(it != _registed_IOnodes.end())
 	{
 		ssize_t id=it->first;
+		int socket=it->second.socket; 
 		_registed_IOnodes.erase(it);
-		_id_pool[id]=false;
-		if(-1 == _now_node_number)
-		{
-			_now_node_number=id; 
-		}
-		--_number_node; 
+		Server::_delete_socket(socket); 
+		close(socket); 
+		_IOnode_socket.erase(socket); 
+		_node_id_pool[id]=false;
+		--_node_number; 
 		return id;
 	}
 	else
@@ -93,29 +105,52 @@ ssize_t Master::_delete_IO_node(const std::string& node_ip)
 
 ssize_t Master::_get_node_id()
 {
-	if(-1  == _now_node_number)
+	if(MAX_NODE_NUMBER == _node_number)
 	{
-		return -1; 
+		return -1;
 	}
-
 	for(; _now_node_number<MAX_NODE_NUMBER; ++_now_node_number)
 	{
-		if(!_id_pool[_now_node_number])
+		if(!_node_id_pool[_now_node_number])
 		{
-			_id_pool[_now_node_number]=true; 
+			_node_id_pool[_now_node_number]=true; 
 			return _now_node_number; 
 		}
 	}
 	for(_now_node_number=0;  _now_node_number<MAX_NODE_NUMBER; ++_now_node_number)
 	{
-		if(!_id_pool[_now_node_number])
+		if(!_node_id_pool[_now_node_number])
 		{
-			_id_pool[_now_node_number]=true; 
+			_node_id_pool[_now_node_number]=true; 
 			return _now_node_number;
 		}
 	}
-	_now_node_number=-1;
-	return -1; 
+	return -1;
+}
+
+ssize_t Master::_get_file_no()
+{
+	if(MAX_FILE_NUMBER == _file_number)
+	{
+		return -1;
+	}
+	for(; _now_file_no<MAX_FILE_NUMBER; ++_now_file_no)
+	{
+		if(!_file_no_pool[_now_file_no])
+		{
+			_file_no_pool[_now_file_no]=true; 
+			return _now_file_no; 
+		}
+	}
+	for(_now_file_no=0;  _now_file_no<MAX_FILE_NUMBER; ++_now_file_no)
+	{
+		if(!_file_no_pool[_now_file_no])
+		{
+			_file_no_pool[_now_file_no]=true; 
+			return _now_file_no;
+		}
+	}
+	return -1;
 }
 
 void Master::_print_node_info(int clientfd)const 
@@ -127,8 +162,7 @@ void Master::_print_node_info(int clientfd)const
 		const node_info &node=it->second;
 		output << "IOnode :" << ++count  << std::endl << "ip=" << node.ip << std::endl<< "total_memory=" << node.total_memory << std::endl << "avaliable_memory=" << node.avaliable_memory << std::endl;
 	}
-	const std::string &s=output.str(); 
-	printf("%s",  s.c_str()); 
+	std::string s=output.str(); 
 	Send(clientfd, s.size()); 
 	Sendv(clientfd, s.c_str(), s.size()); 
 	return; 
@@ -141,7 +175,7 @@ Master::IOnode_t::iterator Master::_find_by_ip(const std::string &ip)
 	return it;
 }
 
-void Master::_parse_request(int clientfd, const struct sockaddr_in& client_addr)
+void Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_addr)
 {
 	int request,tmp;
 	Recv(clientfd, request);
@@ -150,16 +184,92 @@ void Master::_parse_request(int clientfd, const struct sockaddr_in& client_addr)
 	case REGIST:
 		fprintf(stderr, "regist IOnode\n");
 		Recv(clientfd, tmp);
-		Send(clientfd, _add_IO_node(std::string(inet_ntoa(client_addr.sin_addr)), tmp));break;
+		Send(clientfd, _add_IO_node(std::string(inet_ntoa(client_addr.sin_addr)), tmp, clientfd));break;
 	case UNREGIST:
 		fprintf(stderr, "unregist IOnode\n");
 		_delete_IO_node(std::string(inet_ntoa(client_addr.sin_addr)));break;
 	case PRINT_NODE_INFO:
 		fprintf(stderr, "requery for IOnode info\n"); 
-		_print_node_info(clientfd); 
+		_print_node_info(clientfd);
+		close(clientfd); break; 
 	default:
-		printf("unrecogisted communication\n");
+		Send(clientfd, UNRECOGNISTED); 
+		close(clientfd); 
 	}
 	return;
 }
 
+void Master::_parse_registed_request(int clientfd)
+{
+	int request; 
+	Recv(clientfd, request); 
+	switch(request)
+	{
+	default:
+		Send(clientfd, UNRECOGNISTED); 
+	}
+	return; 
+}
+
+const Master::node_t& Master::_open_file(const std::string& file_path, int flag)throw(std::runtime_error)
+{
+	//open in read
+	file_no_t::iterator it; 
+	//file not buffered
+	const file_info *file; 
+	if(_file_no.end() ==  (it=_file_no.find(file_path)))
+	{
+		ssize_t new_file_no=_get_file_no(); 
+		if(-1 != new_file_no)
+		{
+			try
+			{
+				file_info new_file(file_path, BLOCK_SIZE, _read_from_storage(file_path, new_file_no), flag); 
+				_buffered_files.insert(std::make_pair(new_file_no, new_file));
+				file=&(_buffered_files.at(new_file_no)); 
+				_file_no.insert(std::make_pair(file_path, new_file_no)); 
+			}
+			catch(std::runtime_error &e)
+			{
+				throw; 
+			}
+		}
+	}
+	//file buffered
+	else
+	{
+		file=&(_buffered_files.at(it->second)); 
+	}
+	return file->IOnodes; 
+}
+
+Master::node_t Master::_read_from_storage(const std::string& file_path, ssize_t file_no)
+{
+	size_t file_length=0; 
+	size_t block_size=0; 
+	node_t nodes=_select_IOnode(file_length, block_size);
+	for(node_t::iterator it=nodes.begin(); 
+			nodes.end()!=it; ++it)
+	{
+		//send read request to each IOnode
+		//buffer requset
+		//file_no
+		//file_path length
+		//file_path
+		//start_point
+		Send(it->second, BUFFER_FILE);
+		Send(it->second, file_no); 
+		Send(it->second, file_path.size()); 
+		Sendv(it->second, file_path.c_str(), file_path.size()); 
+		Send(it->second, it->first); 
+		Send(it->second, block_size); 
+	}
+	return nodes; 
+}
+
+Master::node_t Master::_select_IOnode(size_t file_size, size_t block_size)
+{
+	//dummy 
+	node_t nodes; 
+	return nodes; 
+}

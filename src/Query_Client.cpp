@@ -23,20 +23,20 @@ Query_Client::Query_Client(int client_port):
 
 void Query_Client::_command()
 {
-	printf("print IOnode info\n"); 
+	printf("p:print IOnode info\n"); 
 }
 
 void Query_Client::parse_query()
 {
 	char buffer[MAX_QUERY_LENGTH]; 
 	int query=-1; 
-	scanf("%s", buffer);
+	printf("%s", buffer); 
 	if(-1  ==  server_addr.sin_port)
 	{
 		printf("set server first\n"); 
 		return; 
 	}
-	if(!strcpy(buffer, "print IOnode info"))
+	if(!strcmp(buffer, "p"))
 	{
 		query=PRINT_NODE_INFO; 
 	}

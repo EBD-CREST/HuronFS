@@ -1,16 +1,23 @@
 #include <cstring>
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/epoll.h>
 
 #include "include/Server.h"
 #include "include/IO_const.h"
+#include "include/Communication.h"
 
-Server::Server(int port):
-	_server_socket(0), 
+Server::Server(int port)throw(std::runtime_error):
 	_server_addr(sockaddr_in()), 
-	_port(port)
+	_port(port), 
+	_epollfd(epoll_create(MAX_NODE_NUMBER+1))
 {
 	memset(&_server_addr, 0, sizeof(_server_addr)); 
+	if(-1  ==  _epollfd)
+	{
+		perror("epoll_create"); 
+		throw std::runtime_error("epoll_create"); 
+	}
 }
 
 Server::~Server()
@@ -45,29 +52,70 @@ void Server::_init_server()throw(std::runtime_error)
 	return; 
 }
 
+int Server::_add_socket(int socketfd)
+{
+	struct epoll_event event; 
+	event.data.fd=socketfd; 
+	event.events=EPOLLIN|EPOLLET; 
+	_IOnode_socket_pool.insert(socketfd); 
+	return epoll_ctl(_epollfd, EPOLL_CTL_ADD, socketfd, &event); 
+}
+
+int Server::_delete_socket(int socketfd)
+{
+	struct epoll_event event; 
+	event.data.fd=socketfd; 
+	event.events=EPOLLIN|EPOLLET;
+	_IOnode_socket_pool.erase(socketfd); 
+	return epoll_ctl(_epollfd, EPOLL_CTL_DEL, socketfd, &event); 
+}
+
 void Server::start_server()
 {
+	struct epoll_event events[MAX_NODE_NUMBER+1]; 
+	memset(events, 0, sizeof(struct epoll_event)*(MAX_NODE_NUMBER+1)); 
 	while(1)
 	{
 		struct sockaddr_in client_addr;  
-		socklen_t length=sizeof(client_addr);  
-		int new_client=accept(_server_socket,  reinterpret_cast<sockaddr *>(&client_addr),  &length);  
-		if( 0 > new_client)
+		socklen_t length=sizeof(client_addr);
+		int nfds=epoll_wait(_epollfd, events, MAX_NODE_NUMBER+1, -1); 
+		for(int i=0; i<nfds; ++i)
 		{
-			fprintf(stderr,  "Server Accept Failed\n");  
-			close(new_client);  
-			continue;  
+			//new socket
+			if(events[i].data.fd  == _server_socket)
+			{
+				int new_client=accept(_server_socket,  reinterpret_cast<sockaddr *>(&client_addr),  &length);  
+				if( 0 > new_client)
+				{
+					fprintf(stderr,  "Server Accept Failed\n");  
+					close(new_client);  
+					continue;  
+				}
+				fprintf(stderr,  "A New Client\n"); 
+				_parse_new_request(new_client,  client_addr); 
+			}
+			//communication from registed nodes
+			else
+			{
+				_parse_registed_request(events[i].data.fd); 
+			}
 		}
-		fprintf(stderr,  "A New Client\n"); 
-		_parse_request(new_client,  client_addr); 
-		close(new_client);  
 	}
 	return;  
 }
 
 void Server::stop_server()
 {
+	for(socket_pool_t::iterator it=_IOnode_socket_pool.begin(); 
+			it!=_IOnode_socket_pool.end(); ++it)
+	{
+		//inform each client that server is shutdown
+		Send(*it, SERVER_SHUT_DOWN); 
+		//close socket
+		close(*it); 
+	}
 	close(_server_socket);  
+	close(_epollfd); 
 	return;
 }
 
