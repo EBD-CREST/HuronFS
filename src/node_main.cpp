@@ -14,7 +14,7 @@ int main(int argc, char**argv)
 		exit(0); 
 	}
 
-	std::string master_ip(argv[1])
+	std::string master_ip(argv[1]); 
 	try
 	{
 		IOnode node(master_ip, MASTER_PORT); 
