@@ -14,10 +14,10 @@ int main(int argc, char**argv)
 		exit(0); 
 	}
 
-	std::string master_ip(argv[1]), my_ip(argv[2]);
+	std::string master_ip(argv[1])
 	try
 	{
-		IOnode node(master_ip, my_ip, MASTER_PORT); 
+		IOnode node(master_ip, MASTER_PORT); 
 		node.start_server();
 	}
 	catch(std::runtime_error& e)

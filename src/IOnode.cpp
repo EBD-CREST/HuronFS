@@ -38,10 +38,9 @@ IOnode::block::~block()
 
 IOnode::block::block(const block & src):size(src.size),data(src.data), start_point(src.start_point){};
 
-IOnode::IOnode(const std::string& my_ip, const std::string& master_ip,  int master_port) throw(std::runtime_error):
+IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtime_error):
 	Server(IONODE_PORT), 
 	Client(), 
-	_ip(my_ip),
 	_node_id(-1),
 	_files(file_blocks()), 
 	_current_block_number(0), 

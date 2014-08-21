@@ -26,7 +26,7 @@ class IOnode:public Server, Client
 {
 //API
 public:
-	IOnode(const std::string& my_ip, const std::string& master_ip,  int master_port) throw(std::runtime_error);
+	IOnode(const std::string& master_ip,  int master_port) throw(std::runtime_error);
 	~IOnode();
 //nested class
 private:
@@ -73,8 +73,6 @@ private:
 //private member
 private:
 
-	//ip address
-	const std::string _ip;
 	//node id
 	int _node_id;
 	/*block_info _blocks;
