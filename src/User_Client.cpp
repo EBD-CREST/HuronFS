@@ -9,7 +9,7 @@
 #include "include/Communication.h"
 #include "include/Query_Client.h"
 
-Query_Client::Query_Client(int client_port):
+Query_Client::Query_Client(const std::string& master_ip, int client_port)throw(std::runtime_error):
 	Client()
 {
 	memset(&client_addr, 0, sizeof(client_addr)); 
@@ -17,8 +17,13 @@ Query_Client::Query_Client(int client_port):
 	client_addr.sin_family = AF_INET; 
 	client_addr.sin_addr.s_addr = htons(INADDR_ANY); 
 	client_addr.sin_port = htons(client_port); 
-	server_addr.sin_family = AF_INET; 
-	server_addr.sin_port = -1; 
+	master_addr.sin_family = AF_INET; 
+	master_addr.sin_port = htons(MASTER_CONN_PORT);
+	if(0 == inet_aton(master_ip.c_str(), &master_addr.sin_addr))
+	{
+		perror("Server IP Address Error"); 
+		throw std::runtime_error("Server IP Address Error"); 
+	}
 }
 
 void Query_Client::_command()
@@ -31,14 +36,9 @@ void Query_Client::parse_query()
 	char buffer[MAX_QUERY_LENGTH]; 
 	int query=-1; 
 	printf("%s", buffer); 
-	if(-1  ==  server_addr.sin_port)
+	if(!strcmp(buffer, "open"))
 	{
-		printf("set server first\n"); 
-		return; 
-	}
-	if(!strcmp(buffer, "p"))
-	{
-		query=PRINT_NODE_INFO; 
+		query=OPEN_FILE; 
 	}
 
 	if(-1 == query)
@@ -47,12 +47,15 @@ void Query_Client::parse_query()
 	}
 	else
 	{
-		int server_socket=Client::_connect_to_server(client_addr, server_addr); 
+		int server_socket=Client::_connect_to_server(client_addr, master_addr); 
 		Send(server_socket, query); 
-		char *buffer=NULL; 
-		Recvv(server_socket, &buffer); 
-		printf("%s", buffer); 
-		delete buffer; 
+		char path[100]; 
+		scanf("%s", path); 
+		Sendv(server_socket, path, strlen(path));
+		Send(server_socket, O_RDONLY); 
+		har *IOnode_info=Recvv(server_socket); 
+		printf("%s", IOnode_info); 
+		delete IOnode_info; 
 	}
 }
 

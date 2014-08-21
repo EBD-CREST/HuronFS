@@ -14,7 +14,7 @@ template<class T> size_t Recv(int sockfd, T& buffer);
 
 template<class T> size_t Send(int sockfd, const T& buffer);
 
-template<class T> size_t Recvv(int sockfd, T* buffer, int count);
+template<class T> size_t Recvv(int sockfd, T** buffer);
 
 template<class T> size_t Sendv(int sockfd, const T* buffer, int count);
 
@@ -64,13 +64,21 @@ template<class T> size_t Send(int sockfd, const T& buffer)
 	return sizeof(buffer)-length;
 }
 
-template<class T> size_t Recvv(int sockfd, T* buffer, size_t count)
+template<class T> size_t Recvv(int sockfd, T **buffer)
 {
-	size_t length = count*sizeof(T);
+	size_t length;
 	ssize_t ret = 0;
-	char *buffer_tmp = reinterpret_cast<char *>(buffer);
+	Recv(sockfd, length); 
+	
+	*buffer=new T[length]; 
+	char *buffer_tmp = reinterpret_cast<char *>(*buffer);
+	if(NULL  ==  *buffer)
+	{
+		return 0; 
+	}
+	
 	struct iovec iov; 
-	iov.iov_base=reinterpret_cast<void*>(buffer); 
+	iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
 	iov.iov_len=length; 
 
 	while(0 != length && 0 != (ret=readv(sockfd, &iov, 1)))
@@ -88,7 +96,7 @@ template<class T> size_t Recvv(int sockfd, T* buffer, size_t count)
 		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
 		iov.iov_len=length; 
 	}
-	return count*sizeof(T)-length;
+	return length;
 }
 
 template<class T> size_t Sendv(int sockfd,const T* buffer, int count)
@@ -100,6 +108,7 @@ template<class T> size_t Sendv(int sockfd,const T* buffer, int count)
 	iov.iov_base=const_cast<void *>(reinterpret_cast<const void*>(buffer)); 
 	iov.iov_len=length; 
 
+	Send(sockfd, length); 
 	while(0 != length && 0 != (ret=writev(sockfd, &iov, 1)))
 	{
 		if(-1 == ret)

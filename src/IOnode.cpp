@@ -166,34 +166,43 @@ int IOnode::_add_file(int file_no) throw(std::invalid_argument)
 	}
 }
 
-void IOnode::_parse_new_request(int sockfd, const struct sockaddr_in& client_addr)
+int IOnode::_parse_new_request(int sockfd, const struct sockaddr_in& client_addr)
 {
+	int request, ans; 
+	Recv(sockfd, request); 
+	switch(request)
+	{
+	case SERVER_SHUT_DOWN:
+		ans=SERVER_SHUT_DOWN; break; 
+	dafault:
+		break; 
+	}
+	return ans; 
 }
 
 //request from master
-void IOnode::_parse_registed_request(int sockfd)
+int IOnode::_parse_registed_request(int sockfd)
 {
-	int request; 
+	int request, ans=SUCCESS; 
 	Recv(sockfd, request); 
 	switch(request)
 	{
 	case BUFFER_FILE:
-		_buffer_new_file(sockfd); break; 
+		_buffer_new_file(sockfd);break; 
 	default:
 		break; 
 	}
-	return; 
+	return ans; 
 }
 
 IOnode::block_info* IOnode::_buffer_new_file(int sockfd)
 {
-	size_t length=0, start_point, block_size; 
+	size_t start_point, block_size; 
 	ssize_t file_no; 
+	char *path_buffer=NULL; 
 	Recv(sockfd, file_no);
 	block_info *blocks=NULL; 
-	Recv(sockfd, length); 
-	char *path_buffer=new char[length]; 
-	Recvv(sockfd, path_buffer, length); 
+	Recvv(sockfd, &path_buffer); 
 	Recv(sockfd, start_point); 
 	Recv(sockfd, block_size); 
 	if(_files.end() != _files.find(file_no))
@@ -205,6 +214,7 @@ IOnode::block_info* IOnode::_buffer_new_file(int sockfd)
 		blocks=&(_files[file_no]); 
 	}
 	blocks->insert(std::make_pair(start_point, _read_file(path_buffer, start_point, block_size))); 
+	delete path_buffer; 
 	return blocks; 
 }
 

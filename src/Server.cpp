@@ -79,6 +79,7 @@ void Server::start_server()
 		struct sockaddr_in client_addr;  
 		socklen_t length=sizeof(client_addr);
 		int nfds=epoll_wait(_epollfd, events, MAX_NODE_NUMBER+1, -1); 
+		int ret; 
 		for(int i=0; i<nfds; ++i)
 		{
 			//new socket
@@ -92,13 +93,17 @@ void Server::start_server()
 					continue;  
 				}
 				fprintf(stderr,  "A New Client\n"); 
-				_parse_new_request(new_client,  client_addr); 
+				ret=_parse_new_request(new_client,  client_addr);
 			}
 			//communication from registed nodes
 			else
 			{
-				_parse_registed_request(events[i].data.fd); 
+				ret=_parse_registed_request(events[i].data.fd); 
 			}
+		}
+		if(SERVER_SHUT_DOWN == ret)
+		{
+			break; 
 		}
 	}
 	return;  

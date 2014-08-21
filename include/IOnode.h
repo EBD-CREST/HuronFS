@@ -63,8 +63,8 @@ private:
 
 	int _delete_file(int file_no) throw(std::invalid_argument); 
 	
-	virtual void _parse_new_request(int sockfd, const struct sockaddr_in& client_addr); 
-	virtual void _parse_registed_request(int sockfd); 
+	virtual int _parse_new_request(int sockfd, const struct sockaddr_in& client_addr); 
+	virtual int _parse_registed_request(int sockfd); 
 
 	block_info* _buffer_new_file(int sockfd); 
 	block* _read_file(const char* path, off_t start_point, size_t size)throw(std::runtime_error);

@@ -163,7 +163,6 @@ void Master::_print_node_info(int clientfd)const
 		output << "IOnode :" << ++count  << std::endl << "ip=" << node.ip << std::endl<< "total_memory=" << node.total_memory << std::endl << "avaliable_memory=" << node.avaliable_memory << std::endl;
 	}
 	std::string s=output.str(); 
-	Send(clientfd, s.size()); 
 	Sendv(clientfd, s.c_str(), s.size()); 
 	return; 
 }
@@ -175,9 +174,9 @@ Master::IOnode_t::iterator Master::_find_by_ip(const std::string &ip)
 	return it;
 }
 
-void Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_addr)
+int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_addr)
 {
-	int request,tmp;
+	int request,tmp, ans=SUCCESS;
 	Recv(clientfd, request);
 	switch(request)
 	{
@@ -192,26 +191,70 @@ void Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_a
 		fprintf(stderr, "requery for IOnode info\n"); 
 		_print_node_info(clientfd);
 		close(clientfd); break; 
+	case VIEW_FILE_INFO:
+		fprintf(stderr, "requery for File info\n");
+		_print_file_info(clientfd); 
+		close(clientfd); break; 
+	case OPEN_FILE:
+		fprintf(stderr, "requset for open file"); 
+		_parse_open_file(clientfd); 
+		close(clientfd); break; 
 	default:
 		Send(clientfd, UNRECOGNISTED); 
 		close(clientfd); 
 	}
-	return;
+	return ans;
 }
 
-void Master::_parse_registed_request(int clientfd)
+void Master::_print_file_info(int clientfd)const
 {
-	int request; 
+	ssize_t file_no; 
+	Recv(clientfd, file_no); 
+	std::ostringstream output; 
+	const file_info *file=NULL; 
+	try
+	{
+		file=&(_buffered_files.at(file_no)); 
+	}
+	catch(std::out_of_range &e)
+	{
+		const char OUT_OF_RANGE[]="out of range\n"; 
+		Sendv(clientfd, OUT_OF_RANGE, sizeof(OUT_OF_RANGE));
+		return; 
+	}
+	for(node_t::const_iterator it=file->IOnodes.begin(); it!=file->IOnodes.end(); ++it)
+	{
+		output << "Start point:" << it->first << std::endl << "IOnode number" << it->second << std::endl<< "ip=" << _registed_IOnodes.at(it->second).ip << std::endl;
+	}
+	std::string s=output.str(); 
+	Sendv(clientfd, s.c_str(), s.size()); 
+	return; 
+}	
+
+int Master::_parse_registed_request(int clientfd)
+{
+	int request, ans=SUCCESS; 
 	Recv(clientfd, request); 
 	switch(request)
 	{
 	default:
 		Send(clientfd, UNRECOGNISTED); 
 	}
-	return; 
+	return ans; 
 }
 
-const Master::node_t& Master::_open_file(const std::string& file_path, int flag)throw(std::runtime_error)
+int Master::_parse_open_file(int clientfd)
+{
+	char *file_path;
+	Recvv(clientfd, &file_path); 
+	int flag; 
+	Recv(clientfd, flag); 
+	_open_file(file_path, flag); 
+	delete file_path; 
+	return 1; 
+}
+
+const Master::node_t& Master::_open_file(const char* file_path, int flag)throw(std::runtime_error)
 {
 	//open in read
 	file_no_t::iterator it; 
@@ -243,7 +286,7 @@ const Master::node_t& Master::_open_file(const std::string& file_path, int flag)
 	return file->IOnodes; 
 }
 
-Master::node_t Master::_read_from_storage(const std::string& file_path, ssize_t file_no)
+Master::node_t Master::_read_from_storage(const char* file_path, ssize_t file_no)
 {
 	size_t file_length=0; 
 	size_t block_size=0; 
@@ -254,13 +297,11 @@ Master::node_t Master::_read_from_storage(const std::string& file_path, ssize_t 
 		//send read request to each IOnode
 		//buffer requset
 		//file_no
-		//file_path length
 		//file_path
 		//start_point
 		Send(it->second, BUFFER_FILE);
 		Send(it->second, file_no); 
-		Send(it->second, file_path.size()); 
-		Sendv(it->second, file_path.c_str(), file_path.size()); 
+		Sendv(it->second, file_path, strlen(file_path)); 
 		Send(it->second, it->first); 
 		Send(it->second, block_size); 
 	}

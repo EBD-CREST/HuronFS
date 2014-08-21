@@ -22,8 +22,8 @@ protected:
 	void _init_server()throw(std::runtime_error); 
 	int _add_socket(int socketfd);
 	int _delete_socket(int socketfd); 
-	virtual void _parse_new_request(int, const struct sockaddr_in&)=0; 
-	virtual void _parse_registed_request(int socketfd)=0; 
+	virtual int _parse_new_request(int, const struct sockaddr_in&)=0; 
+	virtual int _parse_registed_request(int socketfd)=0; 
 private:
 	struct sockaddr_in _server_addr;
 	int _port;

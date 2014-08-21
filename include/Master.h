@@ -65,16 +65,18 @@ private:
 private:
 	ssize_t _add_IO_node(const std::string& node_ip, std::size_t avaliable_memory, int socket);
 	ssize_t _delete_IO_node(const std::string& node_ip);
-	const node_t& _open_file(const std::string& file_path, int flag)throw(std::runtime_error);
+	const node_t& _open_file(const char* file_path, int flag)throw(std::runtime_error);
 	int _update_file_info(int file_no); 
 	int _get_file_blocks(const std::string& file_path);
 	ssize_t _get_node_id(); 
 	ssize_t _get_file_no(); 
 	void _print_node_info(int socket)const;
+	void _print_file_info(int socket)const; 
 	IOnode_t::iterator _find_by_ip(const std::string& ip);
-	virtual void _parse_new_request(int socketfd, const struct sockaddr_in& client_addr); 
-	virtual void _parse_registed_request(int socketfd); 
-	node_t _read_from_storage(const std::string& file_path, ssize_t file_no); 
+	virtual int _parse_new_request(int socketfd, const struct sockaddr_in& client_addr);
+	virtual int _parse_registed_request(int socketfd); 
+	int _parse_open_file(int clientfd); 
+	node_t _read_from_storage(const char* file_path, ssize_t file_no); 
 	node_t _select_IOnode(size_t file_size, size_t block_size); 
 
 private:
