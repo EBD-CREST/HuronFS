@@ -15,6 +15,9 @@ public:
 
 private:
 	Query_Client(const Query_Client&); 
+	void _print_node_info();
+	void _server_shut_down();
+	void _view_file_info();
 	void _command();
 
 private:

@@ -16,7 +16,11 @@ template<class T> size_t Send(int sockfd, const T& buffer);
 
 template<class T> size_t Recvv(int sockfd, T** buffer);
 
-template<class T> size_t Sendv(int sockfd, const T* buffer, int count);
+template<class T> size_t Recvv_pre_alloc(int sockfd, T* buffer, size_t length);
+
+template<class T> size_t Sendv(int sockfd, const T* buffer, size_t count);
+
+template<class T> size_t Sendv_pre_alloc(int sockfd, const T* buffer, size_t count);
 
 //implementation
 
@@ -70,7 +74,8 @@ template<class T> size_t Recvv(int sockfd, T **buffer)
 	ssize_t ret = 0;
 	Recv(sockfd, length); 
 	
-	*buffer=new T[length]; 
+	*buffer=new T[length+1]; 
+	(*buffer)[length]=0;
 	char *buffer_tmp = reinterpret_cast<char *>(*buffer);
 	if(NULL  ==  *buffer)
 	{
@@ -99,7 +104,34 @@ template<class T> size_t Recvv(int sockfd, T **buffer)
 	return length;
 }
 
-template<class T> size_t Sendv(int sockfd,const T* buffer, int count)
+template<class T> size_t Recvv_pre_alloc(int sockfd, T *buffer, size_t length)
+{
+	ssize_t ret = 0;
+	
+	char *buffer_tmp = reinterpret_cast<char *>(buffer);
+	struct iovec iov; 
+	iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
+	iov.iov_len=length; 
+
+	while(0 != length && 0 != (ret=readv(sockfd, &iov, 1)))
+	{
+		if(-1 == ret)
+		{
+			if(EINVAL == errno)
+			{
+				continue; 
+			}
+			break; 
+		}
+		buffer_tmp += ret; 
+		length -= ret; 
+		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
+		iov.iov_len=length; 
+	}
+	return length;
+}
+
+template<class T> size_t Sendv(int sockfd,const T* buffer, size_t count)
 {
 	size_t length = count*sizeof(T);
 	ssize_t ret = 0;
@@ -109,6 +141,33 @@ template<class T> size_t Sendv(int sockfd,const T* buffer, int count)
 	iov.iov_len=length; 
 
 	Send(sockfd, length); 
+	while(0 != length && 0 != (ret=writev(sockfd, &iov, 1)))
+	{
+		if(-1 == ret)
+		{
+			if(EINVAL == errno)
+			{
+				continue; 
+			}
+			break; 
+		}
+		buffer_tmp += ret; 
+		length -= ret; 
+		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
+		iov.iov_len=length; 
+	}
+	return count*sizeof(T)-length;
+}
+
+template<class T> size_t Sendv_pre_alloc(int sockfd,const T* buffer, size_t count)
+{
+	size_t length = count*sizeof(T);
+	ssize_t ret = 0;
+	char *buffer_tmp = const_cast<char*>(reinterpret_cast<const char *>(buffer));
+	struct iovec iov; 
+	iov.iov_base=const_cast<void *>(reinterpret_cast<const void*>(buffer)); 
+	iov.iov_len=length; 
+
 	while(0 != length && 0 != (ret=writev(sockfd, &iov, 1)))
 	{
 		if(-1 == ret)

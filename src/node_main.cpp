@@ -8,7 +8,7 @@
 
 int main(int argc, char**argv)
 {
-	if( 3 > argc)
+	if( 2 > argc)
 	{
 		fprintf(stderr, "too few parameters\n"); 
 		exit(0); 
@@ -22,7 +22,7 @@ int main(int argc, char**argv)
 	}
 	catch(std::runtime_error& e)
 	{
-		fprintf(stderr, "IOnode regist Failed\n");
+		fprintf(stderr, e.what());
 		exit(1); 
 	}
 }

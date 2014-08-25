@@ -49,6 +49,10 @@ void Server::_init_server()throw(std::runtime_error)
 		perror("Server Listen PORT ERROR");  
 		throw std::runtime_error("Server Listen PORT ERROR");   
 	}
+	struct epoll_event event;
+	event.data.fd=_server_socket;
+	event.events=EPOLLIN|EPOLLET;
+	epoll_ctl(_epollfd, EPOLL_CTL_ADD, _server_socket, &event);
 	return; 
 }
 
@@ -79,7 +83,7 @@ void Server::start_server()
 		struct sockaddr_in client_addr;  
 		socklen_t length=sizeof(client_addr);
 		int nfds=epoll_wait(_epollfd, events, MAX_NODE_NUMBER+1, -1); 
-		int ret; 
+		int ret=SUCCESS; 
 		for(int i=0; i<nfds; ++i)
 		{
 			//new socket
@@ -115,7 +119,7 @@ void Server::stop_server()
 			it!=_IOnode_socket_pool.end(); ++it)
 	{
 		//inform each client that server is shutdown
-		Send(*it, SERVER_SHUT_DOWN); 
+		Send(*it, I_AM_SHUT_DOWN); 
 		//close socket
 		close(*it); 
 	}

@@ -18,10 +18,11 @@
 #include "include/IO_const.h"
 #include "include/Communication.h"
 
-IOnode::block::block(off_t start_point, size_t size) throw(std::bad_alloc):
+IOnode::block::block(off_t start_point, size_t size, bool dirty_flag) throw(std::bad_alloc):
 	size(size),
 	data(NULL),
-	start_point(start_point)
+	start_point(start_point),
+	dirty_flag(dirty_flag)
 {
 	data=malloc(size);
 	if( NULL == data)
@@ -42,7 +43,8 @@ IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtim
 	Server(IONODE_PORT), 
 	Client(), 
 	_node_id(-1),
-	_files(file_blocks()), 
+	_files(file_blocks_t()),
+	_file_path(file_path_t()),
 	_current_block_number(0), 
 	_MAX_BLOCK_NUMBER(MAX_BLOCK_NUMBER), 
 	_memory(MEMORY), 
@@ -60,14 +62,9 @@ IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtim
 	}
 	catch(std::runtime_error& e)
 	{
-		_unregist();
+		//_unregist();
 		throw;
 	}
-}
-
-IOnode::~IOnode()
-{
-	_unregist(); 
 }
 
 int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::runtime_error)
@@ -97,82 +94,23 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 	int id=-1;
 	Recv(master_socket, id);
 	Server::_add_socket(master_socket);
+	int open;
+	Recv(master_socket, open);
 	return id; 
-}
-
-void IOnode::_unregist()throw(std::runtime_error)
-{
-	int master_socket;
-	try
-	{
-		master_socket=Client::_connect_to_server(_master_conn_addr, _master_addr);
-	}
-	catch(std::runtime_error &e)
-	{
-		throw;
-	}
-	Send(master_socket, UNREGIST);
-	Server::_delete_socket(master_socket); 
-	close(master_socket);
-}
-
-int IOnode::_insert_block(block_info& blocks, off_t start_point, size_t size) throw(std::bad_alloc,  std::invalid_argument)
-{
-	if( MAX_BLOCK_NUMBER < _current_block_number)
-	{
-		throw std::bad_alloc(); 
-	}
-	_current_block_number++; 
-	block_info::iterator it; 
-	for(it = blocks.begin(); it != blocks.end()  &&  start_point < it->second->start_point; ++it); 
-	if(it != blocks.end()  &&  it->second->start_point  ==  start_point)
-	{
-		throw std::invalid_argument("block exists"); 
-	}
-	try
-	{
-		blocks.insert(std::make_pair(start_point, new block(start_point, size))); 
-	}
-	catch(std::bad_alloc)
-	{
-		throw; 
-	}
-	return start_point; 
-}
-
-void IOnode::_delete_block(block_info& blocks, off_t start_point)
-{
-	block_info::iterator iterator=blocks.find(start_point); 
-	if(blocks.end() != iterator)
-	{
-		_memory += iterator->second->size; 
-		delete iterator->second;
-		blocks.erase(iterator);
-	}
-}
-
-int IOnode::_add_file(int file_no) throw(std::invalid_argument)
-{
-	file_blocks::iterator it; 
-	if(_files.end() == (it = _files.find(file_no)))
-	{
-		_files.insert(std::make_pair(file_no,  block_info())); 
-		return 1; 
-	}
-	else
-	{
-		throw std::invalid_argument("file_no exists"); 
-	}
 }
 
 int IOnode::_parse_new_request(int sockfd, const struct sockaddr_in& client_addr)
 {
-	int request, ans; 
+	int request, ans=SUCCESS; 
 	Recv(sockfd, request); 
 	switch(request)
 	{
 	case SERVER_SHUT_DOWN:
 		ans=SERVER_SHUT_DOWN; break; 
+	case READ_FILE:
+		_send_data(sockfd);
+	case WRITE_FILE:
+		_receive_data(sockfd);
 	dafault:
 		break; 
 	}
@@ -186,22 +124,46 @@ int IOnode::_parse_registed_request(int sockfd)
 	Recv(sockfd, request); 
 	switch(request)
 	{
-	case BUFFER_FILE:
-		_buffer_new_file(sockfd);break; 
+	case OPEN_FILE:
+		_open_file(sockfd);break;
+	case READ_FILE:
+		_read_file(sockfd);break;
+	case WRITE_FILE:
+		_write_file(sockfd);break;
+	case I_AM_SHUT_DOWN:
+		ans=SERVER_SHUT_DOWN;break;
+	case FLUSH_FILE:
+		_write_back_file(sockfd);
+	case CLOSE_FILE:
+		_close_file(sockfd);
 	default:
 		break; 
 	}
 	return ans; 
 }
 
-IOnode::block_info* IOnode::_buffer_new_file(int sockfd)
+int IOnode::_send_data(int sockfd)
 {
-	size_t start_point, block_size; 
+	ssize_t file_no;
+	off_t start_point;
+	Recv(sockfd, file_no);
+	Recv(sockfd, start_point);
+	const block* requested_block=_files.at(file_no).at(start_point);
+	Sendv_pre_alloc(sockfd, reinterpret_cast<char*>(requested_block->data), requested_block->size);
+	close(sockfd);
+	return 1;
+}
+
+int IOnode::_open_file(int sockfd)
+{
 	ssize_t file_no; 
+	int flag=0;
 	char *path_buffer=NULL; 
 	Recv(sockfd, file_no);
-	block_info *blocks=NULL; 
+	Recv(sockfd, flag);
 	Recvv(sockfd, &path_buffer); 
+	size_t start_point, block_size;
+	block_info_t *blocks=NULL; 
 	Recv(sockfd, start_point); 
 	Recv(sockfd, block_size); 
 	if(_files.end() != _files.find(file_no))
@@ -212,36 +174,52 @@ IOnode::block_info* IOnode::_buffer_new_file(int sockfd)
 	{
 		blocks=&(_files[file_no]); 
 	}
-	blocks->insert(std::make_pair(start_point, _read_file(path_buffer, start_point, block_size))); 
+	blocks->insert(std::make_pair(start_point, new block(start_point, block_size, CLEAN)));
+	if(_file_path.end() == _file_path.find(file_no))
+	{
+		_file_path.insert(std::make_pair(file_no, std::string(path_buffer)));
+	}
 	delete path_buffer; 
-	return blocks; 
+	return SUCCESS; 
 }
 
-IOnode::block* IOnode::_read_file(const char* path, off_t start_point, size_t size)throw(std::runtime_error)
+int IOnode::_read_file(int sockfd)
 {
-	block *new_block=NULL; 
-	try
+	off_t start_point=0;
+	size_t size=0;
+	ssize_t file_no=0;
+	Recv(sockfd, file_no);
+	Recv(sockfd, start_point);
+	Recv(sockfd, size);
+	const std::string& path=_file_path.at(file_no);
+	block_info_t &file=_files.at(file_no);
+	for(block_info_t::iterator it=file.find(start_point);
+			it != file.end();++it)
 	{
-		new_block=new block(start_point, size); 
+		_read_from_storage(path, it->second);
 	}
-	catch(std::bad_alloc &e)
-	{
-		throw std::runtime_error("Memory Alloc Error"); 
-	}
-	int fd=open(path, O_RDONLY); 
+	return SUCCESS;
+}
+
+size_t IOnode::_read_from_storage(const std::string& path, const block* block_data)throw(std::runtime_error)
+{
+	off_t start_point=block_data->start_point;
+	int fd=open(path.c_str(), O_RDONLY); 
 	if(-1 == fd)
 	{
 		perror("File Open Error"); 
-		throw std::runtime_error("File Can not Be open"); 
 	}
 	if(-1  == lseek(fd, start_point, SEEK_SET))
 	{
 		perror("Seek"); 
-		throw std::runtime_error("Seek File Error"); 
 	}
 	ssize_t ret; 
-	char *buffer=reinterpret_cast<char*>(new_block->data); 
-	while(0 != size && 0!=(ret=read(fd, buffer, size)))
+	struct iovec vec;
+	char *buffer=reinterpret_cast<char*>(block_data->data);
+	size_t size=block_data->size;
+	vec.iov_base=block_data->data;
+	vec.iov_len=size;
+	while(0 != size && 0!=(ret=readv(fd, &vec, 1)))
 	{
 		if(ret  == -1)
 		{
@@ -252,24 +230,154 @@ IOnode::block* IOnode::_read_file(const char* path, off_t start_point, size_t si
 			perror("read"); 
 			break; 
 		}
-		size -= ret; 
-		buffer += ret; 
+		vec.iov_base=buffer+ret;
+		size-=ret;
+		vec.iov_len=size;
 	}
-	return new_block; 
+	close(fd);
+	return block_data->size;
 }
 
-IOnode::block* IOnode::_write_file(const char* path, off_t start_point, size_t size)throw(std::runtime_error)
+IOnode::block* IOnode::_buffer_block(off_t start_point, size_t size)throw(std::runtime_error)
 {
-	block *new_block=NULL; 
 	try
 	{
-		new_block=new block(start_point, size); 
+		block *new_block=new block(start_point, size, DIRTY); 
+		return new_block; 
 	}
 	catch(std::bad_alloc &e)
 	{
 		throw std::runtime_error("Memory Alloc Error"); 
 	}
-	
-	return new_block; 
 }
 
+int IOnode::_write_file(int clientfd)
+{
+	ssize_t file_no;
+	off_t start_point;
+	size_t size;
+	char *file_path=NULL;
+	Recv(clientfd, file_no);
+	Recvv(clientfd, &file_path);
+	Recv(clientfd, start_point);
+	Recv(clientfd, size);
+	try
+	{
+		block_info_t &blocks=_files.insert(std::make_pair(file_no, block_info_t())).first->second;
+		blocks.insert(std::make_pair(start_point, new block(start_point, size, DIRTY)));
+		if(_file_path.end() == _file_path.find(file_no))
+		{
+			_file_path.insert(std::make_pair(file_no, std::string(file_path)));
+		}
+		return SUCCESS;
+	}
+	catch(std::out_of_range &e)
+	{
+		return FILE_NOT_FOUND;
+	}
+}
+
+int IOnode::_receive_data(int clientfd)
+{
+	ssize_t file_no;
+	off_t start_point;
+	size_t size;
+	Recv(clientfd, file_no);
+	Recv(clientfd, start_point);
+	Recv(clientfd, size);
+	try
+	{
+		block_info_t &blocks=_files.at(file_no);
+		block* _block=blocks.at(start_point);
+		Recvv_pre_alloc(clientfd, reinterpret_cast<char*>(_block->data), size);
+	}
+	catch(std::out_of_range &e)
+	{
+		Send(clientfd, FILE_NOT_FOUND);
+		return FAILURE;
+	}
+	return SUCCESS;
+}
+
+int IOnode::_write_back_file(int clientfd)
+{
+	ssize_t file_no;
+	off_t start_point;
+	size_t size;
+	Recv(clientfd, file_no);
+	Recv(clientfd, start_point);
+	Recv(clientfd, size);
+	try
+	{
+		block_info_t &blocks=_files.at(file_no);
+		block* _block=blocks.at(start_point);
+		Send(clientfd, SUCCESS);
+		const std::string &path=_file_path.at(file_no);
+		_write_to_storage(path, _block);
+	}
+	catch(std::out_of_range &e)
+	{
+		Send(clientfd, FILE_NOT_FOUND);
+		return FAILURE;
+	}
+	return SUCCESS;
+}
+
+size_t IOnode::_write_to_storage(const std::string& path, const block* block_data)throw(std::runtime_error)
+{
+
+	FILE *fp = fopen(path.c_str(),"w");
+	if( NULL == fp)
+	{
+		perror("Open File");
+		throw std::runtime_error("Open File Error\n");
+	}
+	if(-1 == fseek(fp, block_data->start_point, SEEK_SET))
+	{
+		perror("Seek"); 
+		throw std::runtime_error("Seek File Error"); 
+	}
+	fwrite(block_data->data, sizeof(char), block_data->size, fp);
+	fclose(fp);
+	return block_data->size;
+}
+
+int IOnode::_flush_file(int sockfd)
+{
+	ssize_t file_no;
+	Recv(sockfd, file_no);
+	std::string &path=_file_path.at(file_no);
+	block_info_t &blocks=_files.at(file_no);
+	for(block_info_t::iterator it=blocks.begin();
+			it != blocks.end();++it)
+	{
+		block* _block=it->second;
+		if(DIRTY == _block->dirty_flag)
+		{
+			_write_to_storage(path, _block);
+			_block->dirty_flag=CLEAN;
+		}
+	}
+	return SUCCESS;
+}
+
+int IOnode::_close_file(int sockfd)
+{
+	ssize_t file_no;
+	Recv(sockfd, file_no);
+	std::string &path=_file_path.at(file_no);
+	block_info_t &blocks=_files.at(file_no);
+	for(block_info_t::iterator it=blocks.begin();
+			it != blocks.end();++it)
+	{
+		block* _block=it->second;
+		if(DIRTY == _block->dirty_flag)
+		{
+			_write_to_storage(path, _block);
+		}
+		delete _block;
+	}
+	_files.erase(file_no);
+	_file_path.erase(file_no);
+	return SUCCESS;
+}

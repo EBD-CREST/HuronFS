@@ -14,6 +14,8 @@ int Client::_connect_to_server(struct sockaddr_in& client_addr, struct sockaddr_
 		perror("Create Socket Failed");  
 		throw std::runtime_error("Create Socket Failed");  
 	}
+	int on = 1; 
+	setsockopt( client_socket,  SOL_SOCKET,  SO_REUSEADDR,  &on,  sizeof(on) ); 
 	if(bind(client_socket,  reinterpret_cast<struct sockaddr*>(&client_addr),  sizeof(client_addr)))
 	{
 		perror("client bind port failed\n"); 
