@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <aio.h>
 
 #include "include/IO_const.h"
 #include "include/Communication.h"
@@ -64,17 +65,7 @@ ssize_t User_Client::iob_open(const char* path, int flag)
 		Recv(master_socket, file_no);
 		Recv(master_socket, size);
 		Recv(master_socket, block_size);
-		//Recv(master_socket, count);
 		_opened_file.insert(std::make_pair(file_no, static_cast<off_t>(0)));
-		/*for(int i=0;i<count;++i)
-		{
-			off_t start_point;
-			char *ip;
-			Recv(master_socket, start_point);
-			Recvv(master_socket, &ip);
-			printf("%d\nstart_point = %ld\nip=%s",i+1,start_point,ip);
-			delete ip;
-		}*/
 		close(master_socket);
 		return file_no;
 	}
@@ -112,6 +103,7 @@ ssize_t User_Client::iob_read(ssize_t fd, void *buffer, size_t size)
 		Recv(master_socket, count);
 		off_t start_point;
 		char *ip;
+		struct aiocb *ionode_aiocb=new aiocb[count]; 
 		for(int i=0;i<count;++i)
 		{
 			Recv(master_socket, start_point);
@@ -127,13 +119,20 @@ ssize_t User_Client::iob_read(ssize_t fd, void *buffer, size_t size)
 				size_t receive_size=end_point-now_point;
 				Send(ionode_socket, receive_size);
 				fprintf(stderr, "receive data from %s\nstart_point=%lu\n", ip, now_point);
-				Recvv_pre_alloc(ionode_socket, reinterpret_cast<char*>(buffer)+start_point, receive_size);
+				ionode_aiocb[i].aio_fildes=ionode_socket; 
+				ionode_aiocb[i].aio_offset=0;  
+				ionode_aiocb[i].aio_buf=buffer+start_point; 
+				ionode_aiocb[i].aio_nbytes=receive_size;
+				ionode_aiocb[i].aio_reqprio=0;
+				aio_read(ionode_aiocb+i); 
+				//Recvv_pre_alloc(ionode_socket, reinterpret_cast<char*>(buffer)+start_point, receive_size);
 				close(ionode_socket);
 				now_point=end_point;
 			}
 			delete ip;
 		}
 		close(master_socket);
+		_wait_all(ionode_aiocb, count); 
 		return size;
 	}
 	else
@@ -142,6 +141,24 @@ ssize_t User_Client::iob_read(ssize_t fd, void *buffer, size_t size)
 		close(master_socket);
 		return -1;
 	}
+}
+
+
+void User_Client::_wait_all(const struct aiocb *aiocbp, int count)
+{
+	bool flag=true; 
+	while(flag)
+	{
+		for(int i=0; i<count; ++i)
+		{
+			flag=false; 
+			if(EINPROGRESS == aio_error(aiocbp+i))
+			{
+				flag=true; 
+			}
+		}
+	}
+	return; 
 }
 
 ssize_t User_Client::iob_write(ssize_t fd, const void *buffer, size_t count)
@@ -172,6 +189,7 @@ ssize_t User_Client::iob_write(ssize_t fd, const void *buffer, size_t count)
 		Recv(master_socket, file_size);
 		Recv(master_socket, block_size);
 		char *ip;
+		struct aiocb *ionode_aiocb=new aiocb[count]; 
 		for(int i=0;i<count;++i)
 		{
 			Recv(master_socket, start_point);
@@ -184,12 +202,19 @@ ssize_t User_Client::iob_write(ssize_t fd, const void *buffer, size_t count)
 			size_t send_size=(start_point+block_size < file_size? block_size:file_size-start_point);
 			Send(ionode_socket, send_size);
 			fprintf(stderr, "send data to %s\nstart_point=%lu\n", ip, start_point);
-			Sendv_pre_alloc(ionode_socket, reinterpret_cast<const char*>(buffer)+start_point, send_size);
+			ionode_aiocb[i].aio_fildes=ionode_socket; 
+			ionode_aiocb[i].aio_offset=0;
+			ionode_aiocb[i].aio_buf=const_cast<void*>(buffer)+start_point; 
+			ionode_aiocb[i].aio_nbytes=send_size;
+			ionode_aiocb[i].aio_reqprio=0;
+			aio_write(ionode_aiocb+i); 
+			//Sendv_pre_alloc(ionode_socket, reinterpret_cast<const char*>(buffer)+start_point, send_size);
 			close(ionode_socket);
 			now_point+=send_size;
 			delete ip;
 		}
 		close(master_socket);
+		_wait_all(ionode_aiocb, count); 
 		return count;
 	}
 	else

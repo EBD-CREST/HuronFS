@@ -35,7 +35,7 @@ $(QUERY_LIB).o:$(SRC)/$(QUERY_LIB).cpp $(INCLUDE)/$(QUERY_LIB).h
 	$(CC) -c $(FLAG) -I . -o $(QUERY_LIB).o $(SRC)/$(QUERY_LIB).cpp
 
 $(USER_LIB).o:$(SRC)/$(USER_LIB).cpp $(INCLUDE)/$(USER_LIB).h
-	$(CC) -c $(FLAG) -I . -o $(USER_LIB).o $(SRC)/$(USER_LIB).cpp
+	$(CC) -c $(FLAG) -I . -lrt -o $(USER_LIB).o $(SRC)/$(USER_LIB).cpp
 
 $(MASTER).o:$(SRC)/$(MASTER_LIB).cpp $(INCLUDE)/$(MASTER_LIB).h
 	$(CC) -c $(FLAG) -I . -o $(MASTER_LIB).o $(SRC)/$(MASTER_LIB).cpp
@@ -53,7 +53,7 @@ $(USER_MAIN):$(CLIENT_LIB).o $(QUERY_LIB).o $(SRC)/$(USER_MAIN).cpp
 	$(CC) $(FLAG) -I . -o $(USER_MAIN) $(CLIENT_LIB).o $(QUERY_LIB).o $(SRC)/$(USER_MAIN).cpp
 
 $(USER_CLIENT):$(CLIENT_LIB).o $(USER_LIB).o $(SRC)/$(USER_CLIENT).cpp
-	$(CC) $(FLAG) -I . -o $(USER_CLIENT) $(USER_LIB).o $(CLIENT_LIB).o $(SRC)/$(USER_CLIENT).cpp
+	$(CC) $(FLAG) -I . -lrt -o $(USER_CLIENT) $(USER_LIB).o $(CLIENT_LIB).o $(SRC)/$(USER_CLIENT).cpp
 
 .PHONY:
 Master:$(MASTER)

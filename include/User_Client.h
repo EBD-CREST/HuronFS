@@ -28,6 +28,7 @@ private:
 	User_Client(const User_Client&); 
 	void _command();
 	void _set_IOnode_addr(const char *ip)throw(std::runtime_error);
+	void _wait_all(const struct aiocb* aiocbp, int count); 
 private:
 	typedef std::map<ssize_t, off_t> file_point_t;
 private:
