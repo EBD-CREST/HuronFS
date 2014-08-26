@@ -105,14 +105,14 @@ int IOnode::_parse_new_request(int sockfd, const struct sockaddr_in& client_addr
 	Recv(sockfd, request); 
 	switch(request)
 	{
-	case SERVER_SHUT_DOWN:
-		ans=SERVER_SHUT_DOWN; break; 
+/*	case SERVER_SHUT_DOWN:
+		ans=SERVER_SHUT_DOWN; break; */
 	case READ_FILE:
-		_send_data(sockfd);
+		_send_data(sockfd);break;
 	case WRITE_FILE:
-		_receive_data(sockfd);
-	dafault:
-		break; 
+		_receive_data(sockfd);break;
+/*	dafault:
+		break; */
 	}
 	return ans; 
 }
@@ -130,14 +130,14 @@ int IOnode::_parse_registed_request(int sockfd)
 		_read_file(sockfd);break;
 	case WRITE_FILE:
 		_write_file(sockfd);break;
-	case I_AM_SHUT_DOWN:
-		ans=SERVER_SHUT_DOWN;break;
+/*	case I_AM_SHUT_DOWN:
+		ans=SERVER_SHUT_DOWN;break;*/
 	case FLUSH_FILE:
-		_write_back_file(sockfd);
+		_write_back_file(sockfd);break;
 	case CLOSE_FILE:
-		_close_file(sockfd);
-	default:
-		break; 
+		_close_file(sockfd);break;
+/*	default:
+		break; */
 	}
 	return ans; 
 }
@@ -235,7 +235,7 @@ size_t IOnode::_read_from_storage(const std::string& path, const block* block_da
 		vec.iov_len=size;
 	}
 	close(fd);
-	return block_data->size;
+	return block_data->size-size;
 }
 
 IOnode::block* IOnode::_buffer_block(off_t start_point, size_t size)throw(std::runtime_error)

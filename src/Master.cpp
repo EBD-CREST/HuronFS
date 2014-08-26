@@ -1,4 +1,4 @@
-/*OB
+/*OB`
  * Master.cpp
  *
  *  Created on: Aug 8, 2014
@@ -208,9 +208,9 @@ int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_ad
 		_parse_close_file(clientfd, ip);break;
 	case GET_FILE_META:
 		_send_file_meta(clientfd, ip);break;
-	default:
+/*	default:
 		Send(clientfd, UNRECOGNISTED); 
-		close(clientfd); 
+		close(clientfd); */
 	}
 	return ans;
 }
@@ -290,8 +290,8 @@ int Master::_parse_registed_request(int clientfd)
 		id=_IOnode_socket.at(clientfd)->node_id;
 		fprintf(stderr, "IOnode %ld shutdown\nIP Address=%s, Unregisted\n", id, _registed_IOnodes.at(id).ip.c_str()), 
 		_delete_IO_node(clientfd);break;
-	default:
-		Send(clientfd, UNRECOGNISTED); 
+/*	default:
+		Send(clientfd, UNRECOGNISTED); */
 	}
 	return ans; 
 }
@@ -396,7 +396,7 @@ const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_
 	{
 		file=&(_buffered_files.at(it->second)); 
 	}
-	return file->p_node; 
+	return file->p_node;
 }
 
 Master::node_t Master::_send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length,size_t& block_size)throw(std::invalid_argument)
@@ -489,7 +489,7 @@ int Master::_parse_write_file(int clientfd, std::string& ip)
 			//start_point
 			//block_size
 			int socket=_registed_IOnodes.at(it->second).socket;
-			size_t my_block_size=start_point+block_size > file.size?file.size-start_point:block_size;
+			size_t my_block_size=it->first+block_size > file.size?file.size-it->first:block_size;
 			Send(socket, WRITE_FILE);
 			Send(socket, file_no);
 			Sendv(socket, file.path.c_str(), file.path.size());
