@@ -469,6 +469,13 @@ int Master::_parse_write_file(int clientfd, std::string& ip)
 	Recv(clientfd, file_no);
 	Recv(clientfd, start_point);
 	Recv(clientfd, size);
+	int fd=open(_buffered_files.at(file_no).path.c_str(), O_CREAT, S_IRUSR|S_IWUSR);
+	if(-1 == fd)
+	{
+		fprintf(stderr, "file create error\n");
+		return FAILURE;
+	}
+	close(fd);
 	try
 	{
 		file_info &file=_buffered_files.at(file_no);
@@ -534,6 +541,7 @@ int Master::_parse_flush_file(int clientfd, std::string& ip)
 	ssize_t file_no;
 	Recv(clientfd, file_no);
 	file_info &file=_buffered_files.at(file_no);
+	Send(clientfd, SUCCESS);
 	try
 	{
 		for(node_pool_t::iterator it=file.nodes.begin();
@@ -542,10 +550,9 @@ int Master::_parse_flush_file(int clientfd, std::string& ip)
 			int socket=_IOnode_socket.at(*it)->socket;
 			Send(socket, FLUSH_FILE);
 			Send(socket, file_no);
-			int ret=0;
-			Recv(socket, ret);
+//			int ret=0;
+//			Recv(socket, ret);
 		}
-		Send(clientfd, SUCCESS);
 		close(clientfd);
 		return SUCCESS;
 	}
@@ -573,6 +580,8 @@ int Master::_parse_close_file(int clientfd, std::string& ip)
 			int socket=_registed_IOnodes.at(*it).socket;
 			Send(socket, CLOSE_FILE);
 			Send(socket, file_no);
+//			int ret=0;
+//			Recv(socket, ret);
 		}
 		File_t::iterator file=_buffered_files.find(file_no);
 		std::string &path=file->second.path;

@@ -326,7 +326,7 @@ int IOnode::_write_back_file(int clientfd)
 size_t IOnode::_write_to_storage(const std::string& path, const block* block_data)throw(std::runtime_error)
 {
 
-	FILE *fp = fopen(path.c_str(),"w");
+	/*FILE *fp = fopen(path.c_str(),"a");
 	if( NULL == fp)
 	{
 		perror("Open File");
@@ -338,7 +338,29 @@ size_t IOnode::_write_to_storage(const std::string& path, const block* block_dat
 		throw std::runtime_error("Seek File Error"); 
 	}
 	fwrite(block_data->data, sizeof(char), block_data->size, fp);
-	fclose(fp);
+	fclose(fp);*/
+	int fd = open(path.c_str(),O_WRONLY|O_CREAT|O_SYNC);
+	if( -1 == fd)
+	{
+		perror("Open File");
+		throw std::runtime_error("Open File Error\n");
+	}
+	off_t pos;
+	if(-1 == (pos=lseek(fd, block_data->start_point, SEEK_SET)))
+	{
+		perror("Seek"); 
+		throw std::runtime_error("Seek File Error"); 
+	}
+	printf("seek %ld\n",pos);
+	struct iovec iov;
+	iov.iov_base=const_cast<void*>(block_data->data);
+	iov.iov_len=block_data->size;
+	size_t length=block_data->size;
+	writev(fd, &iov, 1);
+	//puts((char*)block_data->data);
+//	write(STDOUT_FILENO, (char*)block_data->data, length);
+//	printf("%s, %lu\n", block_data->data, block_data->size);
+	close(fd);
 	return block_data->size;
 }
 
@@ -358,6 +380,7 @@ int IOnode::_flush_file(int sockfd)
 			_block->dirty_flag=CLEAN;
 		}
 	}
+	//Send(sockfd, SUCCESS);
 	return SUCCESS;
 }
 
@@ -374,10 +397,12 @@ int IOnode::_close_file(int sockfd)
 		if(DIRTY == _block->dirty_flag)
 		{
 			_write_to_storage(path, _block);
+			puts((char*)_block->data);
 		}
 		delete _block;
 	}
 	_files.erase(file_no);
 	_file_path.erase(file_no);
+	//Send(sockfd, SUCCESS);
 	return SUCCESS;
 }
