@@ -107,7 +107,6 @@ void Server::start_server()
 		}
 		if(SERVER_SHUT_DOWN == ret)
 		{
-			puts("I will shut down\n");
 			break; 
 		}
 	}
