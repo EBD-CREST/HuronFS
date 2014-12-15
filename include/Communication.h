@@ -185,7 +185,6 @@ template<class T> size_t Sendv_pre_alloc(int sockfd,const T* buffer, size_t coun
 		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
 		iov.iov_len=length; 
 	}
-	puts("after sending\n");
 	return count*sizeof(T)-length;
 }
 

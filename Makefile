@@ -4,10 +4,12 @@ SERVER_LIB = Server
 CLIENT_LIB = Client
 QUERY_LIB = Query_Client
 USER_LIB = User_Client
+BB_LIB = BB
 
 MASTER = master_main
 IONODE = node_main
 USER_MAIN = user_main
+USER_CLIENT = user_client
 USER_CLIENT = user_client
 
 INCLUDE = include
@@ -40,7 +42,10 @@ Client.o:$(SRC)/$(CLIENT_LIB).cpp $(INCLUDE)/$(CLIENT_LIB).h
 #$(QUERY_LIB).o:$(SRC)/$(QUERY_LIB).cpp $(INCLUDE)/$(QUERY_LIB).h
 #	$(CC) -c $(FLAG) $(INCLUDE_FLAG) -o $(QUERY_LIB).o $(SRC)/$(QUERY_LIB).cpp
 
-libuser.so:$(SRC)/$(USER_LIB).cpp $(INCLUDE)/$(USER_LIB).h Client.o
+#libuser.so:$(SRC)/$(USER_LIB).cpp $(INCLUDE)/$(USER_LIB).h Client.o
+#	$(CC) $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Client.o
+
+libBB.so:$(SRC)/$(BB_LIB).cpp $(INCLUDE)/$(BB_LIB).h Client.o
 	$(CC) $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Client.o
 	
 libmaster.so:$(SRC)/$(MASTER_LIB).cpp $(INCLUDE)/$(MASTER_LIB).h Server.o
