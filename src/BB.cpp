@@ -7,7 +7,6 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <stdarg.h>
 #include <map>
 #include <dlfcn.h>
 #include <arpa/inet.h>
@@ -16,12 +15,8 @@
 #include "include/BB_internal.h"
 #include "include/Communication.h"
 
-BB_FUNC_P(int, open, (const char *path, int flag, ...));
-BB_FUNC_P(ssize_t, read, (int fd, void *buffer, size_t size));
-BB_FUNC_P(ssize_t, write,(int fd, const void*buffer, size_t size));
-BB_FUNC_P(int, flush, (int fd));
-BB_FUNC_P(int, close, (int fd));
 
+const char *mount_point=NULL;
 
 /*int ::iob_fstat(ssize_t fd, struct file_stat &stat)
 {
@@ -49,6 +44,12 @@ CBB::CBB():
 	if(NULL == (master_ip=getenv("BB_MASTER_IP")))
 	{
 		fprintf(stderr, "please set master ip\n");
+		return;
+	}
+	
+	if(NULL == (mount_point=getenv("BB_MOUNT_POINT")))
+	{
+		fprintf(stderr, "please set mount point\n");
 		return;
 	}
 	memset(&_master_addr, 0, sizeof(_master_addr));
@@ -145,7 +146,7 @@ int CBB::_get_fid()
 int CBB::_open(const char * path, int flag, mode_t mode)
 {
 	int ret;
-	int master_socket=client.Client::_connect_to_server(client._client_addr, client._master_addr); 
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	Send(master_socket, OPEN_FILE); 
 	Sendv(master_socket, path, strlen(path));
 	Send(master_socket, flag); 
@@ -179,7 +180,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 
 ssize_t CBB::_read(int fd, void *buffer, size_t size)
 {
-	int master_socket=client.Client::_connect_to_server(client._client_addr, client._master_addr); 
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	int ret;
 	off_t start_point;
 	ssize_t ans;
@@ -233,7 +234,7 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 
 ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 {
-	int master_socket=client.Client::_connect_to_server(client._client_addr, client._master_addr); 
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	int ret;
 	off_t start_point;
 	ssize_t ans;
@@ -286,7 +287,7 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 
 int CBB::_close(int fd)
 {
-	int master_socket=Client::_connect_to_server(client._client_addr, client._master_addr);
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr);
 	int ret;
 	int fid=_BB_fd_to_fid(fd);
 	Send(master_socket, CLOSE_FILE);

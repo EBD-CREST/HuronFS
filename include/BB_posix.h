@@ -2,6 +2,7 @@
 
 #define _BB_POSIX_H_
 
+extern const char * mount_point;
 
 extern "C" 
 {

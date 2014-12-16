@@ -42,7 +42,6 @@ public:
 
 public:
 	CBB();
-	~CBB();
 
 	int _open(const char *path, int flag, mode_t mode);
 

@@ -3,7 +3,7 @@ IONODE_LIB = IOnode
 SERVER_LIB = Server
 CLIENT_LIB = Client
 QUERY_LIB = Query_Client
-USER_LIB = User_Client
+POSIX_LIB = BB_posix
 BB_LIB = BB
 
 MASTER = master_main
@@ -45,9 +45,12 @@ Client.o:$(SRC)/$(CLIENT_LIB).cpp $(INCLUDE)/$(CLIENT_LIB).h
 #libuser.so:$(SRC)/$(USER_LIB).cpp $(INCLUDE)/$(USER_LIB).h Client.o
 #	$(CC) $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Client.o
 
-libBB.so:$(SRC)/$(BB_LIB).cpp $(INCLUDE)/$(BB_LIB).h Client.o
-	$(CC) $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Client.o
+BB.o:$(SRC)/$(BB_LIB).cpp $(INCLUDE)/$(BB_LIB).h 
+	$(CC) $(FLAG) -c -fPIC $(INCLUDE_FLAG) -o $@ $<
 	
+libBB.so:$(SRC)/$(POSIX_LIB).cpp Client.o BB.o
+	$(CC) -DBB_PRELOAD $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Client.o BB.o
+
 libmaster.so:$(SRC)/$(MASTER_LIB).cpp $(INCLUDE)/$(MASTER_LIB).h Server.o
 	$(CC) $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Server.o
 
@@ -63,7 +66,7 @@ $(IONODE):$(SRC)/$(IONODE).cpp libionode.so
 #$(USER_MAIN):lib $(QUERY_LIB).o $(SRC)/$(USER_MAIN).cpp
 #	$(CC) $(FLAG) $(INCLUDE_FLAG) -o $(USER_MAIN) $(CLIENT_LIB).o $(QUERY_LIB).o $(SRC)/$(USER_MAIN).cpp
 
-$(USER_CLIENT):$(SRC)/$(USER_CLIENT).cpp libuser.so 
+$(USER_CLIENT):$(SRC)/$(USER_CLIENT).cpp libBB.so 
 	$(CC) $(FLAG) $(LINK_FLAG) $(INCLUDE_FLAG) -o $@ $< -luser -lrt
 
 .PHONY:
@@ -85,10 +88,9 @@ User_main:$(USER_MAIN)
 	mv *.so lib
 	rm -f *.o
 
-User_client:$(USER_CLIENT)
+client.so:libBB.so
 	mkdir -p bin lib
-	mv $< bin
-	mv *.so lib
+	mv $< lib
 	rm -f *.o
 
 clean:

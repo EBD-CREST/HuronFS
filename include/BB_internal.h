@@ -16,19 +16,23 @@
 
 	#define BB_WRAP(name) name
 
-	#define BB_REAL(name) __real_ ## name
+	#define BB_REAL(name) __real_P_ ## name
 
-	#define MAP_BACK(func) \
-		if (!(__real_ ## func)) \
-	{\
-		__real_ ## func = dlsym(RTLD_NEXT, #func); \
-		if(!(__real_ ## func)) {\
-			fprintf(stderr, "BB failed to map symbol: %s\n", #func); \
-			exit(1); \
-		} \
-	}
+	#define	BB_FUNC_P(ret,name,args)																		\
+		typedef ret (*__real_ ## name) args;																\
+		__real_ ## name __real_P_ ## name=NULL;
 
-	#define	BB_FUNC_P(ret,name,args) ret (*__real_ ## name) args=NULL;
+	#define MAP_BACK(func)																					\
+		if (!(__real_P_ ## func))																			\
+		{																									\
+			__real_P_ ## func = reinterpret_cast<__real_ ## func>(dlsym(RTLD_NEXT, #func));                 \
+			if(!(__real_P_## func))																			\
+			{																								\
+				fprintf(stderr, "BB failed to map symbol: %s\n", #func);									\
+				exit(1);																					\
+			}																					            \
+		}
+
 
 #else
 
@@ -42,6 +46,7 @@
 		extern ret __real_ ##name args;
 #endif
 
+#include <arpa/inet.h>
 inline void set_server_addr(const std::string &ip, struct sockaddr_in &addr)
 {
 	memset(&addr, 0, sizeof(addr));
