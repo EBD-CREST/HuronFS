@@ -18,8 +18,8 @@ LIB = lib
 BIN = bin
 
 CC = g++
-FLAG = -O3 -Wall
-#FLAG = -g -Wall
+#FLAG = -O3 -Wall
+FLAG = -g -Wall -DDEBUG
 
 LIBFLAG = -shared -fPIC
 
@@ -31,7 +31,8 @@ run:
 	@echo 'run make Master'
 	@echo 'or make IOnode'
 	@echo 'or make User_main'
-	@echo 'or make User_client'
+	@echo 'or make client.so'
+	@echo 'or make all'
 
 Server.o:$(SRC)/$(SERVER_LIB).cpp $(INCLUDE)/$(SERVER_LIB).h
 	$(CC) -c $(FLAG) -fPIC $(INCLUDE_FLAG) -o $@ $<
@@ -69,7 +70,6 @@ $(IONODE):$(SRC)/$(IONODE).cpp libionode.so
 $(USER_CLIENT):$(SRC)/$(USER_CLIENT).cpp libBB.so 
 	$(CC) $(FLAG) $(LINK_FLAG) $(INCLUDE_FLAG) -o $@ $< -luser -lrt
 
-.PHONY:
 Master:$(MASTER)
 	mkdir -p bin lib
 	mv $< bin
@@ -93,6 +93,13 @@ client.so:libBB.so
 	mv $< lib
 	rm -f *.o
 
+all:$(MASTER) $(IONODE) $(USER_MAIN) client.so
+	mkdir -p bin lib
+	mv $^ bin
+	mv -P *.so lib
+	rm -f *.o
+
+.PHONY:
 clean:
 	rm $(BIN)/*
 	rm $(LIB)/*

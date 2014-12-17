@@ -26,13 +26,14 @@ private:
 	class file_info
 	{
 		public:
-		file_info(ssize_t file_no, int fd, size_t size, size_t block_size);
+		file_info(ssize_t file_no, int fd, size_t size, size_t block_size, int flag);
 		file_info();
 		ssize_t file_no;
 		off_t now_point;
 		int fd;
 		ssize_t size;
 		size_t block_size;
+		int flag;
 	};
 
 public:
@@ -41,8 +42,9 @@ public:
 	typedef std::vector<bool> _file_t;
 
 public:
+	//initalize parameters
 	CBB();
-
+	//posix API
 	int _open(const char *path, int flag, mode_t mode);
 
 	ssize_t _read(int fid, void *buffer, size_t size);
@@ -50,7 +52,11 @@ public:
 	ssize_t _write(int fid,const void *buffer, size_t size);
 
 	int _close(int fid);
+
+	int _flush(int fid);
 	
+private:
+	//private functions
 	void _getblock(int socket, off_t start_point, size_t size, std::vector<block_info> &block);
 	
 	int _get_fid();
@@ -71,6 +77,7 @@ private:
 	_file_t _opened_file;
 	struct sockaddr_in _master_addr;
 	struct sockaddr_in _client_addr;
+	bool _initial;
 };
 
 

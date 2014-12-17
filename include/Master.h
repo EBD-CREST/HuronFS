@@ -86,7 +86,7 @@ private:
 	int _parse_regist_IOnode(int clientfd, const std::string& ip);
 	//file operation
 	int _parse_open_file(int clientfd, std::string& ip); 
-	int _parse_read_file(int clientfd, std::string& ip);
+	int _parse_read_file(int clientfd, std::string& ip) throw(std::out_of_range);
 	int _parse_write_file(int clientfd, std::string& ip);
 	int _parse_flush_file(int clientfd, std::string& ip);
 	int _parse_close_file(int clientfd, std::string& ip);

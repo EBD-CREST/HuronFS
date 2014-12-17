@@ -18,11 +18,12 @@
 #include "include/IO_const.h"
 #include "include/Communication.h"
 
-IOnode::block::block(off_t start_point, size_t size, bool dirty_flag) throw(std::bad_alloc):
+IOnode::block::block(off_t start_point, size_t size, bool dirty_flag, bool valid) throw(std::bad_alloc):
 	size(size),
 	data(NULL),
 	start_point(start_point),
-	dirty_flag(dirty_flag)
+	dirty_flag(dirty_flag),
+	valid(INVALID)
 {
 	data=malloc(size);
 	if( NULL == data)
@@ -37,7 +38,13 @@ IOnode::block::~block()
 	free(data);
 }
 
-IOnode::block::block(const block & src):size(src.size),data(src.data), start_point(src.start_point){};
+IOnode::block::block(const block & src):
+	size(src.size),
+	data(src.data), 
+	start_point(src.start_point),
+	dirty_flag(src.dirty_flag),
+	valid(src.valid)
+{};
 
 IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtime_error):
 	Server(IONODE_PORT), 
@@ -146,10 +153,19 @@ int IOnode::_send_data(int sockfd)
 {
 	ssize_t file_no;
 	off_t start_point;
+	size_t size;
 	Recv(sockfd, file_no);
 	Recv(sockfd, start_point);
-	const block* requested_block=_files.at(file_no).at(start_point);
-	Sendv_pre_alloc(sockfd, reinterpret_cast<char*>(requested_block->data), requested_block->size);
+	Recv(sockfd, size);
+	const std::string& path = _file_path[file_no];
+	block* requested_block=_files.at(file_no).at(start_point);
+	if(INVALID == requested_block->valid)
+	{
+		_read_from_storage(path, requested_block);
+		requested_block->valid = VALID;
+	}
+	Send(sockfd, SUCCESS);
+	Sendv_pre_alloc(sockfd, reinterpret_cast<char*>(requested_block->data), size);
 	close(sockfd);
 	return 1;
 }
@@ -174,7 +190,7 @@ int IOnode::_open_file(int sockfd)
 	{
 		blocks=&(_files[file_no]); 
 	}
-	blocks->insert(std::make_pair(start_point, new block(start_point, block_size, CLEAN)));
+	blocks->insert(std::make_pair(start_point, new block(start_point, block_size, CLEAN, INVALID)));
 	if(_file_path.end() == _file_path.find(file_no))
 	{
 		_file_path.insert(std::make_pair(file_no, std::string(path_buffer)));
@@ -201,7 +217,7 @@ int IOnode::_read_file(int sockfd)
 	return SUCCESS;
 }
 
-size_t IOnode::_read_from_storage(const std::string& path, const block* block_data)throw(std::runtime_error)
+size_t IOnode::_read_from_storage(const std::string& path, block* block_data)throw(std::runtime_error)
 {
 	off_t start_point=block_data->start_point;
 	int fd=open(path.c_str(), O_RDONLY); 
@@ -242,7 +258,7 @@ IOnode::block* IOnode::_buffer_block(off_t start_point, size_t size)throw(std::r
 {
 	try
 	{
-		block *new_block=new block(start_point, size, DIRTY); 
+		block *new_block=new block(start_point, size, DIRTY, VALID); 
 		return new_block; 
 	}
 	catch(std::bad_alloc &e)
@@ -264,7 +280,7 @@ int IOnode::_write_file(int clientfd)
 	try
 	{
 		block_info_t &blocks=_files.insert(std::make_pair(file_no, block_info_t())).first->second;
-		blocks.insert(std::make_pair(start_point, new block(start_point, size, DIRTY)));
+		blocks.insert(std::make_pair(start_point, new block(start_point, size, DIRTY, VALID)));
 		if(_file_path.end() == _file_path.find(file_no))
 		{
 			_file_path.insert(std::make_pair(file_no, std::string(file_path)));
@@ -355,7 +371,6 @@ size_t IOnode::_write_to_storage(const std::string& path, const block* block_dat
 	struct iovec iov;
 	iov.iov_base=const_cast<void*>(block_data->data);
 	iov.iov_len=block_data->size;
-	size_t length=block_data->size;
 	writev(fd, &iov, 1);
 	//puts((char*)block_data->data);
 //	write(STDOUT_FILENO, (char*)block_data->data, length);

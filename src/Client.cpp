@@ -5,6 +5,7 @@
 
 #include "include/Client.h"
 #include "include/IO_const.h"
+#include "include/BB_internal.h"
 
 int Client::_connect_to_server(struct sockaddr_in& client_addr, struct sockaddr_in& server_addr) throw(std::runtime_error)
 {
@@ -22,7 +23,11 @@ int Client::_connect_to_server(struct sockaddr_in& client_addr, struct sockaddr_
 		throw std::runtime_error("client bind port failed\n"); 
 	}
 	int count=0; 
-	while( MAX_CONNECT_TIME > ++count  &&  0 !=  connect(client_socket, reinterpret_cast<struct sockaddr*>(&server_addr), sizeof(server_addr))); 
+	while( MAX_CONNECT_TIME > ++count  &&  0 !=  connect(client_socket, reinterpret_cast<struct sockaddr*>(&server_addr), sizeof(server_addr)))
+	{
+		usleep(CONNECT_WAIT_TIME);
+		debug("connect failed %d\n", count+1);
+	}
 	if(MAX_CONNECT_TIME  ==  count)
 	{
 		close(client_socket); 

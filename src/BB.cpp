@@ -38,9 +38,11 @@ CBB::CBB():
 	_file_list(_file_list_t()),
 	_opened_file(_file_t(MAX_FILE)),
 	_master_addr(sockaddr_in()),
-	_client_addr(sockaddr_in())
+	_client_addr(sockaddr_in()),
+	_initial(false)
 {
 	const char *master_ip=NULL;
+	debug("start initalizing\n");
 	if(NULL == (master_ip=getenv("BB_MASTER_IP")))
 	{
 		fprintf(stderr, "please set master ip\n");
@@ -53,6 +55,7 @@ CBB::CBB():
 		return;
 	}
 	memset(&_master_addr, 0, sizeof(_master_addr));
+	memset(&_client_addr, 0, sizeof(_client_addr));
 	_master_addr.sin_family = AF_INET;
 	_master_addr.sin_port = htons(MASTER_PORT);
 	for(int i=0;i<MAX_FILE; ++i)
@@ -66,8 +69,10 @@ CBB::CBB():
 		return;
 	}
 	_client_addr.sin_family = AF_INET;
-	_client_addr.sin_port = htons(CLIENT_PORT);
+	_client_addr.sin_port = htons(0);
 	_client_addr.sin_addr.s_addr = htons(INADDR_ANY);
+	debug("initialization finished\n");
+	_initial=true;
 }
 
 CBB::block_info::block_info(std::string ip, off_t start_point, size_t size):
@@ -82,12 +87,13 @@ CBB::block_info::block_info(const char *ip, off_t start_point, size_t size):
 	size(size)
 {}
 
-CBB::file_info::file_info(ssize_t file_no, int fd, size_t size, size_t block_size):
+CBB::file_info::file_info(ssize_t file_no, int fd, size_t size, size_t block_size, int flag):
 	file_no(file_no),
 	now_point(0),
 	fd(fd),
 	size(size),
-	block_size(block_size)
+	block_size(block_size),
+	flag(flag)
 {}
 
 CBB::file_info::file_info():
@@ -95,7 +101,8 @@ CBB::file_info::file_info():
 	now_point(0),
 	fd(0),
 	size(0),
-	block_size(0)
+	block_size(0),
+	flag(-1)
 {}
 
 void CBB::_getblock(int socket, off_t start_point, size_t size, std::vector<block_info> &block)
@@ -107,6 +114,8 @@ void CBB::_getblock(int socket, off_t start_point, size_t size, std::vector<bloc
 	int count;
 	Recv(socket, file_size);
 	Recv(socket, block_size);
+	Send(socket, start_point);
+	Send(socket, size);
 	Recv(socket, count);
 	for(int i=0;i<count;++i)
 	{
@@ -146,7 +155,9 @@ int CBB::_get_fid()
 int CBB::_open(const char * path, int flag, mode_t mode)
 {
 	int ret;
+	debug("connect to master\n");
 	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
+	CHECK_INIT();
 	Send(master_socket, OPEN_FILE); 
 	Sendv(master_socket, path, strlen(path));
 	Send(master_socket, flag); 
@@ -157,6 +168,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	Recv(master_socket, ret);
 	if(SUCCESS == ret)
 	{
+		debug("open finished\n");
 		int fid;
 		if(-1 == (fid=_get_fid()))
 		{
@@ -164,10 +176,12 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 			return -1; 
 		}
 		file_info &file=_file_list[fid];
+		file.flag=flag;
 		Recv(master_socket, file.file_no);
 		Recv(master_socket, file.size);
 		Recv(master_socket, file.block_size);
 		close(master_socket);
+		debug("file no =%ld, fid = %d\n", file.file_no, _BB_fid_to_fd(fid));
 		return _BB_fid_to_fd(fid);
 	}
 	else
@@ -188,6 +202,7 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 	file_info& file=_file_list[fid];
 	ssize_t file_no=file.file_no;
 	off_t &now_point=file.now_point;
+	CHECK_INIT();
 	
 	std::vector<block_info> blocks;
 	Send(master_socket, READ_FILE);
@@ -205,7 +220,7 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 			Send(IOnode_socket, READ_FILE);
 			Send(IOnode_socket, file_no);
 			Send(IOnode_socket, start_point);
-			size_t recv_size=size < file.block_size ? size: file.block_size;
+			size_t recv_size=size;//size < file.block_size ? size: file.block_size;
 			Send(IOnode_socket, recv_size);
 			Recv(IOnode_socket, ret);
 			if(SUCCESS == ret)
@@ -241,10 +256,13 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 	file_info &file=_file_list[fd];
 	ssize_t file_no=file.file_no;
 	off_t &now_point=file.now_point;
+	CHECK_INIT();
 	
 	std::vector<block_info> blocks;
 	Send(master_socket, WRITE_FILE);
 	Send(master_socket, file_no);
+	Send(master_socket, now_point);
+	Send(master_socket, size);
 	Recv(master_socket, ret);
 	if(SUCCESS == ret)
 	{
@@ -290,17 +308,40 @@ int CBB::_close(int fd)
 	int master_socket=Client::_connect_to_server(_client_addr, _master_addr);
 	int ret;
 	int fid=_BB_fd_to_fid(fd);
+	CHECK_INIT();
 	Send(master_socket, CLOSE_FILE);
-	Send(master_socket, _file_list[fd].file_no);
+	Send(master_socket, _file_list[fid].file_no);
 	Recv(master_socket, ret);
 	if(SUCCESS == ret)
 	{
 		_opened_file[fid]=false;
 		_file_list.erase(fid);
+		return 0;
 	}
-	return 0;
+	else
+	{
+		return -1;
+	}
 }
 
+int CBB::_flush(int fd)
+{
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr);
+	int ret;
+	int fid=_BB_fd_to_fid(fd);
+	CHECK_INIT();
+	Send(master_socket, FLUSH_FILE);
+	Send(master_socket, _file_list[fid].file_no);
+	Recv(master_socket, ret);
+	if(SUCCESS == ret)
+	{
+		return 0;
+	}
+	else
+	{
+		return -1;
+	}
+}
 /*
 void User_Client::_set_IOnode_addr(const char* ip)throw(std::runtime_error)
 {
