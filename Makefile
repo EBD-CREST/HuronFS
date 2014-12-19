@@ -27,6 +27,8 @@ INCLUDE_FLAG = -I./
 
 LINK_FLAG = -L./
 
+VPATH = lib/
+
 run:
 	@echo 'run make Master'
 	@echo 'or make IOnode'

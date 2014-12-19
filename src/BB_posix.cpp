@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <error.h>
+#include <limits.h>
 
 #include "include/BB.h"
 #include "include/BB_posix.h"
@@ -44,14 +45,12 @@ static bool _interpret_fd(int fd)
 
 static void _format_path(const char *path, std::string &formatted_path)
 {
-	if('/' == path[0])
-	{
-		formatted_path = std::string(path);
-	}
-	else
-	{
-		formatted_path = std::string(mount_point)+std::string(path);
-	}
+	char *real_path=static_cast<char *>(malloc(PATH_MAX));
+	realpath(path, real_path);
+
+	formatted_path = std::string(real_path);
+	free(real_path);
+	return;
 }
 
 extern "C" int BB_WRAP(open)(const char* path, int flag, ...)

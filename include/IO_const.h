@@ -48,5 +48,6 @@ const int I_AM_SHUT_DOWN = 21;
 const int TOO_MANY_FILES =50;
 const int FILE_NOT_FOUND = 51;
 const int UNKNOWN_ERROR = 52;
+const int NO_SUCH_FILE = 53;
 
 #endif

@@ -40,6 +40,7 @@ public:
 	//map fd file_info
 	typedef std::map<int, file_info> _file_list_t;
 	typedef std::vector<bool> _file_t;
+	typedef std::vector<block_info> _block_list_t;
 
 public:
 	//initalize parameters
@@ -58,7 +59,9 @@ public:
 private:
 	//private functions
 	void _getblock(int socket, off_t start_point, size_t size, std::vector<block_info> &block);
-	
+	ssize_t _read_from_IOnode(file_info& file, const _block_list_t& blocks, char *buffer, size_t size);
+	ssize_t _write_to_IOnode(file_info& file, const _block_list_t& blocks, const char *buffer, size_t size);
+
 	int _get_fid();
 	
 	int _BB_fd_to_fid(int fd)

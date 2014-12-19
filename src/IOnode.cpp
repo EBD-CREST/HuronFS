@@ -305,7 +305,9 @@ int IOnode::_receive_data(int clientfd)
 	{
 		block_info_t &blocks=_files.at(file_no);
 		block* _block=blocks.at(start_point);
+		Send(clientfd, SUCCESS);
 		Recvv_pre_alloc(clientfd, reinterpret_cast<char*>(_block->data), size);
+		_block->dirty_flag=DIRTY;
 	}
 	catch(std::out_of_range &e)
 	{

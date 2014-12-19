@@ -8,7 +8,7 @@ int main(int argc, const char ** argv)
 {
 	int fd;
 	char buffer;
-	if(-1 == (fd=open("/home/xtq/test1", O_RDWR)))
+	if(-1 == (fd=open("../../../test1", O_RDWR)))
 	{
 		perror("open");
 		return EXIT_FAILURE;

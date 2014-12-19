@@ -107,7 +107,7 @@ template<class T> size_t Recvv(int sockfd, T **buffer)
 template<class T> size_t Recvv_pre_alloc(int sockfd, T *buffer, size_t length)
 {
 	ssize_t ret = 0;
-	
+	size_t ans=0;	
 	char *buffer_tmp = reinterpret_cast<char *>(buffer);
 	struct iovec iov; 
 	iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
@@ -125,10 +125,11 @@ template<class T> size_t Recvv_pre_alloc(int sockfd, T *buffer, size_t length)
 		}
 		buffer_tmp += ret; 
 		length -= ret; 
+		ans+=ret;
 		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
 		iov.iov_len=length; 
 	}
-	return length;
+	return ans;
 }
 
 template<class T> size_t Sendv(int sockfd,const T* buffer, size_t count)

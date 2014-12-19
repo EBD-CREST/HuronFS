@@ -41,7 +41,7 @@ private:
 	
 	//map node_id:node_info
 	typedef std::map<ssize_t, node_info> IOnode_t; 
-
+	//map file_no:file_info
 	typedef std::map<ssize_t, file_info> File_t; 
 
 	struct file_info
@@ -76,8 +76,10 @@ private:
 	ssize_t _get_node_id(); 
 	ssize_t _get_file_no(); 
 	void _send_node_info(int socket, std::string& ip)const;
+	void _send_block_info(int socket, const node_t& node_set)const;
 	void _send_file_info(int socket, std::string& ip)const; 
 	void _send_file_meta(int socket, std::string& ip)const; 
+	void _send_write_request(ssize_t file_no, const file_info& file, const node_t& node_set)const;
 
 	IOnode_t::iterator _find_by_ip(const std::string& ip);
 
@@ -90,11 +92,13 @@ private:
 	int _parse_write_file(int clientfd, std::string& ip);
 	int _parse_flush_file(int clientfd, std::string& ip);
 	int _parse_close_file(int clientfd, std::string& ip);
+	int _parse_node_info(int clientfd, std::string& ip)const;
 	node_t _send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length, size_t& block_size)throw(std::invalid_argument); 
 	node_t _select_IOnode(size_t file_size, size_t block_size)const; 
 
 	void _send_IO_request(const node_t &nodes, ssize_t file_no, size_t block_size, const char* file_path, int mode)const;
 	size_t _get_block_size(size_t length);
+
 private:
 	IOnode_t _registed_IOnodes;
 	file_no_t _file_no;  
