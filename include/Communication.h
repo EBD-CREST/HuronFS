@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+#include "include/BB_internal.h"
+
 //API declearation
 template<class T> size_t Recv(int sockfd, T& buffer);
 
@@ -142,6 +144,8 @@ template<class T> size_t Sendv(int sockfd,const T* buffer, size_t count)
 	iov.iov_len=length; 
 
 	Send(sockfd, length); 
+	debug("length=%lu\n",length);
+	debug("before sending\n");
 	while(0 != length && 0 != (ret=writev(sockfd, &iov, 1)))
 	{
 		if(-1 == ret)
@@ -152,6 +156,7 @@ template<class T> size_t Sendv(int sockfd,const T* buffer, size_t count)
 			}
 			break; 
 		}
+		debug("ret=%lu\n",ret);
 		buffer_tmp += ret; 
 		length -= ret; 
 		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
@@ -168,8 +173,8 @@ template<class T> size_t Sendv_pre_alloc(int sockfd,const T* buffer, size_t coun
 	struct iovec iov; 
 	iov.iov_base=const_cast<void *>(reinterpret_cast<const void*>(buffer)); 
 	iov.iov_len=length; 
-	printf("length=%lu\n",length);
-	puts("before sending");
+	debug("length=%lu\n",length);
+	debug("before sending\n");
 	while(0 != length && 0 != (ret=writev(sockfd, &iov, 1)))
 	{
 		if(-1 == ret)
@@ -180,7 +185,7 @@ template<class T> size_t Sendv_pre_alloc(int sockfd,const T* buffer, size_t coun
 			}
 			break; 
 		}
-		printf("ret=%lu\n",ret);
+		debug("ret=%lu\n",ret);
 		buffer_tmp += ret; 
 		length -= ret; 
 		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 

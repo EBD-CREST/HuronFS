@@ -6,11 +6,11 @@ QUERY_LIB = Query_Client
 POSIX_LIB = BB_posix
 BB_LIB = BB
 
-MASTER = master_main
-IONODE = node_main
-USER_MAIN = user_main
+MASTER_OBJ = master_main
+IONODE_OBJ = node_main
+USER_MAIN_OBJ = user_main
 USER_CLIENT = user_client
-USER_CLIENT = user_client
+BB_LIB_OBJ = BB
 
 INCLUDE = include
 SRC = src
@@ -60,10 +60,10 @@ libmaster.so:$(SRC)/$(MASTER_LIB).cpp $(INCLUDE)/$(MASTER_LIB).h Server.o
 libionode.so:$(SRC)/$(IONODE_LIB).cpp $(INCLUDE)/$(IONODE_LIB).h $(Server.o) Client.o Server.o
 	$(CC) $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Server.o Client.o
 
-$(MASTER):$(SRC)/$(MASTER).cpp libmaster.so 
+$(MASTER_OBJ):$(SRC)/$(MASTER_OBJ).cpp libmaster.so 
 	$(CC) $(FLAG) $(LINK_FLAG) $(INCLUDE_FLAG) -o $@ $< -lmaster
 
-$(IONODE):$(SRC)/$(IONODE).cpp libionode.so 
+$(IONODE_OBJ):$(SRC)/$(IONODE_OBJ).cpp libionode.so 
 	$(CC) $(FLAG) $(LINK_FLAG) $(INCLUDE_FLAG) -o $@ $< -lionode
 
 #$(USER_MAIN):lib $(QUERY_LIB).o $(SRC)/$(USER_MAIN).cpp
@@ -72,34 +72,40 @@ $(IONODE):$(SRC)/$(IONODE).cpp libionode.so
 $(USER_CLIENT):$(SRC)/$(USER_CLIENT).cpp libBB.so 
 	$(CC) $(FLAG) $(LINK_FLAG) $(INCLUDE_FLAG) -o $@ $< -luser -lrt
 
-Master:$(MASTER)
+Master:$(MASTER_OBJ)
 	mkdir -p bin lib
 	mv $< bin
 	mv *.so lib
 	rm -f *.o
+	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
-IOnode:$(IONODE)
+IOnode:$(IONODE_OBJ)
 	mkdir -p bin lib
 	mv $< bin
 	mv *.so lib
 	rm -f *.o
+	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
 User_main:$(USER_MAIN)
 	mkdir -p bin lib
 	mv $< bin
 	mv *.so lib
 	rm -f *.o
+	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
 client.so:libBB.so
 	mkdir -p bin lib
 	mv $< lib
 	rm -f *.o
+	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
-all:$(MASTER) $(IONODE) $(USER_MAIN) client.so
+all:$(MASTER_OBJ) $(IONODE_OBJ) libBB.so
 	mkdir -p bin lib
-	mv $^ bin
-	mv -P *.so lib
+	mv *.so lib
+	mv $(MASTER_OBJ) bin
+	mv $(IONODE_OBJ) bin
 	rm -f *.o
+	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
 .PHONY:
 clean:

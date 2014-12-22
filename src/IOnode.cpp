@@ -153,21 +153,32 @@ int IOnode::_send_data(int sockfd)
 {
 	ssize_t file_no;
 	off_t start_point;
+	off_t offset;
 	size_t size;
 	Recv(sockfd, file_no);
 	Recv(sockfd, start_point);
+	Recv(sockfd, offset);
 	Recv(sockfd, size);
-	const std::string& path = _file_path[file_no];
-	block* requested_block=_files.at(file_no).at(start_point);
-	if(INVALID == requested_block->valid)
+	try
 	{
-		_read_from_storage(path, requested_block);
-		requested_block->valid = VALID;
+		const std::string& path = _file_path[file_no];
+		block* requested_block=_files.at(file_no).at(start_point);
+		if(INVALID == requested_block->valid)
+		{
+			_read_from_storage(path, requested_block);
+			requested_block->valid = VALID;
+		}
+		Send(sockfd, SUCCESS);
+		Sendv_pre_alloc(sockfd, reinterpret_cast<char*>(requested_block->data)+offset, size);
+		close(sockfd);
+		return SUCCESS;
 	}
-	Send(sockfd, SUCCESS);
-	Sendv_pre_alloc(sockfd, reinterpret_cast<char*>(requested_block->data), size);
-	close(sockfd);
-	return 1;
+	catch(std::out_of_range &e)
+	{
+		Send(sockfd, FILE_NOT_FOUND);
+		close(sockfd);
+		return FAILURE;
+	}
 }
 
 int IOnode::_open_file(int sockfd)
@@ -297,24 +308,28 @@ int IOnode::_receive_data(int clientfd)
 {
 	ssize_t file_no;
 	off_t start_point;
+	off_t offset;
 	size_t size;
 	Recv(clientfd, file_no);
 	Recv(clientfd, start_point);
+	Recv(clientfd, offset);
 	Recv(clientfd, size);
 	try
 	{
 		block_info_t &blocks=_files.at(file_no);
 		block* _block=blocks.at(start_point);
 		Send(clientfd, SUCCESS);
-		Recvv_pre_alloc(clientfd, reinterpret_cast<char*>(_block->data), size);
+		Recvv_pre_alloc(clientfd, reinterpret_cast<char*>(_block->data)+offset, size);
 		_block->dirty_flag=DIRTY;
+		close(clientfd);
+		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
 		Send(clientfd, FILE_NOT_FOUND);
+		close(clientfd);
 		return FAILURE;
 	}
-	return SUCCESS;
 }
 
 int IOnode::_write_back_file(int clientfd)
@@ -332,13 +347,13 @@ int IOnode::_write_back_file(int clientfd)
 		Send(clientfd, SUCCESS);
 		const std::string &path=_file_path.at(file_no);
 		_write_to_storage(path, _block);
+		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
 		Send(clientfd, FILE_NOT_FOUND);
 		return FAILURE;
 	}
-	return SUCCESS;
 }
 
 size_t IOnode::_write_to_storage(const std::string& path, const block* block_data)throw(std::runtime_error)

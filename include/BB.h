@@ -45,6 +45,7 @@ public:
 public:
 	//initalize parameters
 	CBB();
+	~CBB();
 	//posix API
 	int _open(const char *path, int flag, mode_t mode);
 

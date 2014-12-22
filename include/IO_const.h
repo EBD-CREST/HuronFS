@@ -50,4 +50,6 @@ const int FILE_NOT_FOUND = 51;
 const int UNKNOWN_ERROR = 52;
 const int NO_SUCH_FILE = 53;
 
+const char OUT_OF_RANGE[]="out of range\n"; 
+
 #endif

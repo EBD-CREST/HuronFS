@@ -10,7 +10,10 @@
 
 
 #ifdef BB_PRELOAD
-	#define __USE_GNU
+	#ifndef __USE_GNU
+		#define __USE_GNU
+	#endif
+	
 	#include <dlfcn.h>
 	#include <stdlib.h>
 

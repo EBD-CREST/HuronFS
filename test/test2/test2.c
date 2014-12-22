@@ -4,6 +4,8 @@
 #include <sys/types.h>
 
 //access to a remote file
+//test function:
+//open, read, write, flush, close
 int main(int argc, const char ** argv)
 {
 	int fd;
@@ -19,7 +21,7 @@ int main(int argc, const char ** argv)
 		return EXIT_FAILURE;
 	}
 	printf("%c\n", buffer);
-	buffer='a';
+	buffer++;
 	if(-1 == write(fd, &buffer, sizeof(char)))
 	{
 		perror("write");

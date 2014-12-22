@@ -6,6 +6,7 @@
 #include "include/Server.h"
 #include "include/IO_const.h"
 #include "include/Communication.h"
+#include "include/BB_internal.h"
 
 Server::Server(int port)throw(std::runtime_error):
 	_server_addr(sockaddr_in()), 
@@ -96,7 +97,7 @@ void Server::start_server()
 					close(new_client);  
 					continue;  
 				}
-				fprintf(stderr,  "A New Client\n"); 
+				debug("A New Client\n"); 
 				ret=_parse_new_request(new_client,  client_addr);
 			}
 			//communication from registed nodes
