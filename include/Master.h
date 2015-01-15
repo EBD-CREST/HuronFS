@@ -18,6 +18,7 @@
 #include "include/IO_const.h"
 #include "include/Server.h"
 
+
 class Master:public Server
 {
 	//API
@@ -31,7 +32,7 @@ private:
 	//set file_no
 	typedef std::set<ssize_t> file_t;
 	//map file start_point:node_id
-	typedef std::map<off_t, ssize_t> node_t; 
+	typedef std::map<off64_t, ssize_t> node_t; 
 
 	typedef std::set<ssize_t> node_pool_t;
 	//map file_path: file_no
@@ -67,6 +68,8 @@ private:
 		int socket; 
 	}; 
 
+	static const char* MASTER_MOUNT_POINT;
+
 private:
 	ssize_t _add_IO_node(const std::string& node_ip, std::size_t avaliable_memory, int socket);
 	ssize_t _delete_IO_node(int socket);
@@ -94,10 +97,12 @@ private:
 	int _parse_close_file(int clientfd, std::string& ip);
 	int _parse_node_info(int clientfd, std::string& ip)const;
 	node_t _send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length, size_t& block_size)throw(std::invalid_argument); 
-	node_t _select_IOnode(size_t file_size, size_t block_size)const; 
+	node_t _select_IOnode(off64_t start_point, size_t file_size, size_t block_size)const; 
 
 	void _send_IO_request(const node_t &nodes, ssize_t file_no, size_t block_size, const char* file_path, int mode)const;
 	size_t _get_block_size(size_t length);
+	off64_t _get_block_start_point(off64_t start_point)const;
+	void _prepare_read_block(file_info& file, off64_t start_point, size_t size);
 
 private:
 	IOnode_t _registed_IOnodes;
@@ -111,6 +116,19 @@ private:
 	bool *_file_no_pool; 
 	ssize_t _now_node_number; 
 	ssize_t _now_file_no; 
+	std::string _mount_point;
 };
+
+/*template<class T, class M> T::iterator find(T::iterator it, T::const_iterator end, M x)
+{
+	for(;end != it;++it)
+	{
+		if(x == it->first)
+		{
+			return it;
+		}
+	}
+	return it;
+}*/
 
 #endif

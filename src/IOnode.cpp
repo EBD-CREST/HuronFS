@@ -18,7 +18,9 @@
 #include "include/IO_const.h"
 #include "include/Communication.h"
 
-IOnode::block::block(off_t start_point, size_t size, bool dirty_flag, bool valid) throw(std::bad_alloc):
+const char *IOnode::IONODE_MOUNT_POINT="CBB_IONODE_MOUNT_POINT";
+
+IOnode::block::block(off64_t start_point, size_t size, bool dirty_flag, bool valid) throw(std::bad_alloc):
 	size(size),
 	data(NULL),
 	start_point(start_point),
@@ -55,7 +57,8 @@ IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtim
 	_current_block_number(0), 
 	_MAX_BLOCK_NUMBER(MAX_BLOCK_NUMBER), 
 	_memory(MEMORY), 
-	_master_port(MASTER_PORT)
+	_master_port(MASTER_PORT),
+	_mount_point(std::string())
 {
 	memset(&_master_conn_addr, 0, sizeof(_master_conn_addr));
 	memset(&_master_addr, 0, sizeof(_master_addr));
@@ -63,6 +66,12 @@ IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtim
 	{
 		throw std::runtime_error("Get Node Id Error"); 
 	}
+	const char *IOnode_mount_point=getenv(IONODE_MOUNT_POINT);
+	if( NULL == IOnode_mount_point)
+	{
+		throw std::runtime_error("please set IONODE_MOUNT_POINT environment value");
+	}
+	_mount_point=std::string(IOnode_mount_point);
 	try
 	{
 		Server::_init_server();
@@ -152,8 +161,8 @@ int IOnode::_parse_registed_request(int sockfd)
 int IOnode::_send_data(int sockfd)
 {
 	ssize_t file_no;
-	off_t start_point;
-	off_t offset;
+	off64_t start_point;
+	off64_t offset;
 	size_t size;
 	Recv(sockfd, file_no);
 	Recv(sockfd, start_point);
@@ -212,7 +221,7 @@ int IOnode::_open_file(int sockfd)
 
 int IOnode::_read_file(int sockfd)
 {
-	off_t start_point=0;
+	off64_t start_point=0;
 	size_t size=0;
 	ssize_t file_no=0;
 	Recv(sockfd, file_no);
@@ -230,8 +239,9 @@ int IOnode::_read_file(int sockfd)
 
 size_t IOnode::_read_from_storage(const std::string& path, block* block_data)throw(std::runtime_error)
 {
-	off_t start_point=block_data->start_point;
-	int fd=open(path.c_str(), O_RDONLY); 
+	off64_t start_point=block_data->start_point;
+	std::string true_path(_mount_point+path);
+	int fd=open64(true_path.c_str(), O_RDONLY); 
 	if(-1 == fd)
 	{
 		perror("File Open Error"); 
@@ -265,7 +275,7 @@ size_t IOnode::_read_from_storage(const std::string& path, block* block_data)thr
 	return block_data->size-size;
 }
 
-IOnode::block* IOnode::_buffer_block(off_t start_point, size_t size)throw(std::runtime_error)
+IOnode::block* IOnode::_buffer_block(off64_t start_point, size_t size)throw(std::runtime_error)
 {
 	try
 	{
@@ -281,7 +291,7 @@ IOnode::block* IOnode::_buffer_block(off_t start_point, size_t size)throw(std::r
 int IOnode::_write_file(int clientfd)
 {
 	ssize_t file_no;
-	off_t start_point;
+	off64_t start_point;
 	size_t size;
 	char *file_path=NULL;
 	Recv(clientfd, file_no);
@@ -307,8 +317,8 @@ int IOnode::_write_file(int clientfd)
 int IOnode::_receive_data(int clientfd)
 {
 	ssize_t file_no;
-	off_t start_point;
-	off_t offset;
+	off64_t start_point;
+	off64_t offset;
 	size_t size;
 	Recv(clientfd, file_no);
 	Recv(clientfd, start_point);
@@ -335,7 +345,7 @@ int IOnode::_receive_data(int clientfd)
 int IOnode::_write_back_file(int clientfd)
 {
 	ssize_t file_no;
-	off_t start_point;
+	off64_t start_point;
 	size_t size;
 	Recv(clientfd, file_no);
 	Recv(clientfd, start_point);
@@ -372,14 +382,15 @@ size_t IOnode::_write_to_storage(const std::string& path, const block* block_dat
 	}
 	fwrite(block_data->data, sizeof(char), block_data->size, fp);
 	fclose(fp);*/
-	int fd = open(path.c_str(),O_WRONLY|O_CREAT|O_SYNC);
+	std::string true_path(_mount_point+path);
+	int fd = open64(true_path.c_str(),O_WRONLY|O_CREAT|O_SYNC);
 	if( -1 == fd)
 	{
 		perror("Open File");
 		throw std::runtime_error("Open File Error\n");
 	}
-	off_t pos;
-	if(-1 == (pos=lseek(fd, block_data->start_point, SEEK_SET)))
+	off64_t pos;
+	if(-1 == (pos=lseek64(fd, block_data->start_point, SEEK_SET)))
 	{
 		perror("Seek"); 
 		throw std::runtime_error("Seek File Error"); 

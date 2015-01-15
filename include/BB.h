@@ -9,6 +9,7 @@
 #include "include/Client.h"
 #include "include/IO_const.h"
 
+
 class CBB:Client
 {
 
@@ -16,10 +17,10 @@ private:
 	class  block_info
 	{
 		public:
-		block_info(std::string ip, off_t start_point, size_t size);
-		block_info(const char* ip, off_t start_point, size_t size);
+		block_info(std::string ip, off64_t start_point, size_t size);
+		block_info(const char* ip, off64_t start_point, size_t size);
 		std::string ip;
-		off_t start_point;
+		off64_t start_point;
 		size_t size;
 	};
 	
@@ -29,9 +30,9 @@ private:
 		file_info(ssize_t file_no, int fd, size_t size, size_t block_size, int flag);
 		file_info();
 		ssize_t file_no;
-		off_t now_point;
+		off64_t now_point;
 		int fd;
-		ssize_t size;
+		size_t size;
 		size_t block_size;
 		int flag;
 	};
@@ -41,6 +42,8 @@ public:
 	typedef std::map<int, file_info> _file_list_t;
 	typedef std::vector<bool> _file_t;
 	typedef std::vector<block_info> _block_list_t;
+	static const char *CLIENT_MOUNT_POINT;
+	static const char *MASTER_IP;
 
 public:
 	//initalize parameters
@@ -49,17 +52,19 @@ public:
 	//posix API
 	int _open(const char *path, int flag, mode_t mode);
 
-	ssize_t _read(int fid, void *buffer, size_t size);
+	ssize_t _read(int fd, void *buffer, size_t size);
 
-	ssize_t _write(int fid,const void *buffer, size_t size);
+	ssize_t _write(int fd,const void *buffer, size_t size);
 
-	int _close(int fid);
+	int _close(int fd);
 
-	int _flush(int fid);
+	int _flush(int fd);
+
+	off64_t _lseek(int fd, off64_t offset, int whence);
 	
 private:
 	//private functions
-	void _getblock(int socket, off_t start_point, size_t size, std::vector<block_info> &block);
+	void _getblock(int socket, off64_t start_point, size_t size, std::vector<block_info> &block);
 	ssize_t _read_from_IOnode(file_info& file, const _block_list_t& blocks, char *buffer, size_t size);
 	ssize_t _write_to_IOnode(file_info& file, const _block_list_t& blocks, const char *buffer, size_t size);
 

@@ -1,12 +1,12 @@
 CC = gcc
 
-OBJ = test1
+OBJ = test3
 
 LINK_FLAG = -L../../lib -lBB -ldl
 compile:$(OBJ)
 	
 $(OBJ):$(OBJ).c
-	$(CC) -o $@ $< $(LINK_FLAG)
+	$(CC) -g -o $@ $< $(LINK_FLAG)
 
 .PHONY:
 clean:

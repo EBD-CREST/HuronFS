@@ -18,6 +18,9 @@
 #include "include/Communication.h"
 
 
+const char* CBB::CLIENT_MOUNT_POINT="CBB_CLIENT_MOUNT_POINT";
+const char* CBB::MASTER_IP="CBB_MASTER_IP";
+
 const char *mount_point=NULL;
 
 /*int ::iob_fstat(ssize_t fd, struct file_stat &stat)
@@ -45,13 +48,13 @@ CBB::CBB():
 {
 	const char *master_ip=NULL;
 	debug("start initalizing\n");
-	if(NULL == (master_ip=getenv("BB_MASTER_IP")))
+	if(NULL == (master_ip=getenv(MASTER_IP)))
 	{
 		fprintf(stderr, "please set master ip\n");
 		return;
 	}
 	
-	if(NULL == (mount_point=getenv("BB_MOUNT_POINT")))
+	if(NULL == (mount_point=getenv(CLIENT_MOUNT_POINT)))
 	{
 		fprintf(stderr, "please set mount point\n");
 		return;
@@ -86,13 +89,13 @@ CBB::~CBB()
 	}
 }
 
-CBB::block_info::block_info(std::string ip, off_t start_point, size_t size):
+CBB::block_info::block_info(std::string ip, off64_t start_point, size_t size):
 	ip(ip),
 	start_point(start_point),
 	size(size)
 {}
 
-CBB::block_info::block_info(const char *ip, off_t start_point, size_t size):
+CBB::block_info::block_info(const char *ip, off64_t start_point, size_t size):
 	ip(ip),
 	start_point(start_point),
 	size(size)
@@ -116,7 +119,7 @@ CBB::file_info::file_info():
 	flag(-1)
 {}
 
-void CBB::_getblock(int socket, off_t start_point, size_t size, std::vector<block_info> &block)
+void CBB::_getblock(int socket, off64_t start_point, size_t size, std::vector<block_info> &block)
 {
 	char *ip=NULL;
 	
@@ -191,6 +194,10 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 		Recv(master_socket, file.size);
 		Recv(master_socket, file.block_size);
 		close(master_socket);
+		if(flag & O_APPEND)
+		{
+			file.now_point=file.size;
+		}
 		debug("file no =%ld, fid = %d\n", file.file_no, _BB_fid_to_fd(fid));
 		return _BB_fid_to_fd(fid);
 	}
@@ -206,7 +213,7 @@ ssize_t CBB::_read_from_IOnode(file_info& file, const _block_list_t& blocks, cha
 {
 	ssize_t ans=0;
 	int ret=0;
-	off_t now_point=file.now_point;
+	off64_t now_point=file.now_point;
 	size_t read_size=size;
 	
 	for(_block_list_t::const_iterator it=blocks.begin();
@@ -214,7 +221,7 @@ ssize_t CBB::_read_from_IOnode(file_info& file, const _block_list_t& blocks, cha
 	{
 		struct sockaddr_in IOnode_addr;
 
-		off_t offset = now_point-it->start_point;
+		off64_t offset = now_point-it->start_point;
 		size_t IO_size = now_point>it->start_point?it->size-IO_size:size; 
 		if(read_size<IO_size)
 		{
@@ -256,14 +263,14 @@ ssize_t CBB::_write_to_IOnode(file_info& file, const _block_list_t& blocks, cons
 {
 	ssize_t ans=0;
 	int ret=0;
-	off_t now_point=file.now_point;
+	off64_t now_point=file.now_point;
 	size_t write_size=size;
 	for(_block_list_t::const_iterator it=blocks.begin();
 			it!=blocks.end();++it)
 	{
 		struct sockaddr_in IOnode_addr;
 
-		off_t offset = now_point-it->start_point;
+		off64_t offset = now_point-it->start_point;
 		size_t IO_size = now_point>it->start_point?it->size-IO_size:size; 
 		if(write_size<IO_size)
 		{
@@ -297,7 +304,7 @@ ssize_t CBB::_write_to_IOnode(file_info& file, const _block_list_t& blocks, cons
 			}
 		}
 		close(IOnode_socket);
-	}
+	}	
 	return ans;
 }
 
@@ -345,7 +352,7 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 	{
 		file_info& file=_file_list.at(fid);
 		ssize_t file_no=file.file_no;
-		off_t &now_point=file.now_point;
+		off64_t &now_point=file.now_point;
 		CHECK_INIT();
 
 		int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
@@ -413,6 +420,25 @@ int CBB::_flush(int fd)
 		return -1;
 	}
 }
+
+off64_t CBB::_lseek(int fid, off64_t offset, int whence)
+{
+	off64_t ret=0;
+	int fid=_BB_fd_to_fid(fd);
+	CHECK_INIT();
+	file_info & file=_file_list[fid];
+	switch(whence)
+	{
+		case SEEK_SET:
+			file.now_point=offset;break;
+		case SEEK_CUR:
+			file.now_point+=offset;break;
+		case SEEK_END:
+			file.now_point=file.size+offset;break;
+	}
+	return offset;
+}
+
 /*
 void User_Client::_set_IOnode_addr(const char* ip)throw(std::runtime_error)
 {

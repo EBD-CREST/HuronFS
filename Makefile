@@ -33,7 +33,7 @@ run:
 	@echo 'run make Master'
 	@echo 'or make IOnode'
 	@echo 'or make User_main'
-	@echo 'or make client.so'
+	@echo 'or make Client'
 	@echo 'or make all'
 
 Server.o:$(SRC)/$(SERVER_LIB).cpp $(INCLUDE)/$(SERVER_LIB).h
@@ -93,7 +93,7 @@ User_main:$(USER_MAIN)
 	rm -f *.o
 	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
-client.so:libBB.so
+Client:libBB.so
 	mkdir -p bin lib
 	mv $< lib
 	rm -f *.o

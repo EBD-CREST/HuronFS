@@ -22,6 +22,7 @@
 #include "include/Server.h"
 #include "include/Client.h"
 
+
 class IOnode:public Server, Client
 {
 //API
@@ -33,21 +34,23 @@ private:
 
 	struct block
 	{
-		block(off_t start_point, size_t size, bool dirty_flag, bool valid) throw(std::bad_alloc);
+		block(off64_t start_point, size_t size, bool dirty_flag, bool valid) throw(std::bad_alloc);
 		~block();
 		block(const block&);
 		size_t size;
 		void* data;
-		off_t  start_point;
+		off64_t  start_point;
 		bool dirty_flag;
 		bool valid;
 	};
 	//map: start_point : block*
-	typedef std::map<off_t, block*> block_info_t; 
+	typedef std::map<off64_t, block*> block_info_t; 
 	//map: file_no: block_info
 	typedef std::map<ssize_t, block_info_t > file_blocks_t; 
 	
 	typedef std::map<ssize_t, std::string> file_path_t;
+
+	static const char * IONODE_MOUNT_POINT;
 
 //private function
 private:
@@ -66,7 +69,7 @@ private:
 	int _write_file(int sockfd);
 	int _flush_file(int sockfd);
 	int _close_file(int sockfd);
-	block *_buffer_block(off_t start_point, size_t size)throw(std::runtime_error);
+	block *_buffer_block(off64_t start_point, size_t size)throw(std::runtime_error);
 	int _receive_data(int sockfd); 
 	int _write_back_file(int sockfd);
 
@@ -92,6 +95,7 @@ private:
 	//IO-node_server_address
 	struct sockaddr_in _master_conn_addr;
 	struct sockaddr_in _master_addr;
+	std::string _mount_point;
 };
 
 #endif

@@ -11,7 +11,7 @@ const int MEMORY = 10000;
 const int MAX_BLOCK_NUMBER = 10; 
 const int MAX_FILE_NUMBER = 1000; 
 const int MAX_QUEUE = 100; 
-const int BLOCK_SIZE = 1000; 
+//const int BLOCK_SIZE = 1000; 
 const int MAX_NODE_NUMBER = 10; 
 const int LENGTH_OF_LISTEN_QUEUE = 10; 
 const int MAX_SERVER_BUFFER = 1000; 
@@ -21,6 +21,7 @@ const int MAX_QUERY_LENGTH = 100;
 const int MAX_FILE = 10000;
 const int INIT_FD = 100000;
 const int CONNECT_WAIT_TIME=1000;
+const size_t BLOCK_SIZE = 5;
 
 const bool CLEAN = false;
 const bool DIRTY = true;
@@ -49,6 +50,7 @@ const int TOO_MANY_FILES =50;
 const int FILE_NOT_FOUND = 51;
 const int UNKNOWN_ERROR = 52;
 const int NO_SUCH_FILE = 53;
+
 
 const char OUT_OF_RANGE[]="out of range\n"; 
 
