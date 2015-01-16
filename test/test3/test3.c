@@ -32,6 +32,13 @@ int main(int argc, const char ** argv)
 		perror("read");
 		return EXIT_FAILURE;
 	}
+
+	if(-1 == lseek(fd1, 0, SEEK_END))
+	{
+		perror("lseek");
+		return EXIT_FAILURE;
+	}
+
 	if(-1 == write(fd1, &buffer, sizeof(char)))
 	{
 		perror("write");

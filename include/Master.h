@@ -82,7 +82,7 @@ private:
 	void _send_block_info(int socket, const node_t& node_set)const;
 	void _send_file_info(int socket, std::string& ip)const; 
 	void _send_file_meta(int socket, std::string& ip)const; 
-	void _send_write_request(ssize_t file_no, const file_info& file, const node_t& node_set)const;
+	void _send_write_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size)const;
 
 	IOnode_t::iterator _find_by_ip(const std::string& ip);
 
@@ -102,7 +102,10 @@ private:
 	void _send_IO_request(const node_t &nodes, ssize_t file_no, size_t block_size, const char* file_path, int mode)const;
 	size_t _get_block_size(size_t length);
 	off64_t _get_block_start_point(off64_t start_point)const;
-	void _prepare_read_block(file_info& file, off64_t start_point, size_t size);
+
+	node_t _get_IOnodes_for_write(off64_t start_point, size_t size, struct file_info& file)throw(std::bad_alloc);
+	int _allocate_one_block(const struct file_info &file)throw(std::bad_alloc);
+	void _append_block(struct file_info& file, int node_id, off64_t start_point);
 
 private:
 	IOnode_t _registed_IOnodes;
@@ -114,12 +117,12 @@ private:
 	ssize_t _file_number; 
 	bool *_node_id_pool; 
 	bool *_file_no_pool; 
-	ssize_t _now_node_number; 
-	ssize_t _now_file_no; 
+	ssize_t _current_node_number; 
+	ssize_t _current_file_no; 
 	std::string _mount_point;
 };
 
-/*template<class T, class M> T::iterator find(T::iterator it, T::const_iterator end, M x)
+/*template<class T, class M> T::iterator find(T::iterator& it, T::const_iterator& end, const M& x)
 {
 	for(;end != it;++it)
 	{

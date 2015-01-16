@@ -37,6 +37,8 @@ private:
 		block(off64_t start_point, size_t size, bool dirty_flag, bool valid) throw(std::bad_alloc);
 		~block();
 		block(const block&);
+
+		void allocate_memory()throw(std::bad_alloc);
 		size_t size;
 		void* data;
 		off64_t  start_point;

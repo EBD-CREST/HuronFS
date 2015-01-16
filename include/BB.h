@@ -30,7 +30,7 @@ private:
 		file_info(ssize_t file_no, int fd, size_t size, size_t block_size, int flag);
 		file_info();
 		ssize_t file_no;
-		off64_t now_point;
+		off64_t current_point;
 		int fd;
 		size_t size;
 		size_t block_size;

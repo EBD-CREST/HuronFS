@@ -27,10 +27,13 @@ IOnode::block::block(off64_t start_point, size_t size, bool dirty_flag, bool val
 	dirty_flag(dirty_flag),
 	valid(INVALID)
 {
-	data=malloc(size);
-	if( NULL == data)
+	if(INVALID != valid)
 	{
-	   throw std::bad_alloc();
+		data=malloc(BLOCK_SIZE);
+		if( NULL == data)
+		{
+		   throw std::bad_alloc();
+		}
 	}
 	return;
 }
@@ -47,6 +50,20 @@ IOnode::block::block(const block & src):
 	dirty_flag(src.dirty_flag),
 	valid(src.valid)
 {};
+
+void IOnode::block::allocate_memory()throw(std::bad_alloc)
+{
+	if(NULL != data)
+	{
+		free(data);
+	}
+	data=malloc(BLOCK_SIZE);
+	if(NULL == data)
+	{
+		throw std::bad_alloc();
+	}
+	return;
+}
 
 IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtime_error):
 	Server(IONODE_PORT), 
@@ -174,6 +191,7 @@ int IOnode::_send_data(int sockfd)
 		block* requested_block=_files.at(file_no).at(start_point);
 		if(INVALID == requested_block->valid)
 		{
+			requested_block->allocate_memory();
 			_read_from_storage(path, requested_block);
 			requested_block->valid = VALID;
 		}
@@ -293,25 +311,35 @@ int IOnode::_write_file(int clientfd)
 	ssize_t file_no;
 	off64_t start_point;
 	size_t size;
+	int count;
 	char *file_path=NULL;
 	Recv(clientfd, file_no);
 	Recvv(clientfd, &file_path);
-	Recv(clientfd, start_point);
+	if(_file_path.end() == _file_path.find(file_no))
+	{
+		_file_path.insert(std::make_pair(file_no, std::string(file_path)));
+	}
 	Recv(clientfd, size);
-	try
+	block_info_t &blocks=_files[file_no];
+	Recv(clientfd, count);
+	for(int i=0;i<count;++i)
 	{
-		block_info_t &blocks=_files.insert(std::make_pair(file_no, block_info_t())).first->second;
-		blocks.insert(std::make_pair(start_point, new block(start_point, size, DIRTY, VALID)));
-		if(_file_path.end() == _file_path.find(file_no))
+		Recv(clientfd, start_point);
+		try
 		{
-			_file_path.insert(std::make_pair(file_no, std::string(file_path)));
+			if(blocks.end() == blocks.find(start_point))
+			{
+				size_t valid_size=size>BLOCK_SIZE?BLOCK_SIZE:size;
+				blocks.insert(std::make_pair(start_point, new block(start_point, valid_size, DIRTY, VALID)));
+			}
 		}
-		return SUCCESS;
+		catch(std::out_of_range &e)
+		{
+			return FILE_NOT_FOUND;
+		}
+		size-=BLOCK_SIZE;
 	}
-	catch(std::out_of_range &e)
-	{
-		return FILE_NOT_FOUND;
-	}
+	return SUCCESS;
 }
 
 int IOnode::_receive_data(int clientfd)

@@ -32,7 +32,7 @@ BB_FUNC_P(off64_t, lseek64, (int fd, off64_t offset, int whence));
 BB_FUNC_P(int, ftruncate, (int fd, off_t length));
 BB_FUNC_P(int, fsync, (int fd));
 BB_FUNC_P(int, fdatasync, (int fd));
-BB_FUNC_P(int, flock, int fd, (int operation));
+BB_FUNC_P(int, flock, (int fd, int operation));
 BB_FUNC_P(void*, mmap, (void *addr, size_t length, int prot, int flag, int fd, off_t offset));
 BB_FUNC_P(void*, mmap64, (void *addr, size_t length, int prot, int flag, int fd, off64_t offset));
 BB_FUNC_P(int, munmap, (void *addr, size_t length));
@@ -286,7 +286,7 @@ extern "C" ssize_t BB_WRAP(pread64)(int fd, void *buffer, size_t count, off64_t 
 {
 	if(_interpret_fd(fd))
 	{
-		if(-1 == client._lseek64(fd, offset, SEEK_SET))
+		if(-1 == client._lseek(fd, offset, SEEK_SET))
 		{
 			return -1;
 		}
@@ -338,7 +338,7 @@ extern "C" int BB_WRAP(ftruncate)(int fd, off_t length)
 {
 	if(_interpret_fd(fd))
 	{
-		return client._lseek64(fd, length, SEEK_SET);
+		return client._lseek(fd, length, SEEK_SET);
 	}
 	else
 	{

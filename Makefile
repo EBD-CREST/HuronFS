@@ -27,7 +27,9 @@ INCLUDE_FLAG = -I./
 
 LINK_FLAG = -L./
 
-VPATH = lib/
+vpath %.cpp src/
+vpath %.h include/
+vpath %.so lib/
 
 run:
 	@echo 'run make Master'
@@ -107,7 +109,10 @@ all:$(MASTER_OBJ) $(IONODE_OBJ) libBB.so
 	rm -f *.o
 	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
-.PHONY:
+.PHONY:clean clean_all
 clean:
-	rm $(BIN)/*
-	rm $(LIB)/*
+	rm -f $(BIN)/*
+	rm -f $(LIB)/*
+
+clean_all:clean
+	cd test && $(MAKE) clean

@@ -56,8 +56,8 @@ Master::Master()throw(std::runtime_error):
 	_file_number(0), 
 	_node_id_pool(new bool[MAX_NODE_NUMBER]), 
 	_file_no_pool(new bool[MAX_FILE_NUMBER]), 
-	_now_node_number(0), 
-	_now_file_no(0),
+	_current_node_number(0), 
+	_current_file_no(0),
 	_mount_point(std::string())
 {
 	memset(_node_id_pool, 0, MAX_NODE_NUMBER*sizeof(bool)); 
@@ -127,20 +127,20 @@ ssize_t Master::_get_node_id()
 	{
 		return -1;
 	}
-	for(; _now_node_number<MAX_NODE_NUMBER; ++_now_node_number)
+	for(; _current_node_number<MAX_NODE_NUMBER; ++_current_node_number)
 	{
-		if(!_node_id_pool[_now_node_number])
+		if(!_node_id_pool[_current_node_number])
 		{
-			_node_id_pool[_now_node_number]=true; 
-			return _now_node_number; 
+			_node_id_pool[_current_node_number]=true; 
+			return _current_node_number; 
 		}
 	}
-	for(_now_node_number=0;  _now_node_number<MAX_NODE_NUMBER; ++_now_node_number)
+	for(_current_node_number=0;  _current_node_number<MAX_NODE_NUMBER; ++_current_node_number)
 	{
-		if(!_node_id_pool[_now_node_number])
+		if(!_node_id_pool[_current_node_number])
 		{
-			_node_id_pool[_now_node_number]=true; 
-			return _now_node_number;
+			_node_id_pool[_current_node_number]=true; 
+			return _current_node_number;
 		}
 	}
 	return -1;
@@ -152,20 +152,20 @@ ssize_t Master::_get_file_no()
 	{
 		return -1;
 	}
-	for(; _now_file_no<MAX_FILE_NUMBER; ++_now_file_no)
+	for(; _current_file_no<MAX_FILE_NUMBER; ++_current_file_no)
 	{
-		if(!_file_no_pool[_now_file_no])
+		if(!_file_no_pool[_current_file_no])
 		{
-			_file_no_pool[_now_file_no]=true; 
-			return _now_file_no; 
+			_file_no_pool[_current_file_no]=true; 
+			return _current_file_no; 
 		}
 	}
-	for(_now_file_no=0;  _now_file_no<MAX_FILE_NUMBER; ++_now_file_no)
+	for(_current_file_no=0;  _current_file_no<MAX_FILE_NUMBER; ++_current_file_no)
 	{
-		if(!_file_no_pool[_now_file_no])
+		if(!_file_no_pool[_current_file_no])
 		{
-			_file_no_pool[_now_file_no]=true; 
-			return _now_file_no;
+			_file_no_pool[_current_file_no]=true; 
+			return _current_file_no;
 		}
 	}
 	return -1;
@@ -308,7 +308,7 @@ int Master::_parse_node_info(int clientfd, std::string& ip) const
 	}
 	catch(std::out_of_range &e)
 	{
-		const char OUT_OF_RANGE[]="out of range\n"; 
+		//const char OUT_OF_RANGE[]="out of range\n"; 
 		Send(clientfd, OUT_OF_RANGE);
 		return FAILURE; 
 	}
@@ -512,13 +512,9 @@ int Master::_parse_read_file(int clientfd, std::string& ip) throw(std::out_of_ra
 	return 1;
 }
 
-void Master::_prepare_read_block(file_info& file, off64_t start_point, size_t size)
+void Master::_send_write_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size)const
 {
-}
-
-void Master::_send_write_request(ssize_t file_no, const file_info& file, const node_t& node_set)const
-{
-	for(node_t::const_iterator it=node_set.begin(); 
+	/*for(node_t::const_iterator it=node_set.begin(); 
 			node_set.end()!=it; ++it)
 	{
 		//send read request to each IOnode
@@ -530,8 +526,71 @@ void Master::_send_write_request(ssize_t file_no, const file_info& file, const n
 		Sendv(socket, file.path.c_str(), file.path.size());
 		Send(socket, it->first); 
 		Send(socket, my_block_size); 
+	}*/
+	int socket=_registed_IOnodes.at(node_set.begin()->second).socket;
+	Send(socket, WRITE_FILE);
+	Send(socket, file_no);
+	Sendv(socket, file.path.c_str(), file.path.size());
+	Send(socket, size);
+	Send(socket, static_cast<int>(node_set.size()));
+	for(node_t::const_iterator it=node_set.begin();
+			node_set.end()!=it; ++it)
+	{
+		Send(socket, it->first); 
 	}
+
 	return;
+}
+
+int Master::_allocate_one_block(const struct file_info& file)throw(std::bad_alloc)
+{
+	//temp solution
+	int node_id=*file.nodes.begin();
+	node_info &selected_node=_registed_IOnodes.at(node_id);
+	if(selected_node.avaliable_memory >= BLOCK_SIZE)
+	{
+		selected_node.avaliable_memory -= BLOCK_SIZE;
+		return node_id;
+	}
+	else
+	{
+		throw std::bad_alloc();
+	}
+}
+
+void Master::_append_block(struct file_info& file, int node_id, off64_t start_point)
+{
+	file.p_node.insert(std::make_pair(start_point, node_id));
+	file.nodes.insert(node_id);
+}
+
+Master::node_t Master::_get_IOnodes_for_write(off64_t start_point, size_t size, struct file_info& file)throw(std::bad_alloc)
+{
+	off64_t current_point=_get_block_start_point(start_point);
+	ssize_t remained_size=size;
+	node_t::iterator it;
+	node_t nodes;
+	for(;remained_size>=0;remained_size-=BLOCK_SIZE, current_point+=BLOCK_SIZE)
+	{
+		if(file.p_node.end() != (it=file.p_node.find(current_point)))
+		{
+			nodes.insert(std::make_pair(it->first, it->second));
+		}
+		else
+		{
+			try
+			{
+				int node_id=_allocate_one_block(file);
+				_append_block(file, node_id, current_point);
+				nodes.insert(std::make_pair(current_point, node_id));
+			}
+			catch(std::bad_alloc& e)
+			{
+				throw;
+			}
+		}
+	}
+	return nodes;
 }
 
 int Master::_parse_write_file(int clientfd, std::string& ip)
@@ -560,26 +619,22 @@ int Master::_parse_write_file(int clientfd, std::string& ip)
 		Send(clientfd, file.block_size);
 		Recv(clientfd, start_point);
 		Recv(clientfd, size);
-		if(file.size > start_point+size)
+		if(file.size < start_point+size)
 		{
 			file.size=start_point+size;
 		}
 		
-		node_t nodes=_select_IOnode(start_point, size, file.block_size);
+		//node_t nodes=_select_IOnode(start_point, size, file.block_size);
+		node_t nodes=_get_IOnodes_for_write(start_point, size, file);
 		//insert allocate node into file node list
-		for(node_t::const_iterator it=nodes.begin();
+		/*for(node_t::const_iterator it=nodes.begin();
 				it!=nodes.end();++it)
 		{
 			file.p_node.insert(std::make_pair(it->first, it->second));
-		}
+		}*/
 
-		_send_write_request(file_no, file, nodes);
-		for(node_t::const_iterator it=file.p_node.begin();
-				it !=file.p_node.end();++it)
-		{
-			file.nodes.insert(it->second);
-		}
-		_send_block_info(clientfd, file.p_node);
+		_send_write_request(file_no, file, nodes, size);
+		_send_block_info(clientfd, nodes);
 		close(clientfd);
 		return SUCCESS;
 	}
