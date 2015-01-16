@@ -222,7 +222,7 @@ ssize_t CBB::_read_from_IOnode(file_info& file, const _block_list_t& blocks, cha
 		struct sockaddr_in IOnode_addr;
 
 		off64_t offset = current_point-it->start_point;
-		size_t IO_size = current_point>it->start_point?it->size-IO_size:size; 
+		size_t IO_size = BLOCK_SIZE-offset;
 		if(read_size<IO_size)
 		{
 			IO_size=read_size;
@@ -248,10 +248,10 @@ ssize_t CBB::_read_from_IOnode(file_info& file, const _block_list_t& blocks, cha
 				debug("read size=%ld\n", ret_size);
 				debug("IOnode ip=%s\n", it->ip.c_str()); 
 				ans+=ret_size;
-				file.current_point+=ret_size;
+				file.current_point += ret_size;
 				current_point += ret_size;
 				read_size -= ret_size;
-				debug("now point=%ld\n", file.current_point);
+				debug("current point=%ld\n", file.current_point);
 			}
 		}
 		close(IOnode_socket);
@@ -271,7 +271,7 @@ ssize_t CBB::_write_to_IOnode(file_info& file, const _block_list_t& blocks, cons
 		struct sockaddr_in IOnode_addr;
 
 		off64_t offset = current_point-it->start_point;
-		size_t IO_size = current_point>it->start_point?it->size-IO_size:size; 
+		size_t IO_size = BLOCK_SIZE-offset;
 		if(write_size<IO_size)
 		{
 			IO_size=write_size;
@@ -300,7 +300,7 @@ ssize_t CBB::_write_to_IOnode(file_info& file, const _block_list_t& blocks, cons
 				file.current_point+=ret_size;
 				current_point += ret_size;
 				write_size -= ret_size;
-				debug("now point=%ld\n", file.current_point);
+				debug("current point=%ld\n", file.current_point);
 			}
 		}
 		close(IOnode_socket);

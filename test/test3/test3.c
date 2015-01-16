@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <string.h>
 
 //access to a remote file
 //test function:
@@ -10,6 +11,7 @@ int main(int argc, const char ** argv)
 {
 	int fd1, fd2;
 	char buffer;
+	char *data="alksdjflkajlfkjef";
 	if(-1 == (fd1=open("../../../test1", O_RDWR)))
 	{
 		perror("open");
@@ -39,7 +41,7 @@ int main(int argc, const char ** argv)
 		return EXIT_FAILURE;
 	}
 
-	if(-1 == write(fd1, &buffer, sizeof(char)))
+	if(-1 == write(fd1, data, strlen(data)))
 	{
 		perror("write");
 		return EXIT_FAILURE;
