@@ -1,6 +1,10 @@
 #ifndef IO_CONST_H_
 #define IO_CONST_H_
 
+const size_t KB=1000;
+const size_t MB=KB*1000;
+const size_t GB=MB*1000;
+
 const int MASTER_PORT = 9000; 
 const int MASTER_CONN_PORT = 9001; 
 const int IONODE_PORT = 8000; 
@@ -21,7 +25,7 @@ const int MAX_QUERY_LENGTH = 100;
 const int MAX_FILE = 10000;
 const int INIT_FD = 100000;
 const int CONNECT_WAIT_TIME=1000;
-const size_t BLOCK_SIZE = 5;
+const size_t BLOCK_SIZE = 64*MB;
 
 const bool CLEAN = false;
 const bool DIRTY = true;

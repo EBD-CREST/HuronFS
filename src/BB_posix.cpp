@@ -14,30 +14,12 @@
 
 CBB client;
 
-BB_FUNC_P(int, open, (const char *path, int flag, ...));
-BB_FUNC_P(int, open64, (const char *path, int flag, ...));
-BB_FUNC_P(int, creat, (const char *path, mode_t mode));
-BB_FUNC_P(int, creat64, (const char *path, mode_t mode));
-BB_FUNC_P(ssize_t, read, (int fd, void *buffer, size_t size));
-BB_FUNC_P(ssize_t, readv, (int fd, const struct iovec *iov, int iovcnt));
-BB_FUNC_P(ssize_t, write,(int fd, const void*buffer, size_t size));
-BB_FUNC_P(ssize_t, writev, (int fd, const struct iovec *iov, int iovcnt));
-BB_FUNC_P(ssize_t, pread, (int fd, void *buffer, size_t count, off_t offset));
-BB_FUNC_P(ssize_t, pread64, (int fd, void *buffer, size_t count, off64_t offset));
-BB_FUNC_P(ssize_t, pwrite, (int fd, const void *buffer, size_t count, off_t offset));
-BB_FUNC_P(ssize_t, pwrite64, (int fd, const void *buffer, size_t count, off64_t offset));
-BB_FUNC_P(int, posix_fadvise, (int fd, off_t offset, off_t len, int advice));
-BB_FUNC_P(off_t, lseek, (int fd, off_t offset, int whence));
-BB_FUNC_P(off64_t, lseek64, (int fd, off64_t offset, int whence));
-BB_FUNC_P(int, ftruncate, (int fd, off_t length));
 BB_FUNC_P(int, fsync, (int fd));
 BB_FUNC_P(int, fdatasync, (int fd));
 BB_FUNC_P(int, flock, (int fd, int operation));
 BB_FUNC_P(void*, mmap, (void *addr, size_t length, int prot, int flag, int fd, off_t offset));
 BB_FUNC_P(void*, mmap64, (void *addr, size_t length, int prot, int flag, int fd, off64_t offset));
 BB_FUNC_P(int, munmap, (void *addr, size_t length));
-BB_FUNC_P(int, flush, (int fd));
-BB_FUNC_P(int, close, (int fd));
 
 
 static bool _interpret_path(const char *path)
@@ -83,8 +65,6 @@ extern "C" int BB_WRAP(open)(const char* path, int flag, ...)
 {
 	va_list ap;
 	mode_t mode=0;
-	std::string formatted_path;
-	std::string true_path;
 	if(flag & O_CREAT)
 	{
 		va_start(ap, flag);
@@ -101,6 +81,7 @@ extern "C" int BB_WRAP(open)(const char* path, int flag, ...)
 extern "C" int BB_WRAP(open64)(const char* path, int flag, ...)
 {
 	va_list ap;
+	BB_FUNC_P(int, open64, (const char *path, int flag, ...));
 	mode_t mode=0;
 	std::string formatted_path;
 	std::string true_path;
@@ -134,6 +115,7 @@ extern "C" int BB_WRAP(open64)(const char* path, int flag, ...)
 
 extern "C" ssize_t BB_WRAP(read)(int fd, void *buffer, size_t size)
 {
+	BB_FUNC_P(ssize_t, read, (int fd, void *buffer, size_t size));
 	if(_interpret_fd(fd))
 	{
 		return client._read(fd, buffer, size);
@@ -147,6 +129,7 @@ extern "C" ssize_t BB_WRAP(read)(int fd, void *buffer, size_t size)
 
 extern "C" ssize_t BB_WRAP(readv)(int fd, const struct iovec *iov, int iovcnt)
 {
+	BB_FUNC_P(ssize_t, readv, (int fd, const struct iovec *iov, int iovcnt));
 	if(_interpret_fd(fd))
 	{
 		ssize_t ans=0;
@@ -173,6 +156,7 @@ extern "C" ssize_t BB_WRAP(readv)(int fd, const struct iovec *iov, int iovcnt)
 
 extern "C" ssize_t BB_WRAP(write)(int fd, const void *buffer, size_t size)
 {
+	BB_FUNC_P(ssize_t, write,(int fd, const void*buffer, size_t size));
 	if(_interpret_fd(fd))
 	{
 		return client._write(fd, buffer, size);
@@ -186,6 +170,7 @@ extern "C" ssize_t BB_WRAP(write)(int fd, const void *buffer, size_t size)
 
 extern "C" ssize_t BB_WRAP(writev)(int fd, const struct iovec *iov, int iovcnt)
 {
+	BB_FUNC_P(ssize_t, writev, (int fd, const struct iovec *iov, int iovcnt));
 	if(_interpret_fd(fd))
 	{
 		ssize_t ans=0;
@@ -212,6 +197,7 @@ extern "C" ssize_t BB_WRAP(writev)(int fd, const struct iovec *iov, int iovcnt)
 
 extern "C" int BB_WRAP(close)(int fd)
 {
+	BB_FUNC_P(int, close, (int fd));
 	if(_interpret_fd(fd))
 	{
 		return client._close(fd);
@@ -226,6 +212,7 @@ extern "C" int BB_WRAP(close)(int fd)
 
 extern "C" int BB_WRAP(flush)(int fd)
 {
+	BB_FUNC_P(int, flush, (int fd));
 	if(_interpret_fd(fd))
 	{
 		return client._flush(fd);
@@ -242,8 +229,9 @@ extern "C" off_t BB_WRAP(lseek)(int fd, off_t offset, int whence)
 	return BB_WRAP(lseek64)(fd, offset, whence);
 }
 
-extern "C" off_t BB_WRAP(lseek64)(int fd, off64_t offset, int whence)
+extern "C" off64_t BB_WRAP(lseek64)(int fd, off64_t offset, int whence)
 {
+	BB_FUNC_P(off64_t, lseek64, (int fd, off64_t offset, int whence));
 	if(_interpret_fd(fd))
 	{
 		return client._lseek(fd, offset, whence);
@@ -262,6 +250,7 @@ extern "C" int BB_WRAP(creat)(const char * path, mode_t mode)
 
 extern "C" int BB_WRAP(creat64)(const char * path, mode_t mode)
 {
+	BB_FUNC_P(int, creat64, (const char *path, mode_t mode));
 	std::string formatted_path;
 	std::string true_path;
 	_format_path(path, formatted_path);
@@ -284,6 +273,7 @@ extern "C" ssize_t BB_WRAP(pread)(int fd, void *buffer, size_t count, off_t offs
 
 extern "C" ssize_t BB_WRAP(pread64)(int fd, void *buffer, size_t count, off64_t offset)
 {
+	BB_FUNC_P(ssize_t, pread64, (int fd, void *buffer, size_t count, off64_t offset));
 	if(_interpret_fd(fd))
 	{
 		if(-1 == client._lseek(fd, offset, SEEK_SET))
@@ -294,8 +284,8 @@ extern "C" ssize_t BB_WRAP(pread64)(int fd, void *buffer, size_t count, off64_t 
 	}
 	else
 	{
-		MAP_BACK(pread);
-		return BB_REAL(pread)(fd, buffer, count, offset);
+		MAP_BACK(pread64);
+		return BB_REAL(pread64)(fd, buffer, count, offset);
 	}
 }
 
@@ -306,6 +296,7 @@ extern "C" ssize_t BB_WRAP(pwrite)(int fd, const void *buffer, size_t count, off
 
 extern "C" ssize_t BB_WRAP(pwrite64)(int fd, const void *buffer, size_t count, off64_t offset)
 {
+	BB_FUNC_P(ssize_t, pwrite64, (int fd, const void *buffer, size_t count, off64_t offset));
 	if(_interpret_fd(fd))
 	{
 		if(-1 == client._lseek(fd, offset, SEEK_SET))
@@ -316,16 +307,17 @@ extern "C" ssize_t BB_WRAP(pwrite64)(int fd, const void *buffer, size_t count, o
 	}
 	else
 	{
-		MAP_BACK(pwrite);
-		return BB_REAL(pwrite)(fd, buffer, count, offset);
+		MAP_BACK(pwrite64);
+		return BB_REAL(pwrite64)(fd, buffer, count, offset);
 	}
 }
 
 extern "C" int BB_WRAP(posix_fadvise)(int fd, off_t offset, off_t len, int advice)
 {
+	BB_FUNC_P(int, posix_fadvise, (int fd, off_t offset, off_t len, int advice));
 	if(_interpret_fd(fd))
 	{
-		debug("do not support yet\n");
+		_DEBUG("do not support yet\n");
 		return -1;
 	}
 	else
@@ -336,6 +328,7 @@ extern "C" int BB_WRAP(posix_fadvise)(int fd, off_t offset, off_t len, int advic
 }
 extern "C" int BB_WRAP(ftruncate)(int fd, off_t length)
 {
+	BB_FUNC_P(int, ftruncate, (int fd, off_t length));
 	if(_interpret_fd(fd))
 	{
 		return client._lseek(fd, length, SEEK_SET);
@@ -346,3 +339,36 @@ extern "C" int BB_WRAP(ftruncate)(int fd, off_t length)
 		return BB_REAL(ftruncate)(fd, length);
 	}
 }
+
+extern "C" int BB_WRAP(stat)(const char* path, struct stat *buf)
+{
+	BB_FUNC_P(int, stat, (const char* path, struct stat* buf));
+	std::string formatted_path;
+	std::string true_path;
+	_format_path(path, formatted_path);
+	if(_interpret_path(formatted_path.c_str()))
+	{
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(stat);
+		return BB_REAL(stat)(path, buf);
+	}
+}
+
+extern "C" int BB_WRAP(fstat)(int fd, struct stat* buf)
+{
+	BB_FUNC_P(int, fstat, (int fd, struct stat *buf));
+	if(_interpret_fd(fd))
+	{
+		return client._fstat(fd, buf);
+	}
+	else
+	{
+		MAP_BACK(fstat);
+		return BB_REAL(fstat)(fd, buf);
+	}
+}
+

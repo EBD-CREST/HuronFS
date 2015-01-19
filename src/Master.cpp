@@ -27,6 +27,7 @@ Master::file_info::file_info(const std::string& path, size_t size, size_t block_
 	nodes(node_pool_t()),
 	size(size),
 	block_size(block_size),
+	open_count(1),
 	flag(flag)
 {
 	for(node_t::const_iterator it=p_node.begin();
@@ -173,7 +174,7 @@ ssize_t Master::_get_file_no()
 
 void Master::_send_node_info(int clientfd, std::string& ip)const 
 {
-	debug("requery for IOnode info, ip=%s\n", ip.c_str());
+	_LOG("requery for IOnode info, ip=%s\n", ip.c_str());
 	Send(clientfd, static_cast<int>(_registed_IOnodes.size()));
 
 	for(IOnode_t::const_iterator it=_registed_IOnodes.begin(); it!=_registed_IOnodes.end(); ++it)
@@ -190,7 +191,7 @@ void Master::_send_node_info(int clientfd, std::string& ip)const
 void Master::_send_file_info(int clientfd, std::string& ip)const 
 {
 	ssize_t file_no=0;
-	debug("requery for File info, ip=%s\n", ip.c_str());
+	_LOG("requery for File info, ip=%s\n", ip.c_str());
 	Recv(clientfd, file_no);
 
 	try
@@ -252,17 +253,19 @@ int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_ad
 int Master::_parse_regist_IOnode(int clientfd,const std::string& ip)
 {
 	size_t total_memory;
-	debug("regist IOnode\nip=%s\n",ip.c_str());
+	_LOG("regist IOnode\nip=%s\n",ip.c_str());
 	Recv(clientfd, total_memory);
 	Send(clientfd, _add_IO_node(ip, total_memory, clientfd));
+	_DEBUG("total memory %lu\n", total_memory);
 	return 1;
 }
 
 void Master::_send_file_meta(int clientfd, std::string& ip)const
 {
 	ssize_t file_no; 
-	debug("requery for File meta data, ip=%s\n", ip.c_str());
+	_LOG("requery for File meta data, ip=%s\n", ip.c_str());
 	Recv(clientfd, file_no); 
+	_DEBUG("file no %ld\n", file_no);
 	const file_info *file=NULL; 
 	try
 	{
@@ -271,7 +274,7 @@ void Master::_send_file_meta(int clientfd, std::string& ip)const
 	}
 	catch(std::out_of_range &e)
 	{
-		const char OUT_OF_RANGE[]="out of range\n"; 
+		//const char OUT_OF_RANGE[]="out of range\n"; 
 		Send(clientfd, OUT_OF_RANGE);
 		return; 
 	}
@@ -281,15 +284,23 @@ void Master::_send_file_meta(int clientfd, std::string& ip)const
 	return ;
 }
 
-void Master::_send_block_info(int clientfd, const node_t& node_set)const
+void Master::_send_block_info(int clientfd, const node_id_pool_t& node_pool, const node_t& node_set)const
 {
+	Send(clientfd, static_cast<int>(node_pool.size()));
+	for(node_id_pool_t::const_iterator it=node_pool.begin();
+			it!=node_pool.end();++it)
+	{
+		Send(clientfd, *it);
+		const std::string& ip=_registed_IOnodes.at(*it).ip;
+		Sendv(clientfd, ip.c_str(), ip.size());
+	}
+
 	Send(clientfd, static_cast<int>(node_set.size()));
 
 	for(node_t::const_iterator it=node_set.begin(); it!=node_set.end(); ++it)
 	{
 		Send(clientfd, it->first);
-		const std::string& ip=_registed_IOnodes.at(it->second).ip; 
-		Sendv(clientfd, ip.c_str(), ip.size());
+		Send(clientfd, it->second);
 	}
 	close(clientfd);
 	return; 
@@ -298,7 +309,7 @@ void Master::_send_block_info(int clientfd, const node_t& node_set)const
 int Master::_parse_node_info(int clientfd, std::string& ip) const
 {
 	ssize_t file_no; 
-	debug("requery for File info, ip=%s\n", ip.c_str());
+	_DEBUG("requery for File info, ip=%s\n", ip.c_str());
 	Recv(clientfd, file_no); 
 	const file_info *file=NULL; 
 	try
@@ -312,10 +323,9 @@ int Master::_parse_node_info(int clientfd, std::string& ip) const
 		Send(clientfd, OUT_OF_RANGE);
 		return FAILURE; 
 	}
-	Send(clientfd, file->size);
-	Send(clientfd, file->block_size);
-	
-	_send_block_info(clientfd, file->p_node);
+	/*Send(clientfd, file->size);
+	node_id_pool_t node_id;
+	_send_block_info(clientfd, node_id, file->p_node);*/
 	close(clientfd);
 	return SUCCESS;
 }
@@ -329,7 +339,7 @@ int Master::_parse_registed_request(int clientfd)
 	{
 	case I_AM_SHUT_DOWN:
 		id=_IOnode_socket.at(clientfd)->node_id;
-		debug("IOnode %ld shutdown\nIP Address=%s, Unregisted\n", id, _registed_IOnodes.at(id).ip.c_str()); 
+		_DEBUG("IOnode %ld shutdown\nIP Address=%s, Unregisted\n", id, _registed_IOnodes.at(id).ip.c_str()); 
 		_delete_IO_node(clientfd);break;
 	default:
 		Send(clientfd, UNRECOGNISTED); 
@@ -340,13 +350,20 @@ int Master::_parse_registed_request(int clientfd)
 int Master::_parse_open_file(int clientfd, std::string& ip)
 {
 	char *file_path;
-	debug("request for open file, ip=%s\n", ip.c_str()); 
+	_LOG("request for open file, ip=%s\n", ip.c_str()); 
 	Recvv(clientfd, &file_path); 
 	int flag ,ret=SUCCESS;
 	Recv(clientfd, flag); 
 	try
 	{
 		ssize_t file_no;
+		if(flag & O_CREAT)
+		{
+			mode_t mode;
+			Recv(clientfd, mode);
+			_create_file(file_path, mode);
+			flag &= ~(O_CREAT | O_TRUNC);
+		}
 		_open_file(file_path, flag, file_no); 
 		file_info &opened_file=_buffered_files.at(file_no);
 		size_t size=opened_file.size;
@@ -366,13 +383,13 @@ int Master::_parse_open_file(int clientfd, std::string& ip)
 	}
 	catch(std::runtime_error &e)
 	{
-		debug("%s\n",e.what());
+		_DEBUG("%s\n",e.what());
 		Send(clientfd, UNKNOWN_ERROR);
 		ret=FAILURE;
 	}
 	catch(std::invalid_argument &e)
 	{
-		debug("%s\n",e.what());
+		_DEBUG("%s\n",e.what());
 		Send(clientfd, FILE_NOT_FOUND);
 		ret=FAILURE;
 	}
@@ -385,26 +402,41 @@ int Master::_parse_open_file(int clientfd, std::string& ip)
 	return ret;
 }
 
-const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_t& new_file_no)throw(std::runtime_error, std::invalid_argument, std::bad_alloc)
+void Master::_create_file(const char* file_path, mode_t mode)throw(std::runtime_error)
+{
+	std::string true_path(_mount_point+std::string(file_path));
+	int fd=creat64(true_path.c_str(), mode);
+	if(-1 == fd)
+	{
+		throw std::runtime_error("error on create file");
+	}
+	else
+	{
+		close(fd);
+		return ;
+	}
+}
+
+const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_t& file_no)throw(std::runtime_error, std::invalid_argument, std::bad_alloc)
 {
 	file_no_t::iterator it; 
-	const file_info *file=NULL; 
+	file_info *file=NULL; 
 	//file not buffered
 	if(_file_no.end() ==  (it=_file_no.find(file_path)))
 	{
-		new_file_no=_get_file_no(); 
-		if(-1 != new_file_no)
+		file_no=_get_file_no(); 
+		if(-1 != file_no)
 		{
-			//open in read
+			/*//open in read
 			if(flag == O_RDONLY || flag&O_RDWR)
-			{
-				size_t file_length=0,block_size=0;
-				node_t nodes=_send_request_to_IOnodes(file_path, new_file_no, flag, file_length, block_size);
-				file_info new_file(file_path, file_length,block_size,nodes, flag); 
-				_buffered_files.insert(std::make_pair(new_file_no, new_file));
-				file=&(_buffered_files.at(new_file_no)); 
-				_file_no.insert(std::make_pair(file_path, new_file_no)); 
-			}
+			{*/
+			size_t file_length=0,block_size=0;
+			node_t nodes=_send_request_to_IOnodes(file_path, file_no, flag, file_length, block_size);
+			file_info new_file(file_path, file_length,block_size,nodes, flag); 
+			_buffered_files.insert(std::make_pair(file_no, new_file));
+			file=&(_buffered_files.at(file_no)); 
+			_file_no.insert(std::make_pair(file_path, file_no)); 
+			/*}
 			else
 			{
 				size_t file_length=0,block_size=0;
@@ -412,7 +444,7 @@ const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_
 				_buffered_files.insert(std::make_pair(new_file_no, new_file));
 				file=&(_buffered_files.at(new_file_no)); 
 				_file_no.insert(std::make_pair(file_path, new_file_no)); 
-			}
+			}*/
 		}
 		else
 		{
@@ -423,6 +455,8 @@ const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_
 	else
 	{
 		file=&(_buffered_files.at(it->second)); 
+		++file->open_count;
+		file_no=it->second;
 	}
 	return file->p_node;
 }
@@ -459,17 +493,19 @@ Master::node_t Master::_send_request_to_IOnodes(const char *file_path, ssize_t f
 	return nodes; 
 }
 
-off64_t Master::_get_block_start_point(off64_t start_point)const
+off64_t Master::_get_block_start_point(off64_t start_point, size_t& size)const
 {
-	return (start_point/BLOCK_SIZE)*BLOCK_SIZE;
+	off64_t block_start_point=(start_point/BLOCK_SIZE)*BLOCK_SIZE;
+	size=start_point-block_start_point+size;
+	return block_start_point;
 }
 
 Master::node_t Master::_select_IOnode(off64_t start_point, size_t file_size, size_t block_size)const
 {
+	off64_t block_start_point=_get_block_start_point(start_point, file_size);
 	//int node_number = (file_size+block_size-1)/block_size,count=(node_number+_node_number-1)/_node_number, count_node=0;
 	int node_number = (file_size+block_size-1)/block_size,count=(node_number+_node_number-1)/_node_number, count_node=0;
 	node_t nodes; 
-	off64_t block_start_point=_get_block_start_point(start_point);
 
 	for(IOnode_t::const_iterator it=_registed_IOnodes.begin();
 			_registed_IOnodes.end() != it;++it)
@@ -488,8 +524,8 @@ int Master::_parse_read_file(int clientfd, std::string& ip) throw(std::out_of_ra
 	ssize_t file_no;
 	size_t size;
 	off64_t start_point;
-	const file_info *file=NULL; 
-	debug("request for reading ip=%s\n",ip.c_str());
+	file_info *file=NULL; 
+	_LOG("request for reading ip=%s\n",ip.c_str());
 	Recv(clientfd, file_no); 
 	try
 	{
@@ -502,17 +538,20 @@ int Master::_parse_read_file(int clientfd, std::string& ip) throw(std::out_of_ra
 		return -1; 
 	}
 	Send(clientfd, file->size);
-	Send(clientfd, file->block_size);
 	
 	Recv(clientfd, start_point);
 	Recv(clientfd, size);
 	//_prepare_read_block(*file, start_point, size);
-	_send_block_info(clientfd, file->p_node);
+	node_t nodes;
+	node_id_pool_t node_pool;
+	_get_IOnodes_for_IO(start_point, size, *file, nodes, node_pool);
+	_send_IO_request(file_no, *file, nodes, size, READ_FILE);
+	_send_block_info(clientfd, node_pool, nodes);
 	close(clientfd);
 	return 1;
 }
 
-void Master::_send_write_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size)const
+void Master::_send_IO_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size, int mode)const
 {
 	/*for(node_t::const_iterator it=node_set.begin(); 
 			node_set.end()!=it; ++it)
@@ -528,9 +567,8 @@ void Master::_send_write_request(ssize_t file_no, const file_info& file, const n
 		Send(socket, my_block_size); 
 	}*/
 	int socket=_registed_IOnodes.at(node_set.begin()->second).socket;
-	Send(socket, WRITE_FILE);
+	Send(socket, mode);
 	Send(socket, file_no);
-	Sendv(socket, file.path.c_str(), file.path.size());
 	Send(socket, size);
 	Send(socket, static_cast<int>(node_set.size()));
 	for(node_t::const_iterator it=node_set.begin();
@@ -547,7 +585,8 @@ int Master::_allocate_one_block(const struct file_info& file)throw(std::bad_allo
 	//temp solution
 	int node_id=*file.nodes.begin();
 	node_info &selected_node=_registed_IOnodes.at(node_id);
-	if(selected_node.avaliable_memory >= BLOCK_SIZE)
+	return node_id;
+/*	if(selected_node.avaliable_memory >= BLOCK_SIZE)
 	{
 		selected_node.avaliable_memory -= BLOCK_SIZE;
 		return node_id;
@@ -555,7 +594,7 @@ int Master::_allocate_one_block(const struct file_info& file)throw(std::bad_allo
 	else
 	{
 		throw std::bad_alloc();
-	}
+	}*/
 }
 
 void Master::_append_block(struct file_info& file, int node_id, off64_t start_point)
@@ -564,17 +603,17 @@ void Master::_append_block(struct file_info& file, int node_id, off64_t start_po
 	file.nodes.insert(node_id);
 }
 
-Master::node_t Master::_get_IOnodes_for_write(off64_t start_point, size_t size, struct file_info& file)throw(std::bad_alloc)
+Master::node_t& Master::_get_IOnodes_for_IO(off64_t start_point, size_t &size, struct file_info& file, node_t& node_set, node_id_pool_t& node_id_pool)throw(std::bad_alloc)
 {
-	off64_t current_point=_get_block_start_point(start_point);
+	off64_t current_point=_get_block_start_point(start_point, size);
 	ssize_t remained_size=size;
 	node_t::iterator it;
-	node_t nodes;
 	for(;remained_size>=0;remained_size-=BLOCK_SIZE, current_point+=BLOCK_SIZE)
 	{
 		if(file.p_node.end() != (it=file.p_node.find(current_point)))
 		{
-			nodes.insert(std::make_pair(it->first, it->second));
+			node_set.insert(std::make_pair(it->first, it->second));
+			node_id_pool.insert(it->second);
 		}
 		else
 		{
@@ -582,7 +621,8 @@ Master::node_t Master::_get_IOnodes_for_write(off64_t start_point, size_t size, 
 			{
 				int node_id=_allocate_one_block(file);
 				_append_block(file, node_id, current_point);
-				nodes.insert(std::make_pair(current_point, node_id));
+				node_set.insert(std::make_pair(current_point, node_id));
+				node_id_pool.insert(node_id);
 			}
 			catch(std::bad_alloc& e)
 			{
@@ -590,23 +630,22 @@ Master::node_t Master::_get_IOnodes_for_write(off64_t start_point, size_t size, 
 			}
 		}
 	}
-	return nodes;
+	return node_set;
 }
 
 int Master::_parse_write_file(int clientfd, std::string& ip)
 {
-	debug("request for writing ip=%s\n",ip.c_str());
+	_LOG("request for writing ip=%s\n",ip.c_str());
 	ssize_t file_no;
 	size_t size;
 	off64_t start_point;
-	mode_t mode;
 	Recv(clientfd, file_no);
 	//Recv(clientfd, mode); 
 	std::string true_path(_mount_point+_buffered_files.at(file_no).path);
 	int fd=open64(true_path.c_str(), O_CREAT, 0600);
 	if(-1 == fd)
 	{
-		debug("file create error\n");
+		_LOG("file create error\n");
 		return FAILURE;
 	}
 	close(fd);
@@ -616,7 +655,6 @@ int Master::_parse_write_file(int clientfd, std::string& ip)
 		//file.block_size=_get_block_size(size);
 		Send(clientfd, SUCCESS);
 		Send(clientfd, file.size);
-		Send(clientfd, file.block_size);
 		Recv(clientfd, start_point);
 		Recv(clientfd, size);
 		if(file.size < start_point+size)
@@ -625,7 +663,9 @@ int Master::_parse_write_file(int clientfd, std::string& ip)
 		}
 		
 		//node_t nodes=_select_IOnode(start_point, size, file.block_size);
-		node_t nodes=_get_IOnodes_for_write(start_point, size, file);
+		node_t nodes;
+		node_id_pool_t node_pool;
+		_get_IOnodes_for_IO(start_point, size, file, nodes, node_pool);
 		//insert allocate node into file node list
 		/*for(node_t::const_iterator it=nodes.begin();
 				it!=nodes.end();++it)
@@ -633,8 +673,8 @@ int Master::_parse_write_file(int clientfd, std::string& ip)
 			file.p_node.insert(std::make_pair(it->first, it->second));
 		}*/
 
-		_send_write_request(file_no, file, nodes, size);
-		_send_block_info(clientfd, nodes);
+		_send_IO_request(file_no, file, nodes, size, WRITE_FILE);
+		_send_block_info(clientfd, node_pool, nodes);
 		close(clientfd);
 		return SUCCESS;
 	}
@@ -654,7 +694,7 @@ size_t Master::_get_block_size(size_t size)
 
 int Master::_parse_flush_file(int clientfd, std::string& ip)
 {
-	debug("request for writing ip=%s\n",ip.c_str());
+	_LOG("request for writing ip=%s\n",ip.c_str());
 	ssize_t file_no;
 	Recv(clientfd, file_no);
 	file_info &file=_buffered_files.at(file_no);
@@ -664,6 +704,7 @@ int Master::_parse_flush_file(int clientfd, std::string& ip)
 		for(node_pool_t::iterator it=file.nodes.begin();
 				it != file.nodes.end();++it)
 		{
+			_DEBUG("write back request to IOnode %ld\n", *it);
 			int socket=_IOnode_socket.at(*it)->socket;
 			Send(socket, FLUSH_FILE);
 			Send(socket, file_no);
@@ -681,27 +722,33 @@ int Master::_parse_flush_file(int clientfd, std::string& ip)
 
 int Master::_parse_close_file(int clientfd, std::string& ip)
 {
-	debug("request for writing ip=%s\n",ip.c_str());
+	_LOG("request for closing file ip=%s\n",ip.c_str());
 	ssize_t file_no;
 	Recv(clientfd, file_no);
 	file_info &file=_buffered_files.at(file_no);
+	_LOG("file no %ld\n", file_no);
 	Send(clientfd, SUCCESS);
 	close(clientfd);
 	try
 	{
-		for(node_pool_t::iterator it=file.nodes.begin();
-				it != file.nodes.end();++it)
+		if(0 == --file.open_count)
 		{
-			int socket=_registed_IOnodes.at(*it).socket;
-			Send(socket, CLOSE_FILE);
-			Send(socket, file_no);
-//			int ret=0;
-//			Recv(socket, ret);
+
+			for(node_pool_t::iterator it=file.nodes.begin();
+					it != file.nodes.end();++it)
+			{
+				_DEBUG("write back request to IOnode %ld\n", *it);
+				int socket=_registed_IOnodes.at(*it).socket;
+				Send(socket, CLOSE_FILE);
+				Send(socket, file_no);
+				//			int ret=0;
+				//			Recv(socket, ret);
+			}
+			File_t::iterator file=_buffered_files.find(file_no);
+			std::string &path=file->second.path;
+			_file_no.erase(path);
+			_buffered_files.erase(file);
 		}
-		File_t::iterator file=_buffered_files.find(file_no);
-		std::string &path=file->second.path;
-		_file_no.erase(path);
-		_buffered_files.erase(file);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)

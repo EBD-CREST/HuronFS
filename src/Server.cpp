@@ -97,7 +97,7 @@ void Server::start_server()
 					close(new_client);  
 					continue;  
 				}
-				debug("A New Client\n"); 
+				_DEBUG("A New Client\n"); 
 				ret=_parse_new_request(new_client,  client_addr);
 			}
 			//communication from registed nodes

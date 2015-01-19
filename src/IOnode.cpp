@@ -100,7 +100,7 @@ IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtim
 	}
 }
 
-int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::runtime_error)
+ssize_t IOnode::_regist(const std::string& master_ip, int master_port) throw(std::runtime_error)
 { 
 	_master_conn_addr.sin_family = AF_INET;
 	_master_conn_addr.sin_addr.s_addr = htons(INADDR_ANY);
@@ -108,6 +108,7 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 
 	_master_addr.sin_family = AF_INET;
 	_master_addr.sin_port = htons(_master_port);
+	_LOG("start registeration\n");
 	if( 0  ==  inet_aton(master_ip.c_str(), &_master_addr.sin_addr))
 	{
 		perror("Server IP Address Error"); 
@@ -124,11 +125,10 @@ int IOnode::_regist(const std::string& master_ip, int master_port) throw(std::ru
 	}
 	Send(master_socket, REGIST);
 	Send(master_socket, _memory);
-	int id=-1;
+	ssize_t id=-1;
 	Recv(master_socket, id);
 	Server::_add_socket(master_socket);
-	int open;
-	Recv(master_socket, open);
+	_LOG("registeration finished, id=%ld\n", id);
 	return id; 
 }
 
@@ -185,6 +185,9 @@ int IOnode::_send_data(int sockfd)
 	Recv(sockfd, start_point);
 	Recv(sockfd, offset);
 	Recv(sockfd, size);
+	_LOG("request for send data\n");
+	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n", file_no, start_point, offset, size);
+
 	try
 	{
 		const std::string& path = _file_path[file_no];
@@ -242,15 +245,29 @@ int IOnode::_read_file(int sockfd)
 	off64_t start_point=0;
 	size_t size=0;
 	ssize_t file_no=0;
+	int count=0;
 	Recv(sockfd, file_no);
-	Recv(sockfd, start_point);
 	Recv(sockfd, size);
-	const std::string& path=_file_path.at(file_no);
-	block_info_t &file=_files.at(file_no);
-	for(block_info_t::iterator it=file.find(start_point);
-			it != file.end();++it)
+	_LOG("request for read file %ld, size=%lu\n", file_no, size);
+	block_info_t &blocks=_files.at(file_no);
+	Recv(sockfd, count);
+	for(int i=0;i<count;++i)
 	{
-		_read_from_storage(path, it->second);
+		Recv(sockfd, start_point);
+		try
+		{
+			if(blocks.end() == blocks.find(start_point))
+			{
+				size_t valid_size=size>BLOCK_SIZE?BLOCK_SIZE:size;
+				blocks.insert(std::make_pair(start_point, new block(start_point, valid_size, CLEAN, INVALID)));
+			}
+		}
+		catch(std::out_of_range &e)
+		{
+			_LOG("file not found\n");
+			return FILE_NOT_FOUND;
+		}
+		size-=BLOCK_SIZE;
 	}
 	return SUCCESS;
 }
@@ -312,14 +329,9 @@ int IOnode::_write_file(int clientfd)
 	off64_t start_point;
 	size_t size;
 	int count;
-	char *file_path=NULL;
 	Recv(clientfd, file_no);
-	Recvv(clientfd, &file_path);
-	if(_file_path.end() == _file_path.find(file_no))
-	{
-		_file_path.insert(std::make_pair(file_no, std::string(file_path)));
-	}
 	Recv(clientfd, size);
+	_LOG("request for read file %ld, size=%lu\n", file_no, size);
 	block_info_t &blocks=_files[file_no];
 	Recv(clientfd, count);
 	for(int i=0;i<count;++i)
@@ -330,7 +342,7 @@ int IOnode::_write_file(int clientfd)
 			if(blocks.end() == blocks.find(start_point))
 			{
 				size_t valid_size=size>BLOCK_SIZE?BLOCK_SIZE:size;
-				blocks.insert(std::make_pair(start_point, new block(start_point, valid_size, DIRTY, VALID)));
+				blocks.insert(std::make_pair(start_point, new block(start_point, valid_size, CLEAN, INVALID)));
 			}
 		}
 		catch(std::out_of_range &e)
@@ -352,11 +364,20 @@ int IOnode::_receive_data(int clientfd)
 	Recv(clientfd, start_point);
 	Recv(clientfd, offset);
 	Recv(clientfd, size);
+	_LOG("request for receive data\n");
+	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n", file_no, start_point, offset, size);
+
 	try
 	{
 		block_info_t &blocks=_files.at(file_no);
 		block* _block=blocks.at(start_point);
 		Send(clientfd, SUCCESS);
+		if(INVALID == _block->valid)
+		{
+			_block->allocate_memory();
+			_read_from_storage(_file_path.at(file_no), _block);
+			_block->valid = VALID;
+		}
 		Recvv_pre_alloc(clientfd, reinterpret_cast<char*>(_block->data)+offset, size);
 		_block->dirty_flag=DIRTY;
 		close(clientfd);

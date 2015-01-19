@@ -26,7 +26,7 @@ int Client::_connect_to_server(struct sockaddr_in& client_addr, struct sockaddr_
 	while( MAX_CONNECT_TIME > ++count  &&  0 !=  connect(client_socket, reinterpret_cast<struct sockaddr*>(&server_addr), sizeof(server_addr)))
 	{
 		usleep(CONNECT_WAIT_TIME);
-		debug("connect failed %d\n", count+1);
+		_DEBUG("connect failed %d\n", count+1);
 	}
 	if(MAX_CONNECT_TIME  ==  count)
 	{

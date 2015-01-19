@@ -7,11 +7,13 @@
 //access to a remote file
 //test function:
 //open, read, write, flush, close
+
+const size_t READ_SIZE=34;
 int main(int argc, const char ** argv)
 {
 	int fd1, fd2;
-	char buffer;
-	char *data="alksdjflkajlfkjef";
+	char *buffer=NULL;
+	char *data="append this context after test1";
 	if(-1 == (fd1=open("../../../test1", O_RDWR)))
 	{
 		perror("open");
@@ -22,20 +24,26 @@ int main(int argc, const char ** argv)
 		perror("open");
 		return EXIT_FAILURE;
 	}
+	if(NULL == (buffer=malloc(35*sizeof(char))))
+	{
+		perror("malloc");
+		return EXIT_FAILURE;
+	}
 
-	if(-1 == read(fd1, &buffer, sizeof(char)))
+	if(-1 == read(fd1, buffer, 34*sizeof(char)))
 	{
 		perror("read");
 		return EXIT_FAILURE;
 	}
-	printf("%c\n", buffer);
-	if(-1 == read(fd2, &buffer, sizeof(char)))
+	buffer[34]=0;
+	printf("%s\n", buffer);
+	if(-1 == read(fd2, buffer, sizeof(char)))
 	{
 		perror("read");
 		return EXIT_FAILURE;
 	}
 
-	if(-1 == lseek(fd1, 0, SEEK_END))
+	if(-1 == lseek(fd1, 38, SEEK_SET))
 	{
 		perror("lseek");
 		return EXIT_FAILURE;

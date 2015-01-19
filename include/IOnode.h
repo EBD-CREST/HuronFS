@@ -60,7 +60,7 @@ private:
 	IOnode(const IOnode&); 
 	int _connect_to_master()throw(std::runtime_error);
 	//regist IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
-	int _regist(const std::string&  master, int master_port) throw(std::runtime_error);
+	ssize_t _regist(const std::string&  master, int master_port) throw(std::runtime_error);
 	//unregist IOnode from master
 	virtual int _parse_new_request(int sockfd, const struct sockaddr_in& client_addr); 
 	virtual int _parse_registed_request(int sockfd); 
@@ -82,7 +82,7 @@ private:
 private:
 
 	//node id
-	int _node_id;
+	ssize_t _node_id;
 	/*block_info _blocks;
 	file_info _files;*/
 

@@ -3,9 +3,11 @@
 #define _BB_INTERNAL_H_
 
 #ifdef DEBUG
-	#define debug(fmt, args... ) printf("%s:"fmt, __func__, ##args)
+	#define _DEBUG(fmt, args... ) printf("%s:"fmt, __func__, ##args)
+	#define _LOG(fmt, args... ) printf("%s:"fmt, __func__, ##args)
 #else
-	#define debug(fmt, args... )
+	#define _DEBUG(fmt, args... )
+	#define _LOG(fmt, args... )
 #endif
 
 

@@ -44,6 +44,8 @@ private:
 	typedef std::map<ssize_t, node_info> IOnode_t; 
 	//map file_no:file_info
 	typedef std::map<ssize_t, file_info> File_t; 
+	//map file_no: ip
+	typedef std::set<ssize_t> node_id_pool_t;
 
 	struct file_info
 	{
@@ -53,6 +55,7 @@ private:
 		node_pool_t nodes;
 		size_t size; 
 		size_t block_size;
+		int open_count;
 		//open file
 		int flag; 
 	}; 
@@ -79,10 +82,11 @@ private:
 	ssize_t _get_node_id(); 
 	ssize_t _get_file_no(); 
 	void _send_node_info(int socket, std::string& ip)const;
-	void _send_block_info(int socket, const node_t& node_set)const;
+	void _send_block_info(int socket, const node_id_pool_t& node_id_pool, const node_t& node_set)const;
 	void _send_file_info(int socket, std::string& ip)const; 
 	void _send_file_meta(int socket, std::string& ip)const; 
-	void _send_write_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size)const;
+	void _send_IO_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size, int mode)const;
+	void _create_file(const char* file_path, mode_t mode)throw(std::runtime_error);
 
 	IOnode_t::iterator _find_by_ip(const std::string& ip);
 
@@ -99,11 +103,10 @@ private:
 	node_t _send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length, size_t& block_size)throw(std::invalid_argument); 
 	node_t _select_IOnode(off64_t start_point, size_t file_size, size_t block_size)const; 
 
-	void _send_IO_request(const node_t &nodes, ssize_t file_no, size_t block_size, const char* file_path, int mode)const;
 	size_t _get_block_size(size_t length);
-	off64_t _get_block_start_point(off64_t start_point)const;
+	off64_t _get_block_start_point(off64_t start_point, size_t& size)const;
 
-	node_t _get_IOnodes_for_write(off64_t start_point, size_t size, struct file_info& file)throw(std::bad_alloc);
+	node_t& _get_IOnodes_for_IO(off64_t start_point, size_t& size, struct file_info& file, node_t& node_set, node_id_pool_t& node_id_pool)throw(std::bad_alloc);
 	int _allocate_one_block(const struct file_info &file)throw(std::bad_alloc);
 	void _append_block(struct file_info& file, int node_id, off64_t start_point);
 
@@ -121,17 +124,5 @@ private:
 	ssize_t _current_file_no; 
 	std::string _mount_point;
 };
-
-/*template<class T, class M> T::iterator find(T::iterator& it, T::const_iterator& end, const M& x)
-{
-	for(;end != it;++it)
-	{
-		if(x == it->first)
-		{
-			return it;
-		}
-	}
-	return it;
-}*/
 
 #endif

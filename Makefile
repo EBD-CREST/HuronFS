@@ -54,7 +54,7 @@ BB.o:$(SRC)/$(BB_LIB).cpp $(INCLUDE)/$(BB_LIB).h
 	$(CC) $(FLAG) -c -fPIC $(INCLUDE_FLAG) -o $@ $<
 	
 libBB.so:$(SRC)/$(POSIX_LIB).cpp Client.o BB.o
-	$(CC) -DBB_PRELOAD $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Client.o BB.o
+	$(CC) -DBB_PRELOAD $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Client.o BB.o -ldl
 
 libmaster.so:$(SRC)/$(MASTER_LIB).cpp $(INCLUDE)/$(MASTER_LIB).h Server.o
 	$(CC) $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Server.o
@@ -115,4 +115,4 @@ clean:
 	rm -f $(LIB)/*
 
 clean_all:clean
-	cd test && $(MAKE) clean
+	cd tests && $(MAKE) clean
