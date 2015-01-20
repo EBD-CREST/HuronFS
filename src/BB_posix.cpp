@@ -207,7 +207,7 @@ extern "C" int BB_WRAP(close)(int fd)
 		MAP_BACK(close);
 		return BB_REAL(close)(fd);
 	}
-	
+
 }
 
 extern "C" int BB_WRAP(flush)(int fd)
@@ -369,6 +369,485 @@ extern "C" int BB_WRAP(fstat)(int fd, struct stat* buf)
 	{
 		MAP_BACK(fstat);
 		return BB_REAL(fstat)(fd, buf);
+	}
+}
+
+extern "C" int BB_WRAP(fclose)(FILE *stream)
+{
+	BB_FUNC_P(int, fclose, (FILE *stream));
+	if(true)
+	{
+
+		_DEBUG("do not support yet\n");
+
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(fclose);
+		return BB_REAL(fclose)(stream);
+	}
+}
+
+extern "C" int BB_WRAP(fflush)(FILE *stream)
+{
+	BB_FUNC_P(int, fflush, (FILE *stream));
+	if(true)
+	{
+
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(fflush);
+		return BB_REAL(fflush)(stream);
+	}
+}
+
+extern "C" FILE *BB_WRAP(fopen)(const char* path, const char* mode)
+{
+	BB_FUNC_P(FILE*, fopen, (const char* path, const char *mode));
+	if(true)
+	{
+
+		_DEBUG("do not support yet\n");
+		return NULL;
+	}
+	else
+	{
+		MAP_BACK(fopen);
+		return BB_REAL(fopen)(path, mode);
+	}
+}
+
+extern "C" FILE *BB_WRAP(freopen)(const char* path, const char* mode, FILE* stream)
+{
+	BB_FUNC_P(FILE*, freopen, (const char* path, const char *mode, FILE* stream));
+	if(true)
+	{
+
+		_DEBUG("do not support yet\n");
+		return NULL;
+	}
+	else
+	{
+		MAP_BACK(freopen);
+		return BB_REAL(freopen)(path, mode, stream);
+	}
+}
+
+extern "C" void BB_WRAP(setbuf)(FILE * stream, char * buf)
+{
+	BB_FUNC_P(void*, setbuf, (FILE* stream, char* buf));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+	}
+	else
+	{
+		MAP_BACK(setbuf);
+		BB_REAL(setbuf)(stream, buf);
+	}
+}
+
+extern "C" int BB_WRAP(setvbuf)(FILE* stream, char* buf, int type, size_t size)
+{
+	BB_FUNC_P(int, setvbuf, (FILE* stream, char* buf, int type, size_t size));
+	if(true)
+	{
+
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(setvbuf);
+		BB_REAL(setvbuf)(stream, buf, type, size);
+	}
+}
+
+extern "C" int BB_WRAP(fprintf)(FILE *stream, const char * format, ...)
+{
+	BB_FUNC_P(int, fprintf, (FILE *stream, const char *format, ...));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return EOF;
+	}
+	else
+	{
+		MAP_BACK(fprintf);
+		return BB_REAL(fprintf)(stream, format);
+	}
+}
+
+extern "C" int BB_WRAP(fscanf)(FILE *stream, const char * format, ...)
+{
+	BB_FUNC_P(int, fscanf, (FILE *stream, const char *format, ...));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return EOF;
+	}
+	else
+	{
+		MAP_BACK(fscanf);
+		return BB_REAL(fscanf)(stream, format);
+	}
+}
+
+extern "C" int BB_WRAP(vfprintf)(FILE *stream, const char * format,va_list ap) 
+{
+	BB_FUNC_P(int, vfprintf, (FILE *stream, const char *format, va_list ap)); 
+	if(true)
+	{
+
+		_DEBUG("do not support yet\n");
+		return EOF;
+	}
+	else
+	{
+		MAP_BACK(vfprintf);
+		return BB_REAL(vfprintf)(stream, format, ap);
+	}
+}
+
+extern "C" int BB_WRAP(vfscanf)(FILE *stream, const char * format, va_list ap)
+{
+	BB_FUNC_P(int, vfscanf, (FILE *stream, const char *format, va_list ap));
+
+	if(true)
+	{
+
+		_DEBUG("do not support yet\n");
+		return EOF;
+	}
+	else
+	{
+		MAP_BACK(vfscanf);
+		return BB_REAL(vfscanf)(stream, format, ap);
+	}
+}
+
+extern "C" int BB_WRAP(fgetc)(FILE *stream)
+{
+	BB_FUNC_P(int, fgetc, (FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return EOF;
+	}
+	else
+	{
+		MAP_BACK(fgetc);
+		return BB_REAL(fgetc)(stream);
+	}
+}
+
+extern "C" char *BB_WRAP(fgets)(char* s, int n, FILE* stream)
+{
+	BB_FUNC_P(char*, fgets, (char* s, int n, FILE* stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return NULL;
+	}
+	else
+	{
+		MAP_BACK(fgets);
+		return BB_REAL(fgets)(s, n, stream);
+	}
+}
+
+extern "C" int BB_WRAP(fputc)(int c, FILE* stream)
+{
+	BB_FUNC_P(int, fputc, (int c, FILE* stram));
+	if(true)
+	{
+
+		_DEBUG("do not support yet\n");
+		return EOF;
+	}
+	else
+	{
+		MAP_BACK(fputc);
+		return BB_REAL(fputc)(c, stream);
+	}
+}
+
+extern "C" int BB_WRAP(fputs)(const char* s, FILE *stream)
+{
+	BB_FUNC_P(int, fputs, (const char* s, FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return EOF;
+	}
+	else
+	{
+		MAP_BACK(fputs);
+		return BB_REAL(fputs)(s, stream);
+	}
+}
+
+extern "C" int BB_WRAP(getc)(FILE *stream)
+{
+	BB_FUNC_P(int, getc, (FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return EOF;
+	}
+	else
+	{
+		MAP_BACK(getc);
+		return BB_REAL(getc)(stream);
+	}
+}
+
+extern "C" int BB_WRAP(putc)(int c, FILE *stream)
+{
+	BB_FUNC_P(int, putc, (int c, FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return EOF;
+	}
+	else
+	{
+		MAP_BACK(putc);
+		return BB_REAL(putc)(c, stream);
+	}
+}
+
+extern "C" int BB_WRAP(ungetc)(int c, FILE *stream)
+{
+	BB_FUNC_P(int, ungetc, (int c, FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return EOF;
+	}
+	else
+	{
+		MAP_BACK(ungetc);
+		return BB_REAL(ungetc)(c, stream);
+	}
+}
+
+extern "C" size_t BB_WRAP(fread)(void *ptr, size_t size, size_t nitems, FILE *stream)
+{
+	BB_FUNC_P(size_t, fread, (void *ptr, size_t size, size_t nitems, FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return 0;
+	}
+	else
+	{
+		MAP_BACK(fread);
+		return BB_REAL(fread)(ptr, size, nitems, stream);
+	}
+}
+
+extern "C" size_t BB_WRAP(fwrite)(const void *ptr, size_t size, size_t nitems, FILE *stream)
+{
+	BB_FUNC_P(size_t, fwrite, (const void *ptr, size_t size, size_t nitems, FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return 0;
+	}
+	else
+	{
+		MAP_BACK(fwrite);
+		return BB_REAL(fwrite)(ptr, size, nitems, stream);
+	}
+}
+
+extern "C" int BB_WRAP(fgetpos)(FILE *stream, fpos_t* pos)
+{
+	BB_FUNC_P(int, fgetpos, (FILE *stream, fpos_t* pos));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(fgetpos);
+		return BB_REAL(fgetpos)(stream, pos);
+	}
+}
+
+extern "C" int BB_WRAP(fseek)(FILE *stream, long offset, int whence)
+{
+	BB_FUNC_P(int, fseek, (FILE *stream, long offset, int whence));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(fseek);
+		return BB_REAL(fseek)(stream, offset, whence);
+	}
+}
+
+extern "C" int BB_WRAP(fsetpos)(FILE *stream, const fpos_t* pos)
+{
+	BB_FUNC_P(int, fsetpos, (FILE *stream, const fpos_t* pos));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(fsetpos);
+		return BB_REAL(fsetpos)(stream, pos);
+	}
+}
+
+extern "C" long BB_WRAP(ftell)(FILE *stream)
+{
+	BB_FUNC_P(long, ftell, (FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(ftell);
+		return BB_REAL(ftell)(stream);
+	}
+}
+
+extern "C" void BB_WRAP(rewind)(FILE *stream)
+{
+	BB_FUNC_P(void, rewind, (FILE *stream));
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+	}
+	else
+	{
+		MAP_BACK(rewind);
+		BB_REAL(rewind)(stream);
+	}
+}
+
+extern "C" void BB_WRAP(clearerr)(FILE *stream)
+{
+	BB_FUNC_P(void, clearerr, (FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+	}
+	else
+	{
+		MAP_BACK(clearerr);
+		BB_REAL(clearerr)(stream);
+	}
+}
+
+extern "C" int BB_WRAP(feof)(FILE *stream)
+{
+	BB_FUNC_P(int, feof, (FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(feof);
+		return BB_REAL(feof)(stream);
+	}
+}
+
+extern "C" int BB_WRAP(ferror)(FILE *stream)
+{
+	BB_FUNC_P(int, ferror, (FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(ferror);
+		return BB_REAL(ferror)(stream);
+	}
+}
+
+extern "C" int BB_WRAP(fseeko)(FILE *stream, off_t offset, int whence)
+{
+	BB_FUNC_P(int, fseeko, (FILE *stream, off_t offset, int whence));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(fseeko);
+		return BB_REAL(fseeko)(stream, offset, whence);
+	}
+}
+
+extern "C" off_t BB_WRAP(ftello)(FILE *stream)
+{
+	BB_FUNC_P(off_t, ftello, (FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(ftello);
+		return BB_REAL(ftello)(stream);
+	}
+}
+
+extern "C" int BB_WRAP(fileno)(FILE *stream)
+{
+	BB_FUNC_P(int, fileno, (FILE *stream));
+
+	if(true)
+	{
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(fileno);
+		return BB_REAL(fileno)(stream);
 	}
 }
 
