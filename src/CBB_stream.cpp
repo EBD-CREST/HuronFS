@@ -2,15 +2,23 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "include/CBB_stream.h"
 
-CBB_stream::stream_info::stream_info(bool dirty_flag, bool buffer_flag, int fd, off64_t cur_file_off):
+CBB_stream::stream_info::stream_info(bool dirty_flag,
+		bool buffer_flag,
+		int fd,
+		off64_t cur_file_off,
+		int open_flag,
+		mode_t open_mode):
 	eof(false),
 	dirty_flag(dirty_flag),
 	buffer_flag(buffer_flag),
 	fd(fd),
 	err(NO_ERROR),
+	open_flag(open_flag),
+	open_mode(open_mode),
 	buf(NULL),
 	cur_buf_ptr(NULL),
 	buffer_size(STREAM_BUFFER_SIZE),
@@ -90,7 +98,7 @@ FILE* CBB_stream::_open_stream(const char* path, const char* mode)
 	}
 	else
 	{
-		stream_info* new_stream=new stream_info(CLEAN, true, fd, 0);
+		stream_info* new_stream=new stream_info(CLEAN, true, fd, 0, flag, open_mode);
 		_stream_pool.insert(std::make_pair(new_stream, fd));
 		return reinterpret_cast<FILE*>(new_stream);
 	}
@@ -198,6 +206,13 @@ size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t s
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
 	//use buffer
+	
+	if(stream->open_flag & O_WRONLY || stream->open_flag & O_RDWR)
+	{
+		stream->err=EBADF;
+		return 0;
+	}
+
 	if(stream->buffer_flag)
 	{
 		size_t remaining_size=stream->buffer_size-(stream->cur_buf_ptr-stream->buf);

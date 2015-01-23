@@ -9,7 +9,12 @@ private:
 	class stream_info
 	{
 	public:
-		stream_info(bool dirty_flag, bool buffer_flag, int fd, off64_t cur_file_ptr);
+		stream_info(bool dirty_flag,
+				bool buffer_flag,
+				int fd,
+				off64_t cur_file_ptr,
+				int open_flag,
+				mode_t open_mode);
 		~stream_info();
 		friend class CBB_stream;
 	private:
@@ -18,6 +23,8 @@ private:
 		bool buffer_flag;
 		int fd;
 		int err;
+		int open_flag;
+		mode_t open_mode;
 		char* buf;
 		char* cur_buf_ptr;
 		size_t buffer_size;
