@@ -12,31 +12,17 @@
 #include <map>
 #include <dlfcn.h>
 #include <arpa/inet.h>
+#include <limits.h>
 
-#include "include/BB.h"
-#include "include/BB_internal.h"
+#include "include/CBB.h"
+#include "include/CBB_internal.h"
+#include "include/CBB_const.h"
 #include "include/Communication.h"
-
 
 const char* CBB::CLIENT_MOUNT_POINT="CBB_CLIENT_MOUNT_POINT";
 const char* CBB::MASTER_IP="CBB_MASTER_IP";
 
 const char *mount_point=NULL;
-
-/*int ::iob_fstat(ssize_t fd, struct file_stat &stat)
-{
-	int master_socket=Client::_connect_to_server(client_addr, master_addr); 
-	Send(master_socket, GET_FILE_META); 
-	Send(master_socket, fd); 
-	int ret;
-	Recv(master_socket, ret);
-	if(ret == SUCCESS)
-	{
-		Recv(master_socket, stat.file_size);
-		Recv(master_socket, stat.block_size);
-	}
-	return ret;
-}*/
 
 CBB::CBB():
 	_fid_now(0),
@@ -117,7 +103,7 @@ CBB::file_info::file_info():
 	flag(-1)
 {}
 
-void CBB::_getblock(int socket, off64_t start_point, size_t size, std::vector<block_info> &block, _node_pool_t &node_pool)
+void CBB::_getblock(int socket, off64_t start_point, size_t& size, std::vector<block_info> &block, _node_pool_t &node_pool)
 {
 	char *ip=NULL;
 	
@@ -128,6 +114,7 @@ void CBB::_getblock(int socket, off64_t start_point, size_t size, std::vector<bl
 	Recv(socket, file_size);
 	Send(socket, start_point);
 	Send(socket, size);
+	Recv(socket, size);
 	Recv(socket, count);
 	for(int i=0;i<count;++i)
 	{
@@ -476,39 +463,59 @@ int CBB::_fstat(int fd, struct stat* buf)
 	}
 }
 
-
-/*
-void User_Client::_set_IOnode_addr(const char* ip)throw(std::runtime_error)
+off64_t CBB::_tell(int fd)
 {
-	if(0  == inet_aton(ip, &IOnode_addr.sin_addr))
+	int fid=_BB_fd_to_fid(fd);
+	CHECK_INIT();
+	return _file_list.at(fid).current_point;
+}
+
+bool CBB::_interpret_path(const char *path)
+{
+	if(NULL == mount_point)
 	{
-		perror("Server IP Address Error"); 
-		throw std::runtime_error("Server IP Address Error"); 
+		return false;
 	}
-}
-
-int User_Client::iob_flush(ssize_t fd)
-{
-	int master_socket=Client::_connect_to_server(client_addr, master_addr); 
-	Send(master_socket, FLUSH_FILE);
-	Send(master_socket, fd);
-	int ret=SUCCESS;
-	Recv(master_socket, ret);
-	return ret;
-}
-
-int User_Client::iob_close(ssize_t fd)
-{
-	int master_socket=Client::_connect_to_server(client_addr, master_addr); 
-	Send(master_socket, CLOSE_FILE);
-	Send(master_socket, fd);
-	int ret=SUCCESS;
-	Recv(master_socket, ret);
-	if(SUCCESS == ret)
+	if(!strncmp(path, mount_point, strlen(mount_point)))
 	{
-		_file_list.erase(fd);
-		_opened_file[]
+		return true;
 	}
-	return ret;
+	return false;
 }
-*/
+
+bool CBB::_interpret_fd(int fd)
+{
+	if(fd<INIT_FD)
+	{
+		return false;
+	}
+	return true;
+}
+
+void CBB::_format_path(const char *path, std::string &formatted_path)
+{
+	char *real_path=static_cast<char *>(malloc(PATH_MAX));
+	realpath(path, real_path);
+
+	formatted_path=std::string(real_path);
+	free(real_path);
+	return;
+}
+
+void CBB::_get_true_path(const std::string &formatted_path, std::string &true_path)
+{
+	const char *pointer=formatted_path.c_str()+strlen(mount_point);
+	true_path=std::string(pointer);
+	return;
+}
+
+int CBB::_BB_fd_to_fid(int fd)
+{
+	return fd-INIT_FD;
+}
+
+int CBB::_BB_fid_to_fd(int fid)
+{
+	return fid+INIT_FD;
+}
+

@@ -1,13 +1,13 @@
-CC = mpicc
+CC = gcc 
 LIB = ../../lib/
 
 DEBUGER = gdb
 
-OBJ = test3
+OBJ = test4
 
 NUMBER = 2
 
-PRELOAD = LD_PRELOAD=$(LIB)/libCBB.so
+#PRELOAD = LD_PRELOAD=$(LIB)/libCBB.so
 
 PRELOAD_LINK = -L$(LIB) -lCBB
 compile:$(OBJ)
@@ -20,7 +20,7 @@ clean:
 	rm -f $(OBJ)
 
 run:
-	$(PRELOAD) mpirun -np $(NUMBER) -hostfile hostfile ./$(OBJ)
+	$(PRELOAD)  ./$(OBJ)
 
 debug:
 	$(PRELOAD) $(DEBUGER) ./$(OBJ)

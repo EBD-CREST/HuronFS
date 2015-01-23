@@ -1,6 +1,6 @@
-#ifndef _BB_INTERNAL_H_
+#ifndef _CBB_INTERNAL_H_
 
-#define _BB_INTERNAL_H_
+#define _CBB_INTERNAL_H_
 
 #ifdef DEBUG
 	#define _DEBUG(fmt, args... ) printf("%s:"fmt, __func__, ##args)
@@ -11,7 +11,7 @@
 #endif
 
 
-#ifdef BB_PRELOAD
+#ifdef CBB_PRELOAD
 	#ifndef __USE_GNU
 		#define __USE_GNU
 	#endif
@@ -19,11 +19,11 @@
 	#include <dlfcn.h>
 	#include <stdlib.h>
 
-	#define BB_WRAP(name) name
+	#define CBB_WRAP(name) name
 
-	#define BB_REAL(name) __real_P_ ## name
+	#define CBB_REAL(name) __real_P_ ## name
 
-	#define	BB_FUNC_P(ret,name,args)                                                                        \
+	#define	CBB_FUNC_P(ret,name,args)                                                                        \
 		typedef ret (*__real_ ## name) args;                                                            \
 		__real_ ## name __real_P_ ## name=NULL;
 
@@ -33,7 +33,7 @@
 			__real_P_ ## func = reinterpret_cast<__real_ ## func>(dlsym(RTLD_NEXT, #func));         \
 			if(!(__real_P_## func))                                                                 \
 			{                                                                                       \
-				fprintf(stderr, "BB failed to map symbol: %s\n", #func);                        \
+				fprintf(stderr, "CBB failed to map symbol: %s\n", #func);                        \
 				exit(1);                                                                        \
 			}                                                                                       \
 		}
@@ -41,13 +41,13 @@
 
 #else
 
-	#define BB_WRAP(name) __warp_ ## name
+	#define CBB_WRAP(name) __warp_ ## name
 
-	#define BB_REAL(name) __real_ ## name
+	#define CBB_REAL(name) __real_ ## name
 
 	#define MAP_BACK(func) 
 
-	#define	BB_FUNC_P(ret,name,args)                                                                        \
+	#define	CBB_FUNC_P(ret,name,args)                                                                        \
 		extern ret __real_ ##name args;
 #endif
 
@@ -65,7 +65,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 
-inline void set_server_addr(const std::string &ip, struct sockaddr_in &addr)
+inline void set_server_addr(const std::string& ip, struct sockaddr_in& addr)
 {
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;

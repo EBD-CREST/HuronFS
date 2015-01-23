@@ -4,9 +4,9 @@
 #include <sys/epoll.h>
 
 #include "include/Server.h"
-#include "include/IO_const.h"
+#include "include/CBB_const.h"
 #include "include/Communication.h"
-#include "include/BB_internal.h"
+#include "include/CBB_internal.h"
 
 Server::Server(int port)throw(std::runtime_error):
 	_server_addr(sockaddr_in()), 

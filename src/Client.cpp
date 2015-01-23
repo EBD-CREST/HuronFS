@@ -4,8 +4,8 @@
 #include <stdlib.h>
 
 #include "include/Client.h"
-#include "include/IO_const.h"
-#include "include/BB_internal.h"
+#include "include/CBB_const.h"
+#include "include/CBB_internal.h"
 
 int Client::_connect_to_server(struct sockaddr_in& client_addr, struct sockaddr_in& server_addr) throw(std::runtime_error)
 {

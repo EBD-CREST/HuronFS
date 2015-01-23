@@ -15,7 +15,7 @@
 #include <stdexcept>
 #include <stdlib.h>
 
-#include "include/IO_const.h"
+#include "include/CBB_const.h"
 #include "include/Server.h"
 
 
@@ -81,6 +81,7 @@ private:
 	int _get_file_blocks(const std::string& file_path);
 	ssize_t _get_node_id(); 
 	ssize_t _get_file_no(); 
+	void _release_file_no(ssize_t fileno);
 	void _send_node_info(int socket, std::string& ip)const;
 	void _send_block_info(int socket, const node_id_pool_t& node_id_pool, const node_t& node_set)const;
 	void _send_file_info(int socket, std::string& ip)const; 

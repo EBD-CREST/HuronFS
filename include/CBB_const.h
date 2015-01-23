@@ -1,5 +1,5 @@
-#ifndef IO_CONST_H_
-#define IO_CONST_H_
+#ifndef CBB_CONST_H_
+#define CBB_CONST_H_
 
 const size_t KB=1000;
 const size_t MB=KB*1000;
@@ -26,6 +26,8 @@ const int MAX_FILE = 10000;
 const int INIT_FD = 100000;
 const int CONNECT_WAIT_TIME=1000;
 const size_t BLOCK_SIZE = 64*MB;
+const int NO_ERROR=0;
+const size_t STREAM_BUFFER_SIZE = BLOCK_SIZE;
 
 const bool CLEAN = false;
 const bool DIRTY = true;

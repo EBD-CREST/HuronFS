@@ -1,13 +1,13 @@
-#ifndef BB_H_
+#ifndef CBB_H_
 
-#define BB_H_
+#define CBB_H_
 
 #include <map>
 #include <vector>
 #include <netinet/in.h>
 
 #include "include/Client.h"
-#include "include/IO_const.h"
+#include "include/CBB_const.h"
 
 
 class CBB:Client
@@ -16,7 +16,7 @@ class CBB:Client
 private:
 	class  block_info
 	{
-		public:
+	public:
 		block_info(ssize_t node_id, off64_t start_point, size_t size);
 		ssize_t node_id;
 		off64_t start_point;
@@ -25,7 +25,7 @@ private:
 	
 	class file_info
 	{
-		public:
+	public:
 		file_info(ssize_t file_no, int fd, size_t size, size_t block_size, int flag);
 		file_info();
 		ssize_t file_no;
@@ -63,26 +63,24 @@ public:
 	off64_t _lseek(int fd, off64_t offset, int whence);
 
 	int _fstat(int fd, struct stat* buf);
+	
+	off64_t _tell(int fd);
 	//int _stat(std::string true_path, struct stat* buf);
 	
+	static bool _interpret_path(const char* path);
+	static bool _interpret_fd(int fd);
+	static void _format_path(const char* path, std::string &formatted_path);
+	static void _get_true_path(const std::string& formatted_path, std::string &true_path);
 private:
 	//private functions
-	void _getblock(int socket, off64_t start_point, size_t size, std::vector<block_info> &block, _node_pool_t &node_pool);
+	void _getblock(int socket, off64_t start_point, size_t& size, std::vector<block_info> &block, _node_pool_t &node_pool);
 	ssize_t _read_from_IOnode(file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, char *buffer, size_t size);
 	ssize_t _write_to_IOnode(file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, const char *buffer, size_t size);
 
 	int _get_fid();
 	
-	int _BB_fd_to_fid(int fd)
-	{
-		return fd-INIT_FD;
-	}
-
-	int _BB_fid_to_fd(int fid)
-	{
-		return fid+INIT_FD;
-	}
-
+	static int _BB_fd_to_fid(int fd);
+	static int _BB_fid_to_fd(int fid);
 private:
 	int _fid_now;
 	_file_list_t _file_list;

@@ -3,14 +3,16 @@ IONODE_LIB = IOnode
 SERVER_LIB = Server
 CLIENT_LIB = Client
 QUERY_LIB = Query_Client
-POSIX_LIB = BB_posix
-BB_LIB = BB
+POSIX_LIB = CBB_posix
+CBB_LIB = CBB
+CBB_STREAM = CBB_stream
+STDIO_LIB = CBB_stdio
 
 MASTER_OBJ = master_main
 IONODE_OBJ = node_main
 USER_MAIN_OBJ = user_main
 USER_CLIENT = user_client
-BB_LIB_OBJ = BB
+CBB_LIB_OBJ = CBB
 
 INCLUDE = include
 SRC = src
@@ -24,6 +26,8 @@ FLAG = -g -Wall -DDEBUG
 LIBFLAG = -shared -fPIC
 
 INCLUDE_FLAG = -I./
+
+PRELOAD = -DCBB_PRELOAD
 
 LINK_FLAG = -L./
 
@@ -50,11 +54,20 @@ Client.o:$(SRC)/$(CLIENT_LIB).cpp $(INCLUDE)/$(CLIENT_LIB).h
 #libuser.so:$(SRC)/$(USER_LIB).cpp $(INCLUDE)/$(USER_LIB).h Client.o
 #	$(CC) $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Client.o
 
-BB.o:$(SRC)/$(BB_LIB).cpp $(INCLUDE)/$(BB_LIB).h 
-	$(CC) $(FLAG) -c -fPIC $(INCLUDE_FLAG) -o $@ $<
+$(CBB_LIB).o:$(SRC)/$(CBB_LIB).cpp $(INCLUDE)/$(CBB_LIB).h 
+	$(CC) $(PRELOAD) $(FLAG) -c -fPIC $(INCLUDE_FLAG) -o $@ $<
 	
-libBB.so:$(SRC)/$(POSIX_LIB).cpp Client.o BB.o
-	$(CC) -DBB_PRELOAD $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Client.o BB.o -ldl
+$(CBB_STREAM).o:$(SRC)/$(CBB_STREAM).cpp $(INCLUDE)/$(CBB_STREAM).h
+	$(CC) $(PRELOAD) $(FLAG) -c -fPIC $(INCLUDE_FLAG) -o $@ $<
+
+$(POSIX_LIB).o:$(SRC)/$(POSIX_LIB).cpp $(INCLUDE)/$(POSIX_LIB).h
+	$(CC) $(PRELOAD) $(FLAG) -c -fPIC $(INCLUDE_FLAG) -o $@ $<
+
+$(STDIO_LIB).o:$(SRC)/$(STDIO_LIB).cpp $(INCLUDE)/$(STDIO_LIB).h
+	$(CC) $(PRELOAD) $(FLAG) -c -fPIC $(INCLUDE_FLAG) -o $@ $<
+
+libCBB.so:$(CBB_LIB).o $(CBB_STREAM).o $(POSIX_LIB).o $(STDIO_LIB).o Client.o
+	$(CC) $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $^ -ldl
 
 libmaster.so:$(SRC)/$(MASTER_LIB).cpp $(INCLUDE)/$(MASTER_LIB).h Server.o
 	$(CC) $(FLAG) $(LIBFLAG) $(INCLUDE_FLAG) -o $@ $< Server.o
@@ -95,13 +108,13 @@ User_main:$(USER_MAIN)
 	rm -f *.o
 	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
-Client:libBB.so
+Client:libCBB.so
 	mkdir -p bin lib
 	mv $< lib
 	rm -f *.o
 	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
-all:$(MASTER_OBJ) $(IONODE_OBJ) libBB.so
+all:$(MASTER_OBJ) $(IONODE_OBJ) libCBB.so
 	mkdir -p bin lib
 	mv *.so lib
 	mv $(MASTER_OBJ) bin

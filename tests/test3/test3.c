@@ -28,7 +28,7 @@ int main(int argc, char ** argv)
 	if(NULL == (buffer=malloc(file_stat.st_size)))
 	{
 		perror("malloc");
-		EXIT_FAILURE;
+		return EXIT_FAILURE;
 	}
 
 	gettimeofday(&st, NULL);
@@ -36,7 +36,7 @@ int main(int argc, char ** argv)
 	if(-1 == (ret=read(fd, buffer, file_stat.st_size)))
 	{
 		perror("read");
-		EXIT_FAILURE;
+		return EXIT_FAILURE;
 	}
 	total_size+=ret;
 

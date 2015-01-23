@@ -15,9 +15,8 @@
 #include <sys/stat.h>
 
 #include "include/Master.h"
-#include "include/IO_const.h"
 #include "include/Communication.h"
-#include "include/BB_internal.h"
+#include "include/CBB_internal.h"
 
 const char *Master::MASTER_MOUNT_POINT="CBB_MASTER_MOUNT_POINT";
 
@@ -145,6 +144,13 @@ ssize_t Master::_get_node_id()
 		}
 	}
 	return -1;
+}
+
+void Master::_release_file_no(ssize_t file_no)
+{
+	--_file_number;
+	_file_no_pool[file_no]=false;
+	return;
 }
 
 ssize_t Master::_get_file_no()
@@ -431,11 +437,20 @@ const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_
 			if(flag == O_RDONLY || flag&O_RDWR)
 			{*/
 			size_t file_length=0,block_size=0;
-			node_t nodes=_send_request_to_IOnodes(file_path, file_no, flag, file_length, block_size);
-			file_info new_file(file_path, file_length,block_size,nodes, flag); 
-			_buffered_files.insert(std::make_pair(file_no, new_file));
-			file=&(_buffered_files.at(file_no)); 
-			_file_no.insert(std::make_pair(file_path, file_no)); 
+			try
+			{
+				node_t nodes=_send_request_to_IOnodes(file_path, file_no, flag, file_length, block_size);
+				file_info new_file(file_path, file_length,block_size,nodes, flag); 
+				_buffered_files.insert(std::make_pair(file_no, new_file));
+				file=&(_buffered_files.at(file_no)); 
+				_file_no.insert(std::make_pair(file_path, file_no)); 
+			}
+			catch(std::invalid_argument &e)
+			{
+				//file open error
+				_release_file_no(file_no);
+				throw;
+			}
 			/*}
 			else
 			{
@@ -464,6 +479,7 @@ const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_
 Master::node_t Master::_send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length,size_t& block_size)throw(std::invalid_argument)
 {
 	std::string true_path=_mount_point+std::string(file_path);
+	_DEBUG("file path=%s\n", true_path.c_str());
 	int fd=open64(true_path.c_str(), flag);
 	
 	if(-1 == fd)
@@ -544,6 +560,18 @@ int Master::_parse_read_file(int clientfd, std::string& ip) throw(std::out_of_ra
 	//_prepare_read_block(*file, start_point, size);
 	node_t nodes;
 	node_id_pool_t node_pool;
+	if(file->size < start_point+size)
+	{
+		if(start_point > file-> size)
+		{
+			size=0;
+		}
+		else
+		{
+			size=file->size-start_point;
+		}
+	}
+	Send(clientfd, size);
 	_get_IOnodes_for_IO(start_point, size, *file, nodes, node_pool);
 	_send_IO_request(file_no, *file, nodes, size, READ_FILE);
 	_send_block_info(clientfd, node_pool, nodes);
@@ -584,7 +612,7 @@ int Master::_allocate_one_block(const struct file_info& file)throw(std::bad_allo
 {
 	//temp solution
 	int node_id=*file.nodes.begin();
-	node_info &selected_node=_registed_IOnodes.at(node_id);
+	//node_info &selected_node=_registed_IOnodes.at(node_id);
 	return node_id;
 /*	if(selected_node.avaliable_memory >= BLOCK_SIZE)
 	{
@@ -673,6 +701,7 @@ int Master::_parse_write_file(int clientfd, std::string& ip)
 			file.p_node.insert(std::make_pair(it->first, it->second));
 		}*/
 
+		Send(clientfd, size);
 		_send_IO_request(file_no, file, nodes, size, WRITE_FILE);
 		_send_block_info(clientfd, node_pool, nodes);
 		close(clientfd);
@@ -725,13 +754,13 @@ int Master::_parse_close_file(int clientfd, std::string& ip)
 	_LOG("request for closing file ip=%s\n",ip.c_str());
 	ssize_t file_no;
 	Recv(clientfd, file_no);
-	file_info &file=_buffered_files.at(file_no);
+	//file_info &file=_buffered_files.at(file_no);
 	_LOG("file no %ld\n", file_no);
 	Send(clientfd, SUCCESS);
 	close(clientfd);
 	try
 	{
-		if(0 == --file.open_count)
+/*		if(0 == --file.open_count)
 		{
 
 			for(node_pool_t::iterator it=file.nodes.begin();
@@ -748,7 +777,7 @@ int Master::_parse_close_file(int clientfd, std::string& ip)
 			std::string &path=file->second.path;
 			_file_no.erase(path);
 			_buffered_files.erase(file);
-		}
+		}*/
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)

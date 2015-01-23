@@ -1,5 +1,5 @@
 CC = gcc
-BB = ../../lib/libBB.so
+BB = ../../lib/libCBB.so
 
 OBJ = test1
 
@@ -12,7 +12,7 @@ compile:$(OBJ)
 $(OBJ):$(OBJ).c
 	$(CC) -o $@ $< 
 
-.PHONY:
+.PHONY:clean
 clean:
 	rm -f $(OBJ)
 

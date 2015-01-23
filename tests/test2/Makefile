@@ -5,15 +5,15 @@ DEBUGER = gdb
 
 OBJ = test2
 
-PRELOAD = LD_PRELOAD=$(LIB)/libBB.so
+PRELOAD = LD_PRELOAD=$(LIB)/libCBB.so
 
-PRELOAD_LINK = -L$(LIB) -lBB
+PRELOAD_LINK = -L$(LIB) -lCBB
 compile:$(OBJ)
 	
 $(OBJ):$(OBJ).c
 	$(CC) -g -o $@ $< $(PRELOAD_LINK)
 
-.PHONY:
+.PHONY:clean
 clean:
 	rm -f $(OBJ)
 
