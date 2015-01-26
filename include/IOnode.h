@@ -39,7 +39,7 @@ private:
 		block(const block&);
 
 		void allocate_memory()throw(std::bad_alloc);
-		size_t size;
+		size_t data_size;
 		void* data;
 		off64_t  start_point;
 		bool dirty_flag;
@@ -67,13 +67,14 @@ private:
 
 	int _send_data(int sockfd);
 	int _open_file(int sockfd); 
-	int _read_file(int sockfd);
-	int _write_file(int sockfd);
+	int _appand_block(int sockfd);
+	//int _read_file(int sockfd);
+	int _IOrequest_from_master(int sockfd);
 	int _flush_file(int sockfd);
 	int _close_file(int sockfd);
 	block *_buffer_block(off64_t start_point, size_t size)throw(std::runtime_error);
 	int _receive_data(int sockfd); 
-	int _write_back_file(int sockfd);
+	//int _write_back_file(int sockfd);
 
 	size_t _write_to_storage(const std::string& path, const block* block_data)throw(std::runtime_error); 
 	size_t _read_from_storage(const std::string& path, block* block_data)throw(std::runtime_error);

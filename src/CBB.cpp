@@ -519,3 +519,9 @@ int CBB::_BB_fid_to_fd(int fid)
 	return fid+INIT_FD;
 }
 
+size_t CBB::_get_file_size(int fd)
+{
+	int fid=_BB_fd_to_fid(fd);
+	CHECK_INIT();
+	return _file_list.at(fid).size;
+}

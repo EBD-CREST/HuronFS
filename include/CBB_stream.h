@@ -9,16 +9,24 @@ private:
 	class stream_info
 	{
 	public:
+		friend class CBB_stream;
 		stream_info(bool dirty_flag,
 				bool buffer_flag,
 				int fd,
+				size_t file_size,
 				off64_t cur_file_ptr,
 				int open_flag,
 				mode_t open_mode);
 		~stream_info();
-		friend class CBB_stream;
+		size_t _update_cur_buf_ptr(CBB_stream& stream, size_t size);
+		off64_t _cur_buf_off()const;
+		off64_t _cur_file_off()const;
+		void _update_file_size(CBB_stream& stream);
+		size_t _remaining_buffer_data_size()const;
+		size_t _write_meta_update(size_t write_size);
+		void _update_meta_for_rebuf(bool dirty_flag, size_t update_size);
+		off64_t _get_buf_off_from_file_off(off64_t file_off)const;
 	private:
-		bool eof;
 		bool dirty_flag;
 		bool buffer_flag;
 		int fd;
@@ -30,7 +38,8 @@ private:
 		size_t buffer_size;
 		size_t buffered_data_size;
 		size_t file_size;
-		off64_t cur_file_off;
+		//buf start point file offset
+		off64_t buf_file_off;
 	private:
 		stream_info(const stream_info&);
 	};
@@ -57,9 +66,7 @@ public:
 	int _fileno_stream(FILE* stream);
 private:
 	stream_pool_t _stream_pool;
-	void _update_meta_for_rebuf(stream_info_t* stream, bool dirty_flag, size_t update_size);
 	int _parse_open_mode_flag(const char* path, int& flag, mode_t& open_mode)const;
-
 };
 
 #endif

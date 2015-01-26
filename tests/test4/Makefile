@@ -7,7 +7,7 @@ OBJ = test4
 
 NUMBER = 2
 
-#PRELOAD = LD_PRELOAD=$(LIB)/libCBB.so
+PRELOAD = LD_PRELOAD=$(LIB)/libCBB.so
 
 PRELOAD_LINK = -L$(LIB) -lCBB
 compile:$(OBJ)

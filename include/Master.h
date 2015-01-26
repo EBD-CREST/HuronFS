@@ -102,7 +102,7 @@ private:
 	int _parse_close_file(int clientfd, std::string& ip);
 	int _parse_node_info(int clientfd, std::string& ip)const;
 	node_t _send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length, size_t& block_size)throw(std::invalid_argument); 
-	node_t _select_IOnode(off64_t start_point, size_t file_size, size_t block_size)const; 
+	void _select_IOnode(off64_t start_point, size_t file_size, size_t block_size, node_id_pool_t& node_pool, node_t& nodes)const; 
 
 	size_t _get_block_size(size_t length);
 	off64_t _get_block_start_point(off64_t start_point, size_t& size)const;

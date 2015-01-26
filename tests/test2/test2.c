@@ -13,7 +13,7 @@ int main(int argc, const char ** argv)
 {
 	int fd1, fd2;
 	char *buffer=NULL;
-	char *data="append this context after test1";
+	char *data="append this content after test1";
 	if(-1 == (fd1=open("../../../test1", O_RDWR)))
 	{
 		perror("open");

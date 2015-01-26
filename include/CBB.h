@@ -65,12 +65,14 @@ public:
 	int _fstat(int fd, struct stat* buf);
 	
 	off64_t _tell(int fd);
+
 	//int _stat(std::string true_path, struct stat* buf);
 	
 	static bool _interpret_path(const char* path);
 	static bool _interpret_fd(int fd);
 	static void _format_path(const char* path, std::string &formatted_path);
 	static void _get_true_path(const std::string& formatted_path, std::string &true_path);
+	size_t _get_file_size(int fd);
 private:
 	//private functions
 	void _getblock(int socket, off64_t start_point, size_t& size, std::vector<block_info> &block, _node_pool_t &node_pool);
