@@ -48,7 +48,7 @@ const int FLUSH_FILE = 8;
 const int CLOSE_FILE = 9;
 const int UNRECOGNISTED=10;
 const int GET_FILE_META = 11;
-const int APPAND_BLOCK = 12;
+const int APPEND_BLOCK = 12;
 
 const int SERVER_SHUT_DOWN = 20; 
 const int I_AM_SHUT_DOWN = 21;

@@ -159,12 +159,12 @@ int IOnode::_parse_registed_request(int sockfd)
 	{
 	case OPEN_FILE:
 		_open_file(sockfd);break;
-	case APPAND_BLOCK:
-		_appand_block(sockfd);break;
-	case READ_FILE:
+	case APPEND_BLOCK:
+		_append_new_block(sockfd);break;
+	/*case READ_FILE:
 		//_read_file(sockfd);break;
 	case WRITE_FILE:
-		_IOrequest_from_master(sockfd);break;
+		_IOrequest_from_master(sockfd);break;*/
 /*	case I_AM_SHUT_DOWN:
 		ans=SERVER_SHUT_DOWN;break;*/
 	case FLUSH_FILE:
@@ -218,32 +218,59 @@ int IOnode::_open_file(int sockfd)
 	ssize_t file_no; 
 	int flag=0;
 	char *path_buffer=NULL; 
+	int count=0;
 	Recv(sockfd, file_no);
 	Recv(sockfd, flag);
 	Recvv(sockfd, &path_buffer); 
-	if(_files.end() == _files.find(file_no))
-	{
-		_files.insert(std::make_pair(file_no, block_info_t())); 
-	}
+	_DEBUG("openfile fileno=%ld, path=%s\n", file_no, path_buffer);
+	block_info_t& blocks=_files[file_no]; 
 	if(_file_path.end() == _file_path.find(file_no))
 	{
 		_file_path.insert(std::make_pair(file_no, std::string(path_buffer)));
+	}
+	Recv(sockfd, count);
+	for(int i=0;i<count;++i)
+	{
+		_append_block(sockfd, blocks);
 	}
 	delete path_buffer; 
 	return SUCCESS; 
 }
 
-int IOnode::_appand_block(int sockfd)
+void IOnode::_append_block(int sockfd, block_info_t& blocks)
 {
-	ssize_t file_no;
-	Recv(sockfd, file_no);
 	off64_t start_point;
 	size_t data_size;
-
 	Recv(sockfd, start_point); 
 	Recv(sockfd, data_size); 
-	block_info_t& blocks=_files.at(file_no);
+	_DEBUG("append request from Master\n");
+	_DEBUG("start_point=%lu, data_size=%lu\n", start_point, data_size);
 	blocks.insert(std::make_pair(start_point, new block(start_point, data_size, CLEAN, INVALID)));
+	return ;
+}
+
+int IOnode::_append_new_block(int sockfd)
+{
+	int count=0;
+	ssize_t file_no;
+	off64_t start_point;
+	size_t data_size;
+	Recv(sockfd, file_no);
+	Recv(sockfd, count);
+	try
+	{
+		block_info_t &blocks=_files.at(file_no);
+		for(int i=0;i<count;++i)
+		{
+			Recv(sockfd, start_point);
+			Recv(sockfd, data_size);
+			blocks.insert(std::make_pair(start_point, new block(start_point, data_size, CLEAN, INVALID)));
+		}
+	}
+	catch(std::out_of_range &e)
+	{
+		return FAILURE;
+	}
 	return SUCCESS;
 }
 

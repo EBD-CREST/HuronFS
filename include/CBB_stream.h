@@ -23,6 +23,7 @@ private:
 		off64_t _cur_file_off()const;
 		void _update_file_size(CBB_stream& stream);
 		size_t _remaining_buffer_data_size()const;
+		size_t _remaining_buffer_size()const;
 		size_t _write_meta_update(size_t write_size);
 		void _update_meta_for_rebuf(bool dirty_flag, size_t update_size);
 		off64_t _get_buf_off_from_file_off(off64_t file_off)const;

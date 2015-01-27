@@ -47,9 +47,20 @@ private:
 	//map file_no: ip
 	typedef std::set<ssize_t> node_id_pool_t;
 
+	//map start_point, data_size
+	typedef std::map<off64_t, size_t> block_info_t;
+	//map node_id, block_info
+	typedef std::map<ssize_t, block_info_t> node_block_map_t;
+
 	struct file_info
 	{
-		file_info(const std::string& path, size_t size, size_t block_size, const node_t& IOnodes, int flag); 
+		file_info(const std::string& path,
+				ssize_t fileno,
+				size_t size,
+				size_t block_size,
+				const node_t& IOnodes,
+				int flag); 
+		ssize_t file_no;
 		std::string path; 
 		node_t p_node;
 		node_pool_t nodes;
@@ -87,6 +98,7 @@ private:
 	void _send_file_info(int socket, std::string& ip)const; 
 	void _send_file_meta(int socket, std::string& ip)const; 
 	void _send_IO_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size, int mode)const;
+	void _send_append_request(ssize_t file_no, const node_block_map_t& append_node_block)const;
 	void _create_file(const char* file_path, mode_t mode)throw(std::runtime_error);
 
 	IOnode_t::iterator _find_by_ip(const std::string& ip);
@@ -101,8 +113,10 @@ private:
 	int _parse_flush_file(int clientfd, std::string& ip);
 	int _parse_close_file(int clientfd, std::string& ip);
 	int _parse_node_info(int clientfd, std::string& ip)const;
+
 	node_t _send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length, size_t& block_size)throw(std::invalid_argument); 
-	void _select_IOnode(off64_t start_point, size_t file_size, size_t block_size, node_id_pool_t& node_pool, node_t& nodes)const; 
+
+	node_t _select_IOnode(off64_t start_point, size_t file_size, size_t block_size, node_block_map_t& node_block_map)const; 
 
 	size_t _get_block_size(size_t length);
 	off64_t _get_block_start_point(off64_t start_point, size_t& size)const;

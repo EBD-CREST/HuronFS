@@ -20,7 +20,13 @@
 
 const char *Master::MASTER_MOUNT_POINT="CBB_MASTER_MOUNT_POINT";
 
-Master::file_info::file_info(const std::string& path, size_t size, size_t block_size, const node_t& IOnodes, int flag):
+Master::file_info::file_info(const std::string& path,
+		ssize_t fileno,
+		size_t size,
+		size_t block_size,
+		const node_t& IOnodes,
+		int flag):
+	file_no(fileno),
 	path(path), 
 	p_node(IOnodes), 
 	nodes(node_pool_t()),
@@ -440,7 +446,7 @@ const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_
 			try
 			{
 				node_t nodes=_send_request_to_IOnodes(file_path, file_no, flag, file_length, block_size);
-				file_info new_file(file_path, file_length,block_size,nodes, flag); 
+				file_info new_file(file_path, file_no, file_length, block_size, nodes, flag); 
 				_buffered_files.insert(std::make_pair(file_no, new_file));
 				file=&(_buffered_files.at(file_no)); 
 				_file_no.insert(std::make_pair(file_path, file_no)); 
@@ -492,51 +498,47 @@ Master::node_t Master::_send_request_to_IOnodes(const char *file_path, ssize_t f
 	file_length=file_stat.st_size;
 	block_size=_get_block_size(file_length); 
 	close(fd);
-	node_id_pool_t node_pool;
-	node_t nodes;
-	_select_IOnode(0, file_length, block_size, node_pool, nodes);
-	for(node_id_pool_t::const_iterator it=node_pool.begin(); 
-			node_pool.end()!=it; ++it)
+	node_block_map_t node_block_map;
+	node_t nodes=_select_IOnode(0, file_length, block_size, node_block_map);
+	for(node_block_map_t::const_iterator it=node_block_map.begin(); 
+			node_block_map.end()!=it; ++it)
 	{
 		//send read request to each IOnode
 		//buffer requset, file_no, file_path, start_point, block_size
-		int socket=_registed_IOnodes.at(*it).socket;
+		int socket=_registed_IOnodes.at(it->first).socket;
 		Send(socket, OPEN_FILE);
 		Send(socket, file_no); 
 		Send(socket, flag);
 		Sendv(socket, file_path, strlen(file_path));
-	}
-	size_t remaining_size = file_length;
-	for(node_t::const_iterator it=nodes.begin();
-			nodes.end() != it; ++it)
-	{
-		int socket=_registed_IOnodes.at(it->second).socket;
-		size_t IO_size=remaining_size> block_size? block_size:remaining_size;
-		Send(socket, APPAND_BLOCK);
-		Send(socket, file_no);
-		Send(socket, it->first); 
-		Send(socket, IO_size); 
-		remaining_size -= block_size;
+		
+		Send(socket, static_cast<int>(it->second.size()));
+		for(block_info_t::const_iterator blocks_it=it->second.begin();
+			blocks_it!=it->second.end(); ++blocks_it)
+		{
+			Send(socket, blocks_it->first);
+			Send(socket, blocks_it->second);
+		}
 	}
 	return nodes; 
 }
 
-off64_t Master::_get_block_start_point(off64_t start_point, size_t& size)const
+inline off64_t Master::_get_block_start_point(off64_t start_point, size_t& size)const
 {
 	off64_t block_start_point=(start_point/BLOCK_SIZE)*BLOCK_SIZE;
 	size=start_point-block_start_point+size;
 	return block_start_point;
 }
 
-void Master::_select_IOnode(off64_t start_point,
+Master::node_t Master::_select_IOnode(off64_t start_point,
 		size_t file_size,
 		size_t block_size,
-		node_id_pool_t& node_pool,
-		node_t& nodes)const
+		node_block_map_t& node_block_map)const
 {
 	off64_t block_start_point=_get_block_start_point(start_point, file_size);
 	//int node_number = (file_size+block_size-1)/block_size,count=(node_number+_node_number-1)/_node_number, count_node=0;
 	int node_number = (file_size+block_size-1)/block_size,count=(node_number+_node_number-1)/_node_number, count_node=0;
+	node_t nodes;
+	size_t remaining_size=file_size;
 
 	for(IOnode_t::const_iterator it=_registed_IOnodes.begin();
 			_registed_IOnodes.end() != it;++it)
@@ -544,11 +546,13 @@ void Master::_select_IOnode(off64_t start_point,
 		for(int i=0;i<count && (count_node++)<node_number;++i)
 		{
 			nodes.insert(std::make_pair(block_start_point, it->first));
+			//node_pool.insert(it->first);
+			node_block_map[it->first].insert(std::make_pair(block_start_point, MIN(remaining_size, block_size)));
 			block_start_point += block_size;
-			node_pool.insert(it->first);
+			remaining_size -= block_size;
 		}
 	}
-	return ; 
+	return nodes; 
 }
 
 int Master::_parse_read_file(int clientfd, std::string& ip) throw(std::out_of_range)
@@ -578,7 +582,7 @@ int Master::_parse_read_file(int clientfd, std::string& ip) throw(std::out_of_ra
 	node_id_pool_t node_pool;
 	if(file->size < start_point+size)
 	{
-		if(start_point > file-> size)
+		if(static_cast<size_t>(start_point) > file->size)
 		{
 			size=0;
 		}
@@ -589,7 +593,7 @@ int Master::_parse_read_file(int clientfd, std::string& ip) throw(std::out_of_ra
 	}
 	Send(clientfd, size);
 	_get_IOnodes_for_IO(start_point, size, *file, nodes, node_pool);
-	_send_IO_request(file_no, *file, nodes, size, READ_FILE);
+	//_send_IO_request(file_no, *file, nodes, size, READ_FILE);
 	_send_block_info(clientfd, node_pool, nodes);
 	close(clientfd);
 	return 1;
@@ -648,12 +652,32 @@ void Master::_append_block(struct file_info& file, int node_id, off64_t start_po
 	file.nodes.insert(node_id);
 }
 
+void Master::_send_append_request(ssize_t file_no, const node_block_map_t& append_blocks)const
+{
+	for(node_block_map_t::const_iterator nodes_it=append_blocks.begin();
+			nodes_it != append_blocks.end();++nodes_it)
+	{
+		int socket = _registed_IOnodes.at(nodes_it->first).socket;
+		Send(socket, APPEND_BLOCK);
+		Send(socket, file_no);
+		Send(socket, static_cast<int>(nodes_it->second.size()));
+		for(block_info_t::const_iterator block_it=nodes_it->second.begin();
+				block_it != nodes_it->second.end();++block_it)
+		{
+			Send(socket, block_it->first);
+			Send(socket, block_it->second);
+		}
+	}
+	return;
+}
+
 Master::node_t& Master::_get_IOnodes_for_IO(off64_t start_point, size_t &size, struct file_info& file, node_t& node_set, node_id_pool_t& node_id_pool)throw(std::bad_alloc)
 {
 	off64_t current_point=_get_block_start_point(start_point, size);
-	ssize_t remained_size=size;
+	ssize_t remaining_size=size;
 	node_t::iterator it;
-	for(;remained_size>=0;remained_size-=BLOCK_SIZE, current_point+=BLOCK_SIZE)
+	node_block_map_t node_append_block;
+	for(;remaining_size>0;remaining_size-=BLOCK_SIZE, current_point+=BLOCK_SIZE)
 	{
 		if(file.p_node.end() != (it=file.p_node.find(current_point)))
 		{
@@ -668,6 +692,8 @@ Master::node_t& Master::_get_IOnodes_for_IO(off64_t start_point, size_t &size, s
 				_append_block(file, node_id, current_point);
 				node_set.insert(std::make_pair(current_point, node_id));
 				node_id_pool.insert(node_id);
+				size_t IO_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));
+				node_append_block[node_id].insert(std::make_pair(current_point, IO_size));
 			}
 			catch(std::bad_alloc& e)
 			{
@@ -675,6 +701,7 @@ Master::node_t& Master::_get_IOnodes_for_IO(off64_t start_point, size_t &size, s
 			}
 		}
 	}
+	_send_append_request(file.file_no, node_append_block);
 	return node_set;
 }
 
@@ -719,7 +746,7 @@ int Master::_parse_write_file(int clientfd, std::string& ip)
 			file.p_node.insert(std::make_pair(it->first, it->second));
 		}*/
 
-		_send_IO_request(file_no, file, nodes, size, WRITE_FILE);
+		//_send_IO_request(file_no, file, nodes, size, WRITE_FILE);
 		_send_block_info(clientfd, node_pool, nodes);
 		close(clientfd);
 		return SUCCESS;

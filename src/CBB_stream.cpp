@@ -5,6 +5,7 @@
 #include <errno.h>
 
 #include "include/CBB_stream.h"
+#include "include/CBB_internal.h"
 
 CBB_stream::stream_info::stream_info(bool dirty_flag,
 		bool buffer_flag,
@@ -162,6 +163,7 @@ void CBB_stream::stream_info::_update_meta_for_rebuf(bool new_dirty_flag, size_t
 	{
 		file_size=buf_file_off+buffered_data_size;
 	}
+	cur_buf_ptr=buf;
 }
 
 
@@ -203,6 +205,11 @@ inline size_t CBB_stream::stream_info::_remaining_buffer_data_size()const
 	return buffered_data_size-_cur_buf_off();
 }
 
+inline size_t CBB_stream::stream_info::_remaining_buffer_size()const
+{
+	return buffer_size - _cur_buf_off();
+}
+
 size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
@@ -210,7 +217,7 @@ size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 	if(stream->buffer_flag)
 	{
 		size_t remaining_size=stream->_remaining_buffer_data_size();
-		size_t buffered_size=remaining_size>size?size:remaining_size;
+		size_t buffered_size=MIN(remaining_size, size);
 		size_t unbuffered_size=size-buffered_size;
 		size_t total_size=0;;
 		memcpy(buffer, stream->cur_buf_ptr, buffered_size);
@@ -232,7 +239,7 @@ size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 				return total_size;
 			}*/
 			stream->_update_meta_for_rebuf(CLEAN, ret);
-			size_t current_IO_size=unbuffered_size > stream->buffered_data_size?stream->buffered_data_size:unbuffered_size;
+			size_t current_IO_size=MIN(unbuffered_size, stream->buffered_data_size);
 			memcpy(buffer, stream->buf, current_IO_size);
 			stream->_update_cur_buf_ptr(*this, current_IO_size);
 			buffer=static_cast<char*>(buffer)+current_IO_size;
@@ -276,8 +283,8 @@ size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t s
 
 	if(stream->buffer_flag)
 	{
-		size_t remaining_size=stream->_remaining_buffer_data_size();
-		size_t buffered_size=remaining_size>size?size:remaining_size;
+		size_t remaining_size=stream->_remaining_buffer_size();
+		size_t buffered_size=MIN(remaining_size, size);
 		size_t unbuffered_size=size-buffered_size;
 		size_t total_size=0;;
 		memcpy(stream->cur_buf_ptr, buffer, buffered_size);
@@ -295,7 +302,7 @@ size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t s
 			{
 				return total_size;
 			}*/
-			size_t current_IO_size=unbuffered_size>stream->buffered_data_size?stream->buffered_data_size:unbuffered_size;
+			size_t current_IO_size=MIN(unbuffered_size, stream->buffer_size);
 			memcpy(stream->buf, buffer, current_IO_size);
 			stream->_write_meta_update(current_IO_size);
 			buffer=static_cast<const char*>(buffer)+current_IO_size;
