@@ -4,6 +4,7 @@ SRC = src
 MASTER_DIR = $(SRC)/Master
 IONODE_DIR = $(SRC)/IOnode
 CLIENT_DIR = $(SRC)/Client
+COMMON_DIR = $(SRC)/Common
 
 MASTER_LIB = $(MASTER_DIR)/libMaster.so
 MASTER = $(MASTER_DIR)/Master
@@ -60,6 +61,7 @@ clean:
 	cd $(MASTER_DIR) && make clean
 	cd $(IONODE_DIR) && make clean
 	cd $(CLIENT_DIR) && make clean
+	cd $(COMMON_DIR) && make clean
 
 clean_all:clean
 	cd tests && $(MAKE) clean
