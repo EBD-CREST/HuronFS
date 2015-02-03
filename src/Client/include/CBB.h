@@ -6,8 +6,8 @@
 #include <vector>
 #include <netinet/in.h>
 
-#include "include/Client.h"
-#include "include/CBB_const.h"
+#include "Client.h"
+#include "CBB_const.h"
 
 
 class CBB:Client

@@ -7,17 +7,17 @@
 #include <sys/types.h>
 #include <error.h>
 
-#include "include/CBB_stream.h"
-#include "include/CBB_posix.h"
-#include "include/CBB_internal.h"
+#include "CBB_stream.h"
+#include "CBB_posix.h"
+#include "CBB_internal.h"
 
 CBB_stream client;
 
 /*CBB_FUNC_P(int, fsync, (int fd));
-CBB_FUNC_P(int, fdatasync, (int fd));
-CBB_FUNC_P(int, flock, (int fd, int operation));
-CBB_FUNC_P(void*, mmap, (void *addr, size_t length, int prot, int flag, int fd, off_t offset));
-CBB_FUNC_P(void*, mmap64, (void *addr, size_t length, int prot, int flag, int fd, off64_t offset));
+	CBB_FUNC_P(int, fdatasync, (int fd));
+	CBB_FUNC_P(int, flock, (int fd, int operation));
+	CBB_FUNC_P(void*, mmap, (void *addr, size_t length, int prot, int flag, int fd, off_t offset));
+	CBB_FUNC_P(void*, mmap64, (void *addr, size_t length, int prot, int flag, int fd, off64_t offset));
 CBB_FUNC_P(int, munmap, (void *addr, size_t length));*/
 
 

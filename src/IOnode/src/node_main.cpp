@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 
-#include "include/IOnode.h"
-#include "include/CBB_const.h"
+#include "IOnode.h"
+#include "CBB_const.h"
 
 int main(int argc, char**argv)
 {

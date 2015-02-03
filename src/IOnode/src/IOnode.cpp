@@ -14,9 +14,9 @@
 #include <errno.h>
 #include <sys/types.h>
 
-#include "include/IOnode.h"
-#include "include/CBB_const.h"
-#include "include/Communication.h"
+#include "IOnode.h"
+#include "CBB_const.h"
+#include "Communication.h"
 
 const char *IOnode::IONODE_MOUNT_POINT="CBB_IONODE_MOUNT_POINT";
 
@@ -256,6 +256,7 @@ int IOnode::_append_new_block(int sockfd)
 	off64_t start_point;
 	size_t data_size;
 	Recv(sockfd, file_no);
+	Send(sockfd, static_cast<int>(SUCCESS));
 	Recv(sockfd, count);
 	try
 	{

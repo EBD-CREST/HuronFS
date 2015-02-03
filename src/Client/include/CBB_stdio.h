@@ -1,11 +1,10 @@
 #ifndef _CBB_STDIO_H_
 
-#define _CBB_STDIO_H_
+#define _CBB_STDIO_H__
 
-#include "include/CBB_stream.h"
+#include <stdio.h>
 
 extern const char * mount_point;
-extern CBB_stream stream_pool;
 
 extern "C"
 {
@@ -25,8 +24,6 @@ extern "C"
 	char* fgets(char* s, int n, FILE* stream);
 	int fputc(int c, FILE* stream);
 	int fputs(const char* s, FILE* stream);
-	int getc(FILE* stream);
-	int putc(int c, FILE* stream);
 	int ungetc(int c, FILE* stream);
 
 	size_t fread(void* ptr, size_t size, size_t nitems, FILE* stream);

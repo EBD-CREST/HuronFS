@@ -4,8 +4,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "include/CBB_stream.h"
-#include "include/CBB_internal.h"
+#include "CBB_stream.h"
+#include "CBB_internal.h"
 
 CBB_stream::stream_info::stream_info(bool dirty_flag,
 		bool buffer_flag,
@@ -88,7 +88,7 @@ int CBB_stream::_parse_open_mode_flag(const char* mode, int& flags, mode_t& open
 FILE* CBB_stream::_open_stream(const char* path, const char* mode)
 {
 	int flag=0;
-	mode_t open_mode;
+	mode_t open_mode=0;
 	//pase mode
 	//
 	_parse_open_mode_flag(mode, flag, open_mode);
@@ -234,6 +234,10 @@ size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 			size_t ret=_read(stream->fd, stream->buf, stream->buffer_size);
 
 			//updata meta data
+			if(0 == ret)
+			{
+				return total_size;
+			}
 			/*if(ret != stream->buffer_size)
 			{
 				return total_size;
@@ -275,7 +279,7 @@ size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t s
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
 	//use buffer
 	
-	if(stream->open_flag & O_WRONLY || stream->open_flag & O_RDWR)
+	if(!(stream->open_flag & O_WRONLY || stream->open_flag & O_RDWR))
 	{
 		stream->err=EBADF;
 		return 0;

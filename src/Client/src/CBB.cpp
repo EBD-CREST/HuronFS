@@ -14,10 +14,10 @@
 #include <arpa/inet.h>
 #include <limits.h>
 
-#include "include/CBB.h"
-#include "include/CBB_internal.h"
-#include "include/CBB_const.h"
-#include "include/Communication.h"
+#include "CBB.h"
+#include "CBB_internal.h"
+#include "CBB_const.h"
+#include "Communication.h"
 
 const char* CBB::CLIENT_MOUNT_POINT="CBB_CLIENT_MOUNT_POINT";
 const char* CBB::MASTER_IP="CBB_MASTER_IP";
@@ -209,6 +209,10 @@ ssize_t CBB::_read_from_IOnode(file_info& file, const _block_list_t& blocks, con
 	int ret=0;
 	off64_t current_point=file.current_point;
 	size_t read_size=size;
+	if(0 == size)
+	{
+		return size;
+	}
 	
 	for(_block_list_t::const_iterator it=blocks.begin();
 			it!=blocks.end();++it)
@@ -251,6 +255,10 @@ ssize_t CBB::_read_from_IOnode(file_info& file, const _block_list_t& blocks, con
 		}
 		close(IOnode_socket);
 	}
+#ifdef DEBUG
+	fwrite(buffer-ans, sizeof(char), ans, stderr); 
+	fflush(stderr);
+#endif
 	return ans;
 }
 
@@ -260,6 +268,10 @@ ssize_t CBB::_write_to_IOnode(file_info& file, const _block_list_t& blocks, cons
 	int ret=0;
 	off64_t current_point=file.current_point;
 	size_t write_size=size;
+	if(0 == size)
+	{
+		return size;
+	}
 	for(_block_list_t::const_iterator it=blocks.begin();
 			it!=blocks.end();++it)
 	{
@@ -308,6 +320,10 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 {
 	int ret=0;
 	int fid=_BB_fd_to_fid(fd);
+	if(0 == size)
+	{
+		return size;
+	}
 	try
 	{
 		file_info& file=_file_list.at(fid);
@@ -345,6 +361,10 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 {
 	int ret=0;
 	int fid=_BB_fd_to_fid(fd);
+	if(0 == size)
+	{
+		return size;
+	}
 	try
 	{
 		file_info& file=_file_list.at(fid);

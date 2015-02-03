@@ -8,36 +8,29 @@
 
 int main(int argc, char ** argv)
 {
-	FILE *fp=NULL;
-	int buffer;
-	int count=0, i=0;
-	char *data="this is a test text";
-	if(NULL == (fp=fopen("../../../test1", "r")))
+	FILE *fp_rd=NULL, *fp_wr=NULL;
+	char* buffer=NULL;
+	if(argc < 3)
+	{
+		fprintf(stderr, "usage test4 [src] [des]\n");
+		return EXIT_FAILURE;
+	}
+	if(NULL == (fp_rd=fopen(argv[1], "r")))
 	{
 		perror("fopen");
 		return EXIT_FAILURE;
 	}
-	/*if(NULL == (buffer=malloc(sizeof(char))))
+	if(NULL == (fp_wr=fopen(argv[2], "w")))
 	{
-		perror("malloc");
+		perror("fopen");
 		return EXIT_FAILURE;
+	}
+/*	while(EOF != (buffer=fgetc(fp_rd)))
+	{
+		fputc(buffer, fp_wr);
 	}*/
-
-	while(!feof(fp))
-	{
-		if(-1 == (buffer=fgetc(fp)))
-		{
-			perror("fgetc");
-			return EXIT_FAILURE;
-		}
-		printf("%c\n", buffer);
-		++count;
-	}
-	rewind(fp);
-	for(i=0; i<count;++i)
-	{
-		fputc(data[i], fp);
-	}
-	
+	if(NULL == (buffer=malloc(sizeof(char)*
+	fclose(fp_rd);
+	fclose(fp_wr);
 	return EXIT_SUCCESS;
 }

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "include/Master.h"
+#include "Master.h"
 
 int main(int argc, char **argv)
 {

@@ -1,7 +1,7 @@
 #ifndef CBB_STREAM_H_
 #define CBB_STREAM_H_
 
-#include "include/CBB.h"
+#include "CBB.h"
 
 class CBB_stream:public CBB
 {

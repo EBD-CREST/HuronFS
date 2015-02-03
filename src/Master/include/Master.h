@@ -15,8 +15,8 @@
 #include <stdexcept>
 #include <stdlib.h>
 
-#include "include/CBB_const.h"
-#include "include/Server.h"
+#include "CBB_const.h"
+#include "Server.h"
 
 
 class Master:public Server

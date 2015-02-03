@@ -14,9 +14,9 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#include "include/Master.h"
-#include "include/Communication.h"
-#include "include/CBB_internal.h"
+#include "Master.h"
+#include "Communication.h"
+#include "CBB_internal.h"
 
 const char *Master::MASTER_MOUNT_POINT="CBB_MASTER_MOUNT_POINT";
 
@@ -539,7 +539,11 @@ Master::node_t Master::_select_IOnode(off64_t start_point,
 	int node_number = (file_size+block_size-1)/block_size,count=(node_number+_node_number-1)/_node_number, count_node=0;
 	node_t nodes;
 	size_t remaining_size=file_size;
-
+	if(0 == count && 0 == node_number)
+	{
+		count=1;
+		node_number=1;
+	}
 	for(IOnode_t::const_iterator it=_registed_IOnodes.begin();
 			_registed_IOnodes.end() != it;++it)
 	{
@@ -658,14 +662,19 @@ void Master::_send_append_request(ssize_t file_no, const node_block_map_t& appen
 			nodes_it != append_blocks.end();++nodes_it)
 	{
 		int socket = _registed_IOnodes.at(nodes_it->first).socket;
+		int ret;
 		Send(socket, APPEND_BLOCK);
 		Send(socket, file_no);
-		Send(socket, static_cast<int>(nodes_it->second.size()));
-		for(block_info_t::const_iterator block_it=nodes_it->second.begin();
-				block_it != nodes_it->second.end();++block_it)
+		Recv(socket, ret);
+		if(SUCCESS == ret)
 		{
-			Send(socket, block_it->first);
-			Send(socket, block_it->second);
+			Send(socket, static_cast<int>(nodes_it->second.size()));
+			for(block_info_t::const_iterator block_it=nodes_it->second.begin();
+					block_it != nodes_it->second.end();++block_it)
+			{
+				Send(socket, block_it->first);
+				Send(socket, block_it->second);
+			}
 		}
 	}
 	return;

@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#include "include/CBB_internal.h"
+#include "CBB_internal.h"
 
 //API declearation
 template<class T> size_t Recv(int sockfd, T& buffer);

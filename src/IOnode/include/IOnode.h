@@ -19,8 +19,8 @@
 #include <exception>
 #include <stdlib.h>
 
-#include "include/Server.h"
-#include "include/Client.h"
+#include "Server.h"
+#include "Client.h"
 
 
 class IOnode:public Server, Client
