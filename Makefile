@@ -26,7 +26,7 @@ run:
 	@echo 'or make Client'
 	@echo 'or make all'
 
-.PHONY:clean clean_all
+.PHONY:clean clean_all Master IOnode Client all
 Master:
 	cd $(MASTER_DIR) && $(MAKE)
 	mkdir -p bin lib
