@@ -47,13 +47,7 @@ Client:
 	mv $(CLIENT_LIB) lib
 	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
-all: 
-	mkdir -p bin lib
-	mv *.so lib
-	mv $(MASTER_OBJ) bin
-	mv $(IONODE_OBJ) bin
-	rm -f *.o
-	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
+all:Master IOnode Client
 
 clean:
 	rm -f $(BIN)/*
