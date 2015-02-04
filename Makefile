@@ -16,8 +16,8 @@ CLIENT_LIB = $(CLIENT_DIR)/libCBB.so
 
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
-export FLAG=-g -Wall -DDEBUG
-#export FLAG=-O3 -Wall
+#export FLAG=-g -Wall -DDEBUG
+export FLAG=-O3 -Wall
 
 run:
 	@echo 'run make Master'

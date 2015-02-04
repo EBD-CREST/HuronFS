@@ -120,7 +120,7 @@ extern "C" int CBB_WRAP(fprintf)(FILE *stream, const char * format, ...)
 
 	if(true)
 	{
-		_LOG("format=%s\n", format);
+	//	_LOG("format=%s\n", format);
 	//	return EOF;
 	//}
 	//else

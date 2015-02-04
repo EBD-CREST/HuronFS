@@ -4,6 +4,7 @@ CBB = CBB.o
 CBB_STREAM = CBB_stream.o
 CBB_STDIO = CBB_stdio.o
 CBB_POSIX = CBB_posix.o
+CLIENT = ../Common/Client.o
 
 OBJ = $(CBB) $(CBB_STREAM) $(CBB_STDIO) $(CBB_POSIX)
 
@@ -15,7 +16,7 @@ INCLUDE_PATH = -I./include/ -I../Common/include
 vpath %.cpp src/
 vpath %.h include/
 
-$(CBB_LIB):$(OBJ)
+$(CBB_LIB):$(OBJ) $(CLIENT)
 	$(CC) $(PRELOAD) $(FLAG) $(LIB_FLAG) -o $@ $^ -ldl
 
 $(CBB):$(SRC_DIR)/CBB.cpp $(HEADER_DIR)/CBB.h
@@ -29,6 +30,9 @@ $(CBB_STDIO):$(SRC_DIR)/CBB_stdio.cpp $(HEADER_DIR)/CBB_stdio.h
 
 $(CBB_POSIX):$(SRC_DIR)/CBB_posix.cpp $(HEADER_DIR)/CBB_posix.h
 	$(CC) -c $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $<
+
+$(CLIENT):
+	cd ../Common && $(MAKE) $(notdir $@)
 
 .PHONY:clean
 clean:
