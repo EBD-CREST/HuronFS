@@ -16,7 +16,7 @@ vpath %.cpp src/
 vpath %.h include/
 
 $(CBB_LIB):$(OBJ)
-	$(CC) $(PRELOAD) $(FLAG) $(LIB_FLAG) -o $@ $^
+	$(CC) $(PRELOAD) $(FLAG) $(LIB_FLAG) -o $@ $^ -ldl
 
 $(CBB):$(SRC_DIR)/CBB.cpp $(HEADER_DIR)/CBB.h
 	$(CC) -c $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $<

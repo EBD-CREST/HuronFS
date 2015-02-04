@@ -1,6 +1,7 @@
-.PHONY:clean
-clean:
-	cd test1 && $(MAKE) clean
-	cd test2 && $(MAKE) clean
-	cd test3 && $(MAKE) clean
-	cd test4 && $(MAKE) clean
+TEST = test1 test2 test3 test4
+
+.PHONY:clean $(TEST)
+clean:$(TEST)
+
+$(TEST):
+	$(MAKE) -C $@ clean

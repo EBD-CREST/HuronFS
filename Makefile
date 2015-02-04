@@ -28,21 +28,21 @@ run:
 
 .PHONY:clean clean_all Master IOnode Client all
 Master:
-	cd $(MASTER_DIR) && $(MAKE)
+	$(MAKE) -C $(MASTER_DIR)
 	mkdir -p bin lib
 	mv $(MASTER_LIB) lib
 	mv $(MASTER) bin
 	echo $$ld_library_path|grep `pwd` || export ld_library_path=`pwd`/lib:$$ld_library_path
 
 IOnode:
-	cd $(IONODE_DIR) && $(MAKE)
+	$(MAKE) -C $(IONODE_DIR)
 	mkdir -p bin lib
 	mv $(IONODE_LIB) lib
 	mv $(IONODE) bin
 	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
 Client:
-	cd $(CLIENT_DIR) && $(MAKE)
+	$(MAKE) -C $(CLIENT_DIR)
 	mkdir -p bin lib
 	mv $(CLIENT_LIB) lib
 	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
@@ -52,10 +52,10 @@ all:Master IOnode Client
 clean:
 	rm -f $(BIN)/*
 	rm -f $(LIB)/*
-	cd $(MASTER_DIR) && make clean
-	cd $(IONODE_DIR) && make clean
-	cd $(CLIENT_DIR) && make clean
-	cd $(COMMON_DIR) && make clean
+	$(MAKE) -C $(MASTER_DIR) clean
+	$(MAKE) -C $(IONODE_DIR) clean
+	$(MAKE) -C $(CLIENT_DIR) clean
+	$(MAKE) -C $(COMMON_DIR) clean
 
 clean_all:clean
-	cd tests && $(MAKE) clean
+	$(MAKE) -C tests clean
