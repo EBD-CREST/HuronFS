@@ -30,6 +30,7 @@ OVERVIEW:
 
 PREPARATION:
 --------------------------------------------------------------------------------------------------------------
+### PORT USED
 Master node:
 
 		port 9000
@@ -38,15 +39,16 @@ I/O node:
 
 		port 8000, 8001
 
-### mount shared storage:
+### MOUNT SHARED STORAGE
 
-Mount shared storage on Master node and I/O node.
+* Mount shared storage on Master node and I/O node.
+* No need to mount shared storage on Client node, but a directory should be selected as shared storage mount point, and set corresponding environment value(HOW TO USE 2.set environment value).
 
 HOW TO USE:
 --------------------------------------------------------------------------------------------------------------
 ### 1. build:
 
-Master node:
+Master:
 
 		1. cd burstbuffer
 		2. make Master
@@ -56,12 +58,12 @@ I/O node:
 		1. cd burstbuffer
 		2. make IOnode
 
-Client node:
+Client:
 
 		1. cd burstbuffer
 		2. make Client
 
-all:
+To make all:
 
 		1. cd burstbuffer
 		2. make all
@@ -73,34 +75,34 @@ Common:
 		1. BURSTBUFFER_HOME
 			burstbuffer directory path
 
-Master node:
+On master node:
 
-		1. CBB_MASTER_MOUNT_POINT
-			absolute directory path where master node mount shared storage.
+		1. CBB_MASTER_MOUNT_POINT:
+			absolute directory path where master node mounts shared storage.
 			
-		2. LD_LIBRARY_PATH
+		2. LD_LIBRARY_PATH:
 			add $BURSTBUFFER_HOME/lib to LD_LIBRARY_PATH
 
-I/O node:
+On I/O node:
 
-		1. CBB_IONODE_MOUNT_POINT
-			absolute directory path where I/O node mount shared storage.
+		1. CBB_IONODE_MOUNT_POINT:
+			absolute directory path where I/O node mounts shared storage.
 
 		2. CBB_MASTER_IP:
 			master node ip address.
 
-		3. LD_LIBRARY_PATH
+		3. LD_LIBRARY_PATH:
 			add $BURSTBUFFER_HOME/lib to LD_LIBRARY_PATH
 	
-Client node:
+On client node:
 
-		1. CBB_CLIENT_MOUNT_POINT
-			expected absolute directory path where client mount shared storage, no need to actually mount.
+		1. CBB_CLIENT_MOUNT_POINT:
+			expected absolute directory path where client mounts shared storage, no need to actually mount.
 
 		2. CBB_MASTER_IP:
 			master node ip address.
 
-		3. LD_LIBRARY_PATH
+		3. LD_LIBRARY_PATH:
 			add $BURSTBUFFER_HOME/lib to LD_LIBRARY_PATH
 
 ### 3. start server:
@@ -113,7 +115,7 @@ I/O node:
 	$BURSTBUFFER_HOME/bin/IOnode
 
 ### 4. run test:
-on client nodes:
+On client nodes:
 
 test case:
 
@@ -122,6 +124,6 @@ test case:
 		LD_PRELOAD=$BURSTBUFFER_HOME/lib/libCBB.so ./test{1,2,3,4}
 
 ### 5. run your application:
-on client nodes:
+On client nodes:
 
 		LD_PRELOAD=$BURSTBUFFER_HOME/lib/libCBB.so your_application
