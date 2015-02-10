@@ -3,9 +3,9 @@ this is cloud-based I/O burst buffer
 OVERVIEW:
 --------------------------------------------------------------------------------------------------------------
 
-### 1. cloud-based I/O burst buffer is a distruted burst buffer system to burst I/O throughpput in cloud environment.
+1. cloud-based I/O burst buffer is a distruted burst buffer system to burst I/O throughpput in cloud environment.
 
-### 2. there are three kinds of nodes in cloud-based I/O burst buffer:
+2. there are three kinds of nodes in cloud-based I/O burst buffer:
 	Master node:
 		manage file meta data.
 		manage I/O nodes.
