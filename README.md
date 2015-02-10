@@ -97,6 +97,7 @@ I/O node:
 
 ### 4. run test:
 on client nodes:
+
 test case:
 
 		cd tests/test{1,2,3,4}
