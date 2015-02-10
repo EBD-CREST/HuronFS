@@ -6,6 +6,7 @@ OVERVIEW:
 1. cloud-based I/O burst buffer is a distruted burst buffer system to burst I/O throughpput in cloud environment.
 
 2. there are three kinds of nodes in cloud-based I/O burst buffer:
+
 	Master node:
 		manage file meta data.
 		manage I/O nodes.
@@ -18,13 +19,22 @@ OVERVIEW:
 		run user applications.
 
 
-PORT USED:
+PREPARATION:
 --------------------------------------------------------------------------------------------------------------
-### Master node:
+### nodes:
+
+
+### port used
+Master node:
+
 		port 9000
-	
-### I/O node:
+
+I/O node:
 		port 8000, 8001
+
+### mount shared storage:
+
+Master node and I/O node need to mount shared storage.
 
 HOW TO USE:
 --------------------------------------------------------------------------------------------------------------
@@ -46,6 +56,7 @@ Client node:
 		2. make Client
 
 all:
+
 		1. cd burstbuffer
 		2. make all
 
