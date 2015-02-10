@@ -30,39 +30,42 @@ HOW TO USE:
 --------------------------------------------------------------------------------------------------------------
 ### 1. build:
 
-	Master node:
+Master node:
 
 		1. cd burstbuffer
 		2. make Master
 
-	I/O node:
+I/O node:
 
 		1. cd burstbuffer
 		2. make IOnode
 
-	Client node:
+Client node:
 
 		1. cd burstbuffer
 		2. make Client
 
-	all:
+all:
 		1. cd burstbuffer
 		2. make all
 
 ### 2. set environment value:
 
-	Common:
+Common:
+
 		1. BURSTBUFFER_HOME
 			burstbuffer directory path
 
-	Master node:
+Master node:
+
 		1. CBB_MASTER_MOUNT_POINT
 			absolute directory path where master node mount shared storage.
 			
 		2. LD_LIBRARY_PATH
 			add $BURSTBUFFER_HOME/lib to LD_LIBRARY_PATH
 
-	I/O node:
+I/O node:
+
 		1. CBB_IONODE_MOUNT_POINT
 			absolute directory path where I/O node mount shared storage.
 
@@ -72,7 +75,8 @@ HOW TO USE:
 		3. LD_LIBRARY_PATH
 			add $BURSTBUFFER_HOME/lib to LD_LIBRARY_PATH
 	
-	Client node:
+Client node:
+
 		1. CBB_CLIENT_MOUNT_POINT
 			expected absolute directory path where client mount shared storage, no need to actually mount.
 
@@ -83,19 +87,23 @@ HOW TO USE:
 			add $BURSTBUFFER_HOME/lib to LD_LIBRARY_PATH
 
 ### 3. start server:
-	Master node:
-		$BURSTBUFFER_HOME/bin/Master
+Master node:
 
-	I/O node:
-		$BURSTBUFFER_HOME/bin/IOnode
+	$BURSTBUFFER_HOME/bin/Master
+
+I/O node:
+
+	$BURSTBUFFER_HOME/bin/IOnode
 
 ### 4. run test:
-	on client nodes:
-	test case:
+on client nodes:
+test case:
+
 		cd tests/test{1,2,3,4}
 		make
 		LD_PRELOAD=$BURSTBUFFER_HOME/lib/libCBB.so ./test{1,2,3,4}
 
 ### 5. run your application:
-	on client nodes:
+on client nodes:
+
 		LD_PRELOAD=$BURSTBUFFER_HOME/lib/libCBB.so your_application
