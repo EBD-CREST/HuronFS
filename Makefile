@@ -16,13 +16,13 @@ CLIENT_LIB = $(CLIENT_DIR)/libCBB.so
 
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
-#export FLAG=-g -Wall -DDEBUG
-export FLAG=-O3 -Wall
+export FLAG=-g -Wall -DDEBUG
+#export FLAG=-O3 -Wall
 
 run:
-	@echo 'run make Master'
+	@echo 'run'
+	@echo 'make Master'
 	@echo 'or make IOnode'
-	@echo 'or make User_main'
 	@echo 'or make Client'
 	@echo 'or make all'
 

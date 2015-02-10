@@ -6,10 +6,10 @@ const size_t MB=KB*1000;
 const size_t GB=MB*1000;
 
 const int MASTER_PORT = 9000; 
-const int MASTER_CONN_PORT = 9001; 
+const int MASTER_CONN_PORT = 8001; 
 const int IONODE_PORT = 8000; 
-const int CLIENT_PORT = 8001;
-const int IO_CLIENT_PORT = 8002;
+//const int CLIENT_PORT = 8001;
+//const int IO_CLIENT_PORT = 8002;
 
 const int MEMORY = 10000; 
 const int MAX_BLOCK_NUMBER = 10; 
