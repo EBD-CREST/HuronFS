@@ -1,10 +1,11 @@
 this is cloud-based I/O burst buffer
 
 OVERVIEW:
+--------------------------------------------------------------------------------------------------------------
 
-1. cloud-based I/O burst buffer is a distruted burst buffer system to burst I/O throughpput in cloud environment.
+### 1. cloud-based I/O burst buffer is a distruted burst buffer system to burst I/O throughpput in cloud environment.
 
-2. there are three kinds of nodes in cloud-based I/O burst buffer:
+### 2. there are three kinds of nodes in cloud-based I/O burst buffer:
 	Master node:
 		manage file meta data.
 		manage I/O nodes.
@@ -18,14 +19,16 @@ OVERVIEW:
 
 
 PORT USED:
-	Master node:
+--------------------------------------------------------------------------------------------------------------
+### Master node:
 		port 9000
 	
-	I/O node:
+### I/O node:
 		port 8000, 8001
 
 HOW TO USE:
-1. build:
+--------------------------------------------------------------------------------------------------------------
+### 1. build:
 
 	Master node:
 
@@ -46,7 +49,7 @@ HOW TO USE:
 		1. cd burstbuffer
 		2. make all
 
-2. set environment value:
+### 2. set environment value:
 
 	Common:
 		1. BURSTBUFFER_HOME
@@ -79,20 +82,20 @@ HOW TO USE:
 		3. LD_LIBRARY_PATH
 			add $BURSTBUFFER_HOME/lib to LD_LIBRARY_PATH
 
-3. start server:
+### 3. start server:
 	Master node:
 		$BURSTBUFFER_HOME/bin/Master
 
 	I/O node:
 		$BURSTBUFFER_HOME/bin/IOnode
 
-4. run test:
+### 4. run test:
 	on client nodes:
 	test case:
 		cd tests/test{1,2,3,4}
 		make
 		LD_PRELOAD=$BURSTBUFFER_HOME/lib/libCBB.so ./test{1,2,3,4}
 
-5. run your application:
+### 5. run your application:
 	on client nodes:
 		LD_PRELOAD=$BURSTBUFFER_HOME/lib/libCBB.so your_application
