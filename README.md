@@ -3,38 +3,44 @@ this is cloud-based I/O burst buffer
 OVERVIEW:
 --------------------------------------------------------------------------------------------------------------
 
-1. cloud-based I/O burst buffer is a distruted burst buffer system to burst I/O throughpput in cloud environment.
+1. Cloud-based I/O burst buffer is a distributed burst buffer system to burst I/O throughput in cloud environment.
 
-2. there are three kinds of nodes in cloud-based I/O burst buffer:
+2. Cloud-based I/O burst buffer consists of the following kinds of nodes:
 
-	Master node:
-		manage file meta data.
-		manage I/O nodes.
+	* Master node:
+                Master node locates on cloud side, manages file meta data and I/O nodes.
+                On Master node, the Master application is running.
 	
-	I/O node:
-		store real data.
-		transfer data with clients.
+	* I/O node:
+                I/O nodes also locate on cloud side, is responsible for storing real data and transferring data with client.
+                On I/O node, the IOnode application is running.
 	
-	Client node:
-		run user applications.
+	* Client node:
+		Client nodes locate on cloud side, running user applications. a pre-load library used to interact with Master node and I/O nodes.
 
+### Structure of the Cloud-based burst buffer
+* Master node:
+	* Master: locates in bin, binary executable file of Master application.
+	* libMaster.so: locates in lib, dynamic library of Master application.
+* I/O node:
+	* IOnode: locates in bin, binary executable file of IOnode application.
+	* libIOnode.so: locates in lib, dynamic library of IOnode application.
+* Client node:
+	* libCBB.so: locates in lib, dynamic pre-load library used to interact with Master node and I/O nodes.
 
 PREPARATION:
 --------------------------------------------------------------------------------------------------------------
-### nodes:
-
-
-### port used
 Master node:
 
 		port 9000
 
 I/O node:
+
 		port 8000, 8001
 
 ### mount shared storage:
 
-Master node and I/O node need to mount shared storage.
+Mount shared storage on Master node and I/O node.
 
 HOW TO USE:
 --------------------------------------------------------------------------------------------------------------
