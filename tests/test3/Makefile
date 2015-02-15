@@ -9,7 +9,7 @@ NUMBER = 2
 
 PRELOAD = LD_PRELOAD=$(LIB)/libCBB.so
 
-PRELOAD_LINK = -L$(LIB) -lCBB
+#PRELOAD_LINK = -L$(LIB) -lCBB
 compile:$(OBJ)
 	
 $(OBJ):$(OBJ).c
@@ -20,7 +20,7 @@ clean:
 	rm -f $(OBJ)
 
 run:
-	$(PRELOAD) mpirun -np $(NUMBER) -hostfile hostfile ./$(OBJ)
+	$(PRELOAD) ./$(OBJ)
 
 debug:
 	$(PRELOAD) $(DEBUGER) ./$(OBJ)

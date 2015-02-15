@@ -121,6 +121,7 @@ test case:
 
 		cd tests/test{1,2,3,4}
 		make
+		./prepare.sh
 		LD_PRELOAD=$BURSTBUFFER_HOME/lib/libCBB.so ./test{1,2,3,4}
 
 ### 5. run your application:

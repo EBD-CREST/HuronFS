@@ -1,11 +1,11 @@
 CC = gcc
-BB = ../../lib/libCBB.so
+CBB = ../../lib/libCBB.so
 
 OBJ = test1
 
 DEBUGER = gdb
 
-PRELOAD = LD_PRELOAD=$(BB)
+PRELOAD = LD_PRELOAD=$(CBB)
 
 compile:$(OBJ)
 	

@@ -9,7 +9,7 @@
 int main(int argc, char ** argv)
 {
 	FILE *fp_rd=NULL, *fp_wr=NULL;
-	char* buffer=NULL;
+	int buffer;
 	if(argc < 3)
 	{
 		fprintf(stderr, "usage test4 [src] [des]\n");
@@ -25,11 +25,10 @@ int main(int argc, char ** argv)
 		perror("fopen");
 		return EXIT_FAILURE;
 	}
-/*	while(EOF != (buffer=fgetc(fp_rd)))
+	while(EOF != (buffer=fgetc(fp_rd)))
 	{
 		fputc(buffer, fp_wr);
-	}*/
-	if(NULL == (buffer=malloc(sizeof(char)*
+	}
 	fclose(fp_rd);
 	fclose(fp_wr);
 	return EXIT_SUCCESS;

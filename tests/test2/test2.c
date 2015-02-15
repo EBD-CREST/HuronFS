@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <string.h>
+#include <linux/limits.h>
 
 //access to a remote file
 //test function:
@@ -14,12 +15,23 @@ int main(int argc, const char ** argv)
 	int fd1, fd2;
 	char *buffer=NULL;
 	char *data="append this content after test1";
-	if(-1 == (fd1=open("../../../test1", O_RDWR)))
+	char file_path1[PATH_MAX], file_path2[PATH_MAX];
+	const char *mount_point=getenv("CBB_CLIENT_MOUNT_POINT");
+
+	if(NULL == mount_point)
+	{
+		fprintf(stderr, "please set CBB_CLIENT_MOUNT_POINT");
+		return EXIT_FAILURE;
+	}
+	sprintf(file_path1, "%s%s", mount_point, "/test1");
+	sprintf(file_path2, "%s%s", mount_point, "/test2");
+
+	if(-1 == (fd1=open(file_path1,O_RDWR)))
 	{
 		perror("open");
 		return EXIT_FAILURE;
 	}
-	if(-1 == (fd2=open("../../../test2",O_RDONLY)))
+	if(-1 == (fd2=open(file_path2,O_RDONLY)))
 	{
 		perror("open");
 		return EXIT_FAILURE;
@@ -43,7 +55,7 @@ int main(int argc, const char ** argv)
 		return EXIT_FAILURE;
 	}
 
-	if(-1 == lseek(fd1, 38, SEEK_SET))
+	if(-1 == lseek(fd1, 35, SEEK_SET))
 	{
 		perror("lseek");
 		return EXIT_FAILURE;

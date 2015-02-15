@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <sys/time.h>
+#include <linux/limits.h>
 
 //access to a remote file using MPI
 //test function:
@@ -16,14 +17,23 @@ const int ROOT=0;
 int main(int argc, char ** argv)
 {
 	int fd;
-	volatile int j=1;
 	int rank, number, i=0;
 	char *buffer=NULL;
 	size_t total_size=0;
 	ssize_t ret;
 	struct stat file_stat;
 	struct timeval st, et;
-	fd=open("../../../test1", O_RDONLY);
+	char file_path[PATH_MAX];
+	const char *mount_point=getenv("CBB_CLIENT_MOUNT_POINT");
+
+	if(NULL == mount_point)
+	{
+		fprintf(stderr, "please set CBB_CLIENT_MOUNT_POINT");
+		return EXIT_FAILURE;
+	}
+	sprintf(file_path, "%s%s", mount_point, "/test1");
+
+	fd=open(file_path, O_RDONLY);
 	fstat(fd, &file_stat);
 	if(NULL == (buffer=malloc(file_stat.st_size)))
 	{
@@ -44,7 +54,6 @@ int main(int argc, char ** argv)
 
 	printf("total size %lu\n", total_size);
 	printf("throughput %fMB/s\n", (double)total_size/TIME(st, et));
-	while(j);
 
 	return EXIT_SUCCESS;
 }
