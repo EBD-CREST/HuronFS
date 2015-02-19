@@ -12,21 +12,21 @@ OVERVIEW:
                 On Master node, the Master application is running.
 	
 	* I/O node:
-                I/O nodes also locate on cloud side, is responsible for storing real data and transferring data with client.
-                On I/O node, the IOnode application is running.
+                I/O nodes also locate on cloud side, are responsible for storing actual data and transferring data with client.
+                On each I/O node, the IOnode application is running.
 	
 	* Client node:
-		Client nodes locate on cloud side, running user applications. a pre-load library used to interact with Master node and I/O nodes.
+		Client nodes locate on cloud side, run user applications. a pre-load library used to interact with Master node and I/O nodes.
 
 ### Structure of the Cloud-based burst buffer
 * Master node:
-	* Master: locates in bin, binary executable file of Master application.
-	* libMaster.so: locates in lib, dynamic library of Master application.
+	* Master: locates in bin, is a binary executable file of Master application.
+	* libMaster.so: locates in lib, is a dynamic library of Master application.
 * I/O node:
-	* IOnode: locates in bin, binary executable file of IOnode application.
-	* libIOnode.so: locates in lib, dynamic library of IOnode application.
+	* IOnode: locates in bin, is a binary executable file of IOnode application.
+	* libIOnode.so: locates in lib, is a dynamic library of IOnode application.
 * Client node:
-	* libCBB.so: locates in lib, dynamic pre-load library used to interact with Master node and I/O nodes.
+	* libCBB.so: locates in lib, is a dynamic pre-load library used to interact with Master node and I/O nodes.
 
 PREPARATION:
 --------------------------------------------------------------------------------------------------------------
