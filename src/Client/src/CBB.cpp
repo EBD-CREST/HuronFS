@@ -45,6 +45,7 @@ CBB::CBB():
 		fprintf(stderr, "please set mount point\n");
 		return;
 	}
+	//_DEBUG("%s\n", mount_point);
 	memset(&_master_addr, 0, sizeof(_master_addr));
 	memset(&_client_addr, 0, sizeof(_client_addr));
 	_master_addr.sin_family = AF_INET;

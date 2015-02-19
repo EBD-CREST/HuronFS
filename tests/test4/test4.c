@@ -9,7 +9,9 @@
 int main(int argc, char ** argv)
 {
 	FILE *fp_rd=NULL, *fp_wr=NULL;
-	int buffer;
+	//int buffer;
+	char *buffer=NULL;
+	size_t size=104857600;
 	if(argc < 3)
 	{
 		fprintf(stderr, "usage test4 [src] [des]\n");
@@ -20,7 +22,13 @@ int main(int argc, char ** argv)
 		perror("fopen");
 		return EXIT_FAILURE;
 	}
-	if(NULL == (fp_wr=fopen(argv[2], "w")))
+	if(NULL == (buffer=malloc(size)))
+	{
+		perror("malloc");
+		return EXIT_FAILURE;
+	}
+
+/*	if(NULL == (fp_wr=fopen(argv[2], "w")))
 	{
 		perror("fopen");
 		return EXIT_FAILURE;
@@ -28,8 +36,11 @@ int main(int argc, char ** argv)
 	while(EOF != (buffer=fgetc(fp_rd)))
 	{
 		fputc(buffer, fp_wr);
-	}
+	}*/
+
+	fseek(fp_rd, 0, SEEK_SET);
+	fread(buffer, size, sizeof(char), fp_rd);
 	fclose(fp_rd);
-	fclose(fp_wr);
+//	fclose(fp_wr);
 	return EXIT_SUCCESS;
 }

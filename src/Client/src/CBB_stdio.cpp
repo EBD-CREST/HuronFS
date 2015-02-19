@@ -114,37 +114,52 @@ extern "C" int CBB_WRAP(setvbuf)(FILE* stream, char* buf, int type, size_t size)
 	}
 }
 
-extern "C" int CBB_WRAP(fprintf)(FILE *stream, const char * format, ...)
+/*extern "C" int CBB_WRAP(fprintf)(FILE *stream, const char * format, ...)
 {
 	CBB_FUNC_P(int, fprintf, (FILE *stream, const char *format, ...));
+	va_list ap;
 
 	if(true)
 	{
-	//	_LOG("format=%s\n", format);
+		//_LOG("format=%s\n", format);
 	//	return EOF;
 	//}
 	//else
 	//{
 		MAP_BACK(fprintf);
-		return CBB_REAL(fprintf)(stream, format);
+		va_start(ap, format);
+		int ret=CBB_REAL(fprintf)(stream, format, ap);
+		va_end(ap);
+		return ret;
 	}
-}
+}*/
 
-extern "C" int CBB_WRAP(fscanf)(FILE *stream, const char * format, ...)
+/*extern "C" int CBB_WRAP(fscanf)(FILE *stream, const char * format, ...)
 {
-	CBB_FUNC_P(int, fscanf, (FILE *stream, const char *format, ...));
+	CBB_FUNC_P(int, vfscanf, (FILE *stream, const char *format, ...));
+	va_list ap;
+	char buffer[PATH_MAX], path[PATH_MAX];
 
 	if(true)
 	{
-		_ERROR("do not support yet\n");
+		//_ERROR("do not support yet\n");
+		_ERROR("format=%s\n", format);
+		sprintf(path, "/proc/self/fd/%d", fileno(stream));
+		readlink(path, buffer, PATH_MAX);
+		printf("%s\n", buffer);
 	//	return EOF;
 	//}
 	//else
 	//{
 		MAP_BACK(fscanf);
-		return CBB_REAL(fscanf)(stream, format);
+		va_start(ap, format);
+		int ret=CBB_REAL(vfscanf)(stream, format, ap);
+		int* value=va_arg(ap, int*);
+		printf("%lx\n",*value);
+		va_end(ap);
+		return ret;
 	}
-}
+}*/
 
 extern "C" int CBB_WRAP(vfprintf)(FILE *stream, const char * format,va_list ap) 
 {
@@ -152,7 +167,7 @@ extern "C" int CBB_WRAP(vfprintf)(FILE *stream, const char * format,va_list ap)
 	if(true)
 	{
 
-		//_LOG("do not support yet\n");
+		_LOG("do not support yet\n");
 	//	return EOF;
 	//}
 	//else
@@ -169,7 +184,7 @@ extern "C" int CBB_WRAP(vfscanf)(FILE *stream, const char * format, va_list ap)
 	if(true)
 	{
 
-		//_LOG("do not support yet\n");
+		_LOG("do not support yet\n");
 	//	return EOF;
 	//}
 	//else
