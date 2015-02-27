@@ -184,7 +184,7 @@ ssize_t Master::_get_file_no()
 	return -1;
 }
 
-void Master::_send_node_info(int clientfd, std::string& ip)const 
+void Master::_send_node_info(int clientfd, const std::string& ip)const 
 {
 	_LOG("requery for IOnode info, ip=%s\n", ip.c_str());
 	Send(clientfd, static_cast<int>(_registed_IOnodes.size()));
@@ -195,29 +195,6 @@ void Master::_send_node_info(int clientfd, std::string& ip)const
 		Sendv(clientfd, node.ip.c_str(), node.ip.size());
 		Send(clientfd, node.total_memory);
 		Send(clientfd, node.avaliable_memory);
-	}
-	close(clientfd);
-	return; 
-}
-
-void Master::_send_file_info(int clientfd, std::string& ip)const 
-{
-	ssize_t file_no=0;
-	_LOG("requery for File info, ip=%s\n", ip.c_str());
-	Recv(clientfd, file_no);
-
-	try
-	{
-		const file_info &file=_buffered_files.at(file_no);
-		Send(clientfd, SUCCESS);
-		Sendv(clientfd, file.path.c_str(), file.path.size());
-		Send(clientfd, file.size);
-		Send(clientfd, file.block_size);
-		Send(clientfd, file.flag);
-	}
-	catch(std::out_of_range &e)
-	{
-		Send(clientfd, NO_SUCH_FILE);
 	}
 	close(clientfd);
 	return; 
@@ -241,8 +218,6 @@ int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_ad
 		_parse_regist_IOnode(clientfd, ip);break;
 	case PRINT_NODE_INFO:
 		_send_node_info(clientfd, ip);break;
-	case GET_FILE_INFO:
-		_send_file_info(clientfd, ip);break; 
 	case OPEN_FILE:
 		_parse_open_file(clientfd, ip);break; 
 	case READ_FILE:
@@ -262,7 +237,7 @@ int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_ad
 	return ans;
 }
 
-int Master::_parse_regist_IOnode(int clientfd,const std::string& ip)
+int Master::_parse_regist_IOnode(int clientfd, const std::string& ip)
 {
 	size_t total_memory;
 	_LOG("regist IOnode\nip=%s\n",ip.c_str());
@@ -272,28 +247,33 @@ int Master::_parse_regist_IOnode(int clientfd,const std::string& ip)
 	return 1;
 }
 
-void Master::_send_file_meta(int clientfd, std::string& ip)const
+int Master::_send_file_meta(int clientfd, const std::string& ip)const
 {
-	ssize_t file_no; 
+	char *path=NULL;
 	_LOG("requery for File meta data, ip=%s\n", ip.c_str());
-	Recv(clientfd, file_no); 
-	_DEBUG("file no %ld\n", file_no);
-	const file_info *file=NULL; 
+	struct stat buff;
+	Recvv(clientfd, &path);
 	try
 	{
-		file=&(_buffered_files.at(file_no));
+		//const file_info &file=_buffered_files.at(file_no);
 		Send(clientfd, SUCCESS);
+		Sendv(clientfd, &buff, sizeof(struct stat));
 	}
 	catch(std::out_of_range &e)
 	{
-		//const char OUT_OF_RANGE[]="out of range\n"; 
-		Send(clientfd, OUT_OF_RANGE);
-		return; 
+		if(-1 == stat(path, &buff))
+		{
+			Send(clientfd, NO_SUCH_FILE);
+		}
+		else
+		{
+			Send(clientfd, SUCCESS);
+			Sendv(clientfd, &buff, sizeof(struct stat));
+		}
 	}
-	Send(clientfd, file->size);
-	Send(clientfd, file->block_size);
+	free(path);
 	close(clientfd);
-	return ;
+	return SUCCESS; 
 }
 
 void Master::_send_block_info(int clientfd, const node_id_pool_t& node_pool, const node_t& node_set)const
@@ -318,7 +298,7 @@ void Master::_send_block_info(int clientfd, const node_id_pool_t& node_pool, con
 	return; 
 }	
 
-int Master::_parse_node_info(int clientfd, std::string& ip) const
+int Master::_parse_node_info(int clientfd, const std::string& ip) const
 {
 	ssize_t file_no; 
 	_DEBUG("requery for File info, ip=%s\n", ip.c_str());
@@ -359,7 +339,7 @@ int Master::_parse_registed_request(int clientfd)
 	return ans; 
 }
 
-int Master::_parse_open_file(int clientfd, std::string& ip)
+int Master::_parse_open_file(int clientfd, const std::string& ip)
 {
 	char *file_path;
 	_LOG("request for open file, ip=%s\n", ip.c_str()); 
@@ -559,7 +539,7 @@ Master::node_t Master::_select_IOnode(off64_t start_point,
 	return nodes; 
 }
 
-int Master::_parse_read_file(int clientfd, std::string& ip) throw(std::out_of_range)
+int Master::_parse_read_file(int clientfd, const std::string& ip)
 {
 	ssize_t file_no;
 	size_t size;
@@ -714,7 +694,7 @@ Master::node_t& Master::_get_IOnodes_for_IO(off64_t start_point, size_t &size, s
 	return node_set;
 }
 
-int Master::_parse_write_file(int clientfd, std::string& ip)
+int Master::_parse_write_file(int clientfd, const std::string& ip)
 {
 	_LOG("request for writing ip=%s\n",ip.c_str());
 	ssize_t file_no;
@@ -774,7 +754,7 @@ size_t Master::_get_block_size(size_t size)
 	//return (size+_node_number-1)/_node_number;
 }
 
-int Master::_parse_flush_file(int clientfd, std::string& ip)
+int Master::_parse_flush_file(int clientfd, const std::string& ip)
 {
 	_LOG("request for writing ip=%s\n",ip.c_str());
 	ssize_t file_no;
@@ -802,7 +782,7 @@ int Master::_parse_flush_file(int clientfd, std::string& ip)
 	}
 }
 
-int Master::_parse_close_file(int clientfd, std::string& ip)
+int Master::_parse_close_file(int clientfd, const std::string& ip)
 {
 	_LOG("request for closing file ip=%s\n",ip.c_str());
 	ssize_t file_no;

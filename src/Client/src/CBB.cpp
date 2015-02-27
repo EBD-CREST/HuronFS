@@ -28,6 +28,7 @@ CBB::CBB():
 	_fid_now(0),
 	_file_list(_file_list_t()),
 	_opened_file(_file_t(MAX_FILE)),
+	_path_to_fd(_path_fd_t()),
 	_master_addr(sockaddr_in()),
 	_client_addr(sockaddr_in()),
 	_initial(false)
@@ -86,9 +87,14 @@ CBB::block_info::block_info(ssize_t node_id, off64_t start_point, size_t size):
 	size(size)
 {}
 
-CBB::file_info::file_info(ssize_t file_no, int fd, size_t size, size_t block_size, int flag):
+CBB::file_info::file_info(ssize_t file_no,
+		int fd, size_t size,
+		size_t block_size,
+		int flag,
+		const char* path):
 	file_no(file_no),
 	current_point(0),
+	file_path(path),
 	fd(fd),
 	size(size),
 	block_size(block_size),
@@ -98,6 +104,7 @@ CBB::file_info::file_info(ssize_t file_no, int fd, size_t size, size_t block_siz
 CBB::file_info::file_info():
 	file_no(0),
 	current_point(0),
+	file_path(std::string()),
 	fd(0),
 	size(0),
 	block_size(0),
@@ -183,6 +190,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 		}
 		file_info &file=_file_list[fid];
 		file.flag=flag;
+		file.file_path=std::string(path);
 		Recv(master_socket, file.file_no);
 		Recv(master_socket, file.size);
 		Recv(master_socket, file.block_size);
@@ -194,6 +202,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 		_DEBUG("file no =%ld, fid = %d\n", file.file_no, _BB_fid_to_fd(fid));
 		int fd=_BB_fid_to_fd(fid);
 		file.fd=fd;
+		_path_to_fd.insert(std::make_pair(file.file_path, fd));
 		return fd;
 	}
 	else
@@ -470,16 +479,34 @@ int CBB::_fstat(int fd, struct stat* buf)
 {
 	int fid=_BB_fd_to_fid(fd);
 	CHECK_INIT();
-	memset(buf, 0, sizeof(struct stat));
 	try
 	{
 		file_info & file=_file_list.at(fid);
-		buf->st_size=file.size;
-		return 0;
+		return _stat(file.file_path.c_str(), buf);
 	}
 	catch(std::out_of_range &e)
 	{
 		errno=EBADF;
+		return -1;
+	}
+}
+
+int CBB::_stat(const char* path, struct stat* buf)
+{
+	CHECK_INIT();
+	int ret;
+	memset(buf, 0, sizeof(struct stat));
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr);
+	Send(master_socket, GET_FILE_META);
+	Sendv(master_socket, path, strlen(path));
+	Recv(master_socket, ret);
+	if(SUCCESS == ret)
+	{
+		Recvv_pre_alloc(master_socket, buf, sizeof(struct stat));
+		return 0;
+	}
+	else
+	{
 		return -1;
 	}
 }
@@ -545,4 +572,9 @@ size_t CBB::_get_file_size(int fd)
 	int fid=_BB_fd_to_fid(fd);
 	CHECK_INIT();
 	return _file_list.at(fid).size;
+}
+
+int CBB::_get_fd_from_path(const char* path)
+{
+	return _path_to_fd.at(std::string(path));
 }
