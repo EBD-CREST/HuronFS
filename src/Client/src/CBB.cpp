@@ -67,7 +67,7 @@ CBB::CBB():
 	_initial=true;
 }
 
-CBB::~CBB()
+virtual CBB::~CBB()
 {
 	for(_file_list_t::iterator it=_file_list.begin();
 			it!=_file_list.end();++it)
@@ -183,6 +183,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 		}
 		file_info &file=_file_list[fid];
 		file.flag=flag;
+		file.file_path=std::string(path);
 		Recv(master_socket, file.file_no);
 		Recv(master_socket, file.size);
 		Recv(master_socket, file.block_size);
@@ -194,6 +195,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 		_DEBUG("file no =%ld, fid = %d\n", file.file_no, _BB_fid_to_fd(fid));
 		int fd=_BB_fid_to_fd(fid);
 		file.fd=fd;
+		_path_fd_map.insert(std::make_pair(file.file_path, fd));
 		return fd;
 	}
 	else
@@ -545,4 +547,16 @@ size_t CBB::_get_file_size(int fd)
 	int fid=_BB_fd_to_fid(fd);
 	CHECK_INIT();
 	return _file_list.at(fid).size;
+}
+
+int CBB::_get_fd_from_path(const char* path)
+{
+	try
+	{
+		return _path_fd_map.at(std::string(path));
+	}
+	catch(std::out_of_range)
+	{
+		return -1;
+	}
 }

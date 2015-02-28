@@ -5,13 +5,15 @@ CBB_STREAM = CBB_stream.o
 CBB_STDIO = CBB_stdio.o
 CBB_POSIX = CBB_posix.o
 CLIENT = ../Common/Client.o
+CLIENT_FUSE = CBB_fuse
 
-OBJ = $(CBB) $(CBB_STREAM) $(CBB_STDIO) $(CBB_POSIX)
+OBJ = $(CBB) $(CBB_STREAM) $(CBB_STDIO) $(CBB_POSIX) $(CLIENT_FUSE)
 
 SRC_DIR = src
 HEADER_DIR = include
 CC = g++
 INCLUDE_PATH = -I./include/ -I../Common/include
+FUSE_HEADER = -I/home/xtq/fuse/include
 
 vpath %.cpp src/
 vpath %.h include/
@@ -33,6 +35,10 @@ $(CBB_POSIX):$(SRC_DIR)/CBB_posix.cpp $(HEADER_DIR)/CBB_posix.h
 
 $(CLIENT):
 	cd ../Common && $(MAKE) $(notdir $@)
+
+$(CLIENT_FUSE):$(SRC_DIR)/CBB_fuse.cpp
+	$(CC) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) $(FUSE_HEADER) -D_FILE_OFFSET_BITS=64 -o $@ $<
+
 
 .PHONY:clean
 clean:

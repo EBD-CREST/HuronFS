@@ -13,6 +13,7 @@ IONODE_LIB = $(IONODE_DIR)/libIOnode.so
 IONODE = $(IONODE_DIR)/IOnode
 
 CLIENT_LIB = $(CLIENT_DIR)/libCBB.so
+CLIENT_FUSE= $(CLIENT_DIR)/CBB_fuse
 
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
@@ -43,11 +44,17 @@ IOnode:
 
 Client:
 	$(MAKE) -C $(CLIENT_DIR)
-	mkdir -p bin lib
+	mkdir -p lib
 	mv $(CLIENT_LIB) lib
 	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
-all:Master IOnode Client
+Client_fuse:
+	$(MAKE) -C $(CLIENT_DIR) CBB_fuse
+	mkdir -p bin 
+	mv $(CLIENT_FUSE) bin
+	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
+
+all:Master IOnode Client Client_fuse
 
 clean:
 	rm -f $(BIN)/*
