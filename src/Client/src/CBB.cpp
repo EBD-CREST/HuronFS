@@ -67,7 +67,7 @@ CBB::CBB():
 	_initial=true;
 }
 
-virtual CBB::~CBB()
+CBB::~CBB()
 {
 	for(_file_list_t::iterator it=_file_list.begin();
 			it!=_file_list.end();++it)
