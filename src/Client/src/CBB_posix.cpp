@@ -44,7 +44,7 @@ extern "C" int CBB_WRAP(open64)(const char* path, int flag, ...)
 	CBB_FUNC_P(int, open64, (const char *path, int flag, ...));
 	mode_t mode=0;
 	std::string formatted_path;
-	std::string true_path;
+	std::string relative_path;
 	if(flag & O_CREAT)
 	{
 		va_start(ap, flag);
@@ -56,9 +56,9 @@ extern "C" int CBB_WRAP(open64)(const char* path, int flag, ...)
 	CBB::_format_path(path, formatted_path);
 	if(CBB::_interpret_path(formatted_path.c_str()))
 	{
-		CBB::_get_true_path(formatted_path, true_path);
+		CBB::_get_relative_path(formatted_path, relative_path);
 		_DEBUG("open with CBB\n");
-		return client._open(true_path.c_str(), flag, mode);
+		return client._open(relative_path.c_str(), flag, mode);
 	}
 	else
 	{
@@ -220,13 +220,13 @@ extern "C" int CBB_WRAP(creat64)(const char * path, mode_t mode)
 {
 	CBB_FUNC_P(int, creat64, (const char *path, mode_t mode));
 	std::string formatted_path;
-	std::string true_path;
+	std::string relative_path;
 	CBB::_format_path(path, formatted_path);
 	if(CBB::_interpret_path(formatted_path.c_str()))
 	{
-		CBB::_get_true_path(formatted_path, true_path);
+		CBB::_get_relative_path(formatted_path, relative_path);
 		_DEBUG("CBB create file path=%s\n", path);
-		return client._open(true_path.c_str(), O_CREAT, mode);
+		return client._open(relative_path.c_str(), O_CREAT, mode);
 	}
 	else
 	{
@@ -313,7 +313,7 @@ extern "C" int CBB_WRAP(stat)(const char* path, struct stat *buf)
 {
 	CBB_FUNC_P(int, stat, (const char* path, struct stat* buf));
 	std::string formatted_path;
-	std::string true_path;
+	std::string relative_path;
 	CBB::_format_path(path, formatted_path);
 	if(CBB::_interpret_path(formatted_path.c_str()))
 	{

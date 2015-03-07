@@ -33,9 +33,7 @@ CBB::CBB():
 	_initial(false)
 {
 	const char *master_ip=NULL;
-	_DEBUG("start initalizing\n");
-	if(NULL == (master_ip=getenv(MASTER_IP)))
-	{
+	_DEBUG("start initalizing\n"); if(NULL == (master_ip=getenv(MASTER_IP))) {
 		fprintf(stderr, "please set master ip\n");
 		return;
 	}
@@ -468,7 +466,7 @@ off64_t CBB::_lseek(int fd, off64_t offset, int whence)
 	}
 }
 
-int CBB::_fstat(int fd, struct stat* buf)
+/*int CBB::_fstat(int fd, struct stat* buf)
 {
 	int fid=_BB_fd_to_fid(fd);
 	CHECK_INIT();
@@ -482,6 +480,27 @@ int CBB::_fstat(int fd, struct stat* buf)
 	catch(std::out_of_range &e)
 	{
 		errno=EBADF;
+		return -1;
+	}
+}*/
+
+int CBB::_getattr(const char* path, struct stat* fstat)
+{
+	int ret=0;
+	_DEBUG("connect to master\n");
+	CHECK_INIT();
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
+	Send(master_socket, GET_ATTR); 
+	Sendv(master_socket, path, strlen(path));
+	Recv(master_socket, ret);
+	if(SUCCESS == ret)
+	{
+		Recvv_pre_alloc(master_socket, fstat, sizeof(struct stat));
+		return 0;
+	}
+	else
+	{
+		Recv(master_socket, errno);
 		return -1;
 	}
 }
@@ -525,10 +544,10 @@ void CBB::_format_path(const char *path, std::string &formatted_path)
 	return;
 }
 
-void CBB::_get_true_path(const std::string &formatted_path, std::string &true_path)
+void CBB::_get_relative_path(const std::string &formatted_path, std::string &relative_path)
 {
 	const char *pointer=formatted_path.c_str()+strlen(mount_point);
-	true_path=std::string(pointer);
+	relative_path=std::string(pointer);
 	return;
 }
 

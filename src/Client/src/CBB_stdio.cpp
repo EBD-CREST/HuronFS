@@ -22,10 +22,10 @@ extern "C" FILE *CBB_WRAP(fopen)(const char* path, const char* mode)
 	CBB::_format_path(path, formatted_path);
 	if(CBB::_interpret_path(formatted_path.c_str()))
 	{
-		std::string true_path;
-		CBB::_get_true_path(formatted_path, true_path);
+		std::string relative_path;
+		CBB::_get_relative_path(formatted_path, relative_path);
 		_LOG("CBB open path=%s,mode=%s\n", formatted_path.c_str(), mode);
-		return client._open_stream(true_path.c_str(), mode);
+		return client._open_stream(relative_path.c_str(), mode);
 	}
 	else
 	{

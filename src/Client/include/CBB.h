@@ -67,6 +67,8 @@ public:
 	off64_t _lseek(int fd, off64_t offset, int whence);
 
 	int _fstat(int fd, struct stat* buf);
+
+	int _getattr(const char *path, struct stat* fstat);
 	
 	off64_t _tell(int fd);
 
@@ -75,7 +77,7 @@ public:
 	static bool _interpret_path(const char* path);
 	static bool _interpret_fd(int fd);
 	static void _format_path(const char* path, std::string &formatted_path);
-	static void _get_true_path(const std::string& formatted_path, std::string &true_path);
+	static void _get_relative_path(const std::string& formatted_path, std::string &true_path);
 	size_t _get_file_size(int fd);
 	int _get_fd_from_path(const char* path);
 private:
