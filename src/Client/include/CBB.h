@@ -76,6 +76,8 @@ public:
 	int _unlink(const char* path);
 	
 	int _rmdir(const char* path);
+
+	int _access(const char* path, int mode);
 	
 	off64_t _tell(int fd);
 

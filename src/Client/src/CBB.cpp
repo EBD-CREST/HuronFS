@@ -582,6 +582,28 @@ int CBB::_unlink(const char * path)
 	}
 }
 
+int CBB::_access(const char* path, int mode)
+{
+	int ret=0;
+	_DEBUG("connect to master\n");
+	CHECK_INIT();
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
+	Send(master_socket, ACCESS); 
+	Sendv(master_socket, path, strlen(path));
+	Send(master_socket, mode);
+	Recv(master_socket, ret);
+	close(master_socket);
+	if(SUCCESS == ret)
+	{
+		return 0;
+	}
+	else
+	{
+		errno=ret;
+		return -errno;
+	}
+}
+
 off64_t CBB::_tell(int fd)
 {
 	int fid=_BB_fd_to_fid(fd);

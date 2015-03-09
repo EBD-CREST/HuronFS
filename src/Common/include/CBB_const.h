@@ -53,6 +53,7 @@ const int GET_ATTR = 13;
 const int READ_DIR =14;
 const int RM_DIR = 15;
 const int UNLINK = 16;
+const int ACCESS = 17;
 
 const int SERVER_SHUT_DOWN = 20; 
 const int I_AM_SHUT_DOWN = 21;

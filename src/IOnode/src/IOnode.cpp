@@ -515,6 +515,7 @@ int IOnode::_flush_file(int sockfd)
 	ssize_t file_no;
 	Recv(sockfd, file_no);
 	std::string &path=_file_path.at(file_no);
+	_DEBUG("flush file, path=%s\n", path.c_str());
 	block_info_t &blocks=_files.at(file_no);
 	for(block_info_t::iterator it=blocks.begin();
 			it != blocks.end();++it)
@@ -536,6 +537,7 @@ int IOnode::_close_file(int sockfd)
 	Recv(sockfd, file_no);
 	std::string &path=_file_path.at(file_no);
 	block_info_t &blocks=_files.at(file_no);
+	_DEBUG("close file, path=%s\n", path.c_str());
 	for(block_info_t::iterator it=blocks.begin();
 			it != blocks.end();++it)
 	{

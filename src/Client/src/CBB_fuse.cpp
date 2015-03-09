@@ -139,6 +139,14 @@ static int CBB_rmdir(const char* path)
 	return ret;
 }
 
+static int CBB_access(const char* path, int mode)
+{
+	_DEBUG("CBB access path=%s\n", path);
+	int ret=client._access(path, mode);
+	_DEBUG("ret=%d\n", ret);
+	return ret;
+}
+
 int main(int argc, char **argv)
 {
 	CBB_oper.open=CBB_open;
@@ -150,5 +158,7 @@ int main(int argc, char **argv)
 	CBB_oper.readdir=CBB_readdir;
 	CBB_oper.unlink=CBB_unlink;
 	CBB_oper.rmdir=CBB_rmdir;
+	CBB_oper.access=CBB_access;
+
 	return fuse_main(argc, argv, &CBB_oper, NULL);
 }

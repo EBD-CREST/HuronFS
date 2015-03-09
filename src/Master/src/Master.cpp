@@ -263,6 +263,8 @@ int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_ad
 		_parse_rmdir(clientfd, ip);break;
 	case UNLINK:
 		_parse_unlink(clientfd, ip);break;
+	case ACCESS:
+		_parse_access(clientfd, ip);break;
 	default:
 		Send(clientfd, UNRECOGNISTED); 
 		close(clientfd); 
@@ -592,20 +594,17 @@ int Master::_parse_unlink(int clientfd, const std::string& ip)
 }
 int Master::_parse_rmdir(int clientfd, const std::string& ip)
 {
-	char *file_path=NULL;
 	_LOG("request for rmdir, ip=%s\n", ip.c_str()); 
-	Recvv(clientfd, &file_path); 
-	_LOG("path=%s\n", file_path);
-	if(-1 != rmdir(file_path))
+	std::string file_path=Server::_recv_real_path(clientfd);
+	_LOG("path=%s\n", file_path.c_str());
+	if(-1 != rmdir(file_path.c_str()))
 	{
 		Send(clientfd, SUCCESS);
-		delete file_path;
 		return SUCCESS;
 	}
 	else
 	{
 		Send(clientfd, errno);
-		delete file_path;
 		return FAILURE;
 	}
 }
@@ -898,6 +897,26 @@ int Master::_parse_write_file(int clientfd, const std::string& ip)
 	}
 }
 
+int Master::_parse_access(int clientfd, const std::string& ip)const
+{
+	int mode;
+	_LOG("request for access, ip=%s\n", ip.c_str()); 
+	std::string file_path=Server::_recv_real_path(clientfd);	
+	Recv(clientfd, mode);
+	_LOG("path=%s\n, mode=%d", file_path.c_str(), mode);
+	if(-1 != access(file_path.c_str(), mode))
+	{
+		_LOG("SUCCESS\n");
+		Send(clientfd, SUCCESS);
+		return SUCCESS;
+	}
+	else
+	{
+		Send(clientfd, errno);
+		return FAILURE;
+	}
+}
+
 size_t Master::_get_block_size(size_t size)
 {
 	return BLOCK_SIZE;
@@ -916,7 +935,7 @@ int Master::_parse_flush_file(int clientfd, const std::string& ip)
 		for(node_pool_t::iterator it=file.nodes.begin();
 				it != file.nodes.end();++it)
 		{
-			_DEBUG("write back request to IOnode %ld\n", *it);
+			_DEBUG("write back request to IOnode %ld, file_no %d\n", *it, file_no);
 			int socket=_IOnode_socket.at(*it)->socket;
 			Send(socket, FLUSH_FILE);
 			Send(socket, file_no);
