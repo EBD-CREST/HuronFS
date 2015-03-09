@@ -129,3 +129,11 @@ void Server::stop_server()
 	return;
 }
 
+std::string Server::_recv_real_path(int clientfd)const
+{
+	char *path=NULL;
+	Recvv(clientfd, &path);
+	std::string ret=_get_real_path(path);
+	delete path;
+	return ret;
+}

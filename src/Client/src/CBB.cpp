@@ -13,6 +13,7 @@
 #include <dlfcn.h>
 #include <arpa/inet.h>
 #include <limits.h>
+#include <errno.h>
 
 #include "CBB.h"
 #include "CBB_internal.h"
@@ -198,8 +199,8 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	}
 	else
 	{
+		Recv(master_socket, errno);
 		close(master_socket);
-		errno = EBADFD;
 		return -1;
 	}
 }
@@ -484,7 +485,7 @@ off64_t CBB::_lseek(int fd, off64_t offset, int whence)
 	}
 }*/
 
-int CBB::_getattr(const char* path, struct stat* fstat)
+int CBB::_getattr(const char* path, struct stat* fstat)const
 {
 	int ret=0;
 	_DEBUG("connect to master\n");
@@ -495,13 +496,89 @@ int CBB::_getattr(const char* path, struct stat* fstat)
 	Recv(master_socket, ret);
 	if(SUCCESS == ret)
 	{
-		Recvv_pre_alloc(master_socket, fstat, sizeof(struct stat));
+		Recv(master_socket, *fstat);
+		close(master_socket);
 		return 0;
 	}
 	else
 	{
-		Recv(master_socket, errno);
-		return -1;
+		errno=ret;
+		close(master_socket);
+		return -errno;
+	}
+}
+
+int CBB::_readdir(const char * path, dir_t& dir)const
+{
+	int ret=0;
+	_DEBUG("connect to master\n");
+	CHECK_INIT();
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
+	Send(master_socket, READ_DIR); 
+	Sendv(master_socket, path, strlen(path));
+	Recv(master_socket, ret);
+	if(SUCCESS == ret)
+	{
+		_DEBUG("success\n");
+		int count=0;
+		char *path=NULL;
+		Recv(master_socket, count);
+		for(int i=0; i<count; ++i)
+		{
+			Recvv(master_socket, &path);
+			dir.push_back(std::string(path));
+			free(path);
+		}
+		close(master_socket);
+		return 0;
+	}
+	else
+	{
+		errno=ret;
+		close(master_socket);
+		return -errno;
+	}
+}
+
+int CBB::_rmdir(const char * path)
+{
+	int ret=0;
+	_DEBUG("connect to master\n");
+	CHECK_INIT();
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
+	Send(master_socket, RM_DIR); 
+	Sendv(master_socket, path, strlen(path));
+	Recv(master_socket, ret);
+	close(master_socket);
+	if(SUCCESS == ret)
+	{
+		return 0;
+	}
+	else
+	{
+		errno=ret;
+		return -errno;
+	}
+}
+
+int CBB::_unlink(const char * path)
+{
+	int ret=0;
+	_DEBUG("connect to master\n");
+	CHECK_INIT();
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
+	Send(master_socket, UNLINK); 
+	Sendv(master_socket, path, strlen(path));
+	Recv(master_socket, ret);
+	close(master_socket);
+	if(SUCCESS == ret)
+	{
+		return 0;
+	}
+	else
+	{
+		errno=ret;
+		return -errno;
 	}
 }
 

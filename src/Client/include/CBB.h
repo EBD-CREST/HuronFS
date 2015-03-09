@@ -45,6 +45,7 @@ public:
 	typedef std::vector<block_info> _block_list_t;
 	typedef std::map<ssize_t, std::string> _node_pool_t;
 	typedef std::map<std::string, int> _path_fd_map_t;
+	typedef std::vector<std::string> dir_t;
 
 	static const char *CLIENT_MOUNT_POINT;
 	static const char *MASTER_IP;
@@ -68,7 +69,13 @@ public:
 
 	int _fstat(int fd, struct stat* buf);
 
-	int _getattr(const char *path, struct stat* fstat);
+	int _getattr(const char *path, struct stat* fstat)const;
+	
+	int _readdir(const char* path, dir_t& dir)const;
+	
+	int _unlink(const char* path);
+	
+	int _rmdir(const char* path);
 	
 	off64_t _tell(int fd);
 

@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <stdexcept>
 #include <stdlib.h>
+#include <vector>
 
 #include "CBB_const.h"
 #include "Server.h"
@@ -51,6 +52,8 @@ private:
 	typedef std::map<off64_t, size_t> block_info_t;
 	//map node_id, block_info
 	typedef std::map<ssize_t, block_info_t> node_block_map_t;
+
+	typedef std::vector<std::string> dir_t;
 
 	struct file_info
 	{
@@ -107,6 +110,9 @@ private:
 
 	virtual int _parse_new_request(int socketfd, const struct sockaddr_in& client_addr);
 	virtual int _parse_registed_request(int socketfd); 
+	virtual std::string _get_real_path(const char* path)const;
+	virtual std::string _get_real_path(const std::string& path)const;
+
 	int _parse_regist_IOnode(int clientfd, const std::string& ip);
 	//file operation
 	int _parse_open_file(int clientfd, const std::string& ip); 
@@ -116,6 +122,9 @@ private:
 	int _parse_close_file(int clientfd, const std::string& ip);
 	int _parse_node_info(int clientfd, const std::string& ip)const;
 	int _parse_attr(int clientfd, const std::string& ip)const;
+	int _parse_readdir(int clientfd, const std::string &ip)const;
+	int _parse_unlink(int clientfd, const std::string &ip);
+	int _parse_rmdir(int clientfd, const std::string &ip);
 
 	node_t _send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length, size_t& block_size)throw(std::invalid_argument); 
 
@@ -127,6 +136,7 @@ private:
 	node_t& _get_IOnodes_for_IO(off64_t start_point, size_t& size, struct file_info& file, node_t& node_set, node_id_pool_t& node_id_pool)throw(std::bad_alloc);
 	int _allocate_one_block(const struct file_info &file)throw(std::bad_alloc);
 	void _append_block(struct file_info& file, int node_id, off64_t start_point);
+	int _remove_file(int fd);
 
 private:
 	IOnode_t _registed_IOnodes;

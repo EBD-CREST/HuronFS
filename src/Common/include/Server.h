@@ -24,6 +24,10 @@ protected:
 	int _delete_socket(int socketfd); 
 	virtual int _parse_new_request(int, const struct sockaddr_in&)=0; 
 	virtual int _parse_registed_request(int socketfd)=0; 
+	virtual std::string _get_real_path(const char* path)const=0;
+	virtual std::string _get_real_path(const std::string& path)const=0;
+	std::string _recv_real_path(int clientfd)const;
+
 private:
 	struct sockaddr_in _server_addr;
 	int _port;

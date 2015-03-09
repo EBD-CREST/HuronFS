@@ -319,8 +319,8 @@ int IOnode::_IOrequest_from_master(int sockfd)
 size_t IOnode::_read_from_storage(const std::string& path, block* block_data)throw(std::runtime_error)
 {
 	off64_t start_point=block_data->start_point;
-	std::string true_path(_mount_point+path);
-	int fd=open64(true_path.c_str(), O_RDONLY); 
+	std::string real_path=_get_real_path(path);
+	int fd=open64(real_path.c_str(), O_RDONLY); 
 	if(-1 == fd)
 	{
 		perror("File Open Error"); 
@@ -485,8 +485,8 @@ size_t IOnode::_write_to_storage(const std::string& path, const block* block_dat
 	}
 	fwrite(block_data->data, sizeof(char), block_data->size, fp);
 	fclose(fp);*/
-	std::string true_path(_mount_point+path);
-	int fd = open64(true_path.c_str(),O_WRONLY);
+	std::string real_path=_get_real_path(path);
+	int fd = open64(real_path.c_str(),O_WRONLY);
 	if( -1 == fd)
 	{
 		perror("Open File");
@@ -551,4 +551,14 @@ int IOnode::_close_file(int sockfd)
 	_file_path.erase(file_no);
 	//Send(sockfd, SUCCESS);
 	return SUCCESS;
+}
+
+inline std::string IOnode::_get_real_path(const char* path)const
+{
+	return _mount_point+std::string(path);
+}
+
+inline std::string IOnode::_get_real_path(const std::string& path)const
+{
+	return _mount_point+path;
 }

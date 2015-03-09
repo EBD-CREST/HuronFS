@@ -64,6 +64,8 @@ private:
 	//unregist IOnode from master
 	virtual int _parse_new_request(int sockfd, const struct sockaddr_in& client_addr); 
 	virtual int _parse_registed_request(int sockfd); 
+	virtual std::string _get_real_path(const char* path)const;
+	std::string _get_real_path(const std::string& path)const;
 
 	int _send_data(int sockfd);
 	int _open_file(int sockfd); 

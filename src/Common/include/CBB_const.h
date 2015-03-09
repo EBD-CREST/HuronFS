@@ -50,6 +50,9 @@ const int UNRECOGNISTED=10;
 const int GET_FILE_META = 11;
 const int APPEND_BLOCK = 12;
 const int GET_ATTR = 13;
+const int READ_DIR =14;
+const int RM_DIR = 15;
+const int UNLINK = 16;
 
 const int SERVER_SHUT_DOWN = 20; 
 const int I_AM_SHUT_DOWN = 21;

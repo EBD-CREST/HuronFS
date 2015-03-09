@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 #include "Master.h"
 #include "Communication.h"
@@ -125,7 +126,6 @@ ssize_t Master::_delete_IO_node(int socket)
 	--_node_number; 
 	return id;
 }
-
 
 ssize_t Master::_get_node_id()
 {
@@ -257,6 +257,12 @@ int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_ad
 		_send_file_meta(clientfd, ip);break;
 	case GET_ATTR:
 		_parse_attr(clientfd, ip);break;
+	case READ_DIR:
+		_parse_readdir(clientfd, ip);break;
+	case RM_DIR:
+		_parse_rmdir(clientfd, ip);break;
+	case UNLINK:
+		_parse_unlink(clientfd, ip);break;
 	default:
 		Send(clientfd, UNRECOGNISTED); 
 		close(clientfd); 
@@ -345,34 +351,64 @@ void Master::_send_block_info(int clientfd, const node_id_pool_t& node_pool, con
 
 int Master::_parse_attr(int clientfd, const std::string& ip)const
 {
-	char* file_path=NULL;
 	struct stat fstat;
 	_DEBUG("requery for File info, ip=%s\n", ip.c_str());
-	Recvv(clientfd, &file_path);
-	std::string relative_path=_mount_point+std::string(file_path);
-	free(file_path);
+	std::string real_path=Server::_recv_real_path(clientfd);
+	_DEBUG("file path=%s\n", real_path.c_str());
 	try
 	{
-		int fd=_file_no.at(relative_path);
+		int fd=_file_no.at(real_path);
 		_get_buffered_file_attr(fd, &fstat);
 		Send(clientfd, SUCCESS);
-		Sendv(clientfd, &fstat, sizeof(fstat));
+		Send(clientfd, fstat);
+		_DEBUG("finished\n");
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
-		if(-1 != stat(relative_path.c_str(), &fstat))
+		if(-1 != stat(real_path.c_str(), &fstat))
 		{
 			Send(clientfd, SUCCESS);
-			Sendv(clientfd, &fstat, sizeof(fstat));
+			Send(clientfd, fstat);
+			_DEBUG("finished\n");
 			return SUCCESS;
 		}
 		else
 		{
-			Send(clientfd, FAILURE);
 			Send(clientfd, errno);
 			return FAILURE;
 		}
+	}
+}
+
+int Master::_parse_readdir(int clientfd, const std::string &ip)const
+{
+	_DEBUG("requery for dir info, ip=%s\n", ip.c_str());
+	std::string real_path=Server::_recv_real_path(clientfd);
+	_DEBUG("file path=%s\n", real_path.c_str());
+	DIR *dir=opendir(real_path.c_str());
+	if(NULL != dir)
+	{
+		const struct dirent* entry=NULL;
+		dir_t files;
+		while(NULL != (entry=readdir(dir)))
+		{
+			files.push_back(std::string(entry->d_name));
+		}
+		Send(clientfd, SUCCESS);
+		Send(clientfd, static_cast<int>(files.size()));
+		for(dir_t::const_iterator it=files.begin();
+				it!=files.end();++it)
+		{
+			Sendv(clientfd, it->c_str(), it->length());
+		}
+		closedir(dir);
+		return SUCCESS;
+	}
+	else
+	{
+		Send(clientfd, errno);
+		return FAILURE;
 	}
 }
 
@@ -403,7 +439,7 @@ int Master::_parse_registed_request(int clientfd)
 
 int Master::_parse_open_file(int clientfd, const std::string& ip)
 {
-	char *file_path;
+	char *file_path=NULL;
 	_LOG("request for open file, ip=%s\n", ip.c_str()); 
 	Recvv(clientfd, &file_path); 
 	int flag ,ret=SUCCESS;
@@ -458,8 +494,8 @@ int Master::_parse_open_file(int clientfd, const std::string& ip)
 
 void Master::_create_file(const char* file_path, mode_t mode)throw(std::runtime_error)
 {
-	std::string true_path(_mount_point+std::string(file_path));
-	int fd=creat64(true_path.c_str(), mode);
+	std::string real_path=_get_real_path(file_path);
+	int fd=creat64(real_path.c_str(), mode);
 	if(-1 == fd)
 	{
 		throw std::runtime_error("error on create file");
@@ -524,11 +560,61 @@ const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_
 	return file->p_node;
 }
 
+int Master::_parse_unlink(int clientfd, const std::string& ip)
+{
+	char* path=NULL;
+	_LOG("request for unlink, ip=%s\n", ip.c_str()); 
+	Recvv(clientfd, &path);
+	std::string relative_path=std::string(path);
+	std::string real_path=_mount_point+relative_path;
+	_LOG("path=%s\n", real_path.c_str());
+	delete path;
+	try
+	{
+		int fd=_file_no.at(relative_path);
+		_remove_file(fd);
+		Send(clientfd, SUCCESS);
+		return SUCCESS;
+	}
+	catch(std::out_of_range& e)
+	{
+		if(-1 != unlink(real_path.c_str()))
+		{
+			Send(clientfd, SUCCESS);
+			return SUCCESS;
+		}
+		else
+		{
+			Send(clientfd, errno);
+			return FAILURE;
+		}
+	}
+}
+int Master::_parse_rmdir(int clientfd, const std::string& ip)
+{
+	char *file_path=NULL;
+	_LOG("request for rmdir, ip=%s\n", ip.c_str()); 
+	Recvv(clientfd, &file_path); 
+	_LOG("path=%s\n", file_path);
+	if(-1 != rmdir(file_path))
+	{
+		Send(clientfd, SUCCESS);
+		delete file_path;
+		return SUCCESS;
+	}
+	else
+	{
+		Send(clientfd, errno);
+		delete file_path;
+		return FAILURE;
+	}
+}
+
 Master::node_t Master::_send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length,size_t& block_size)throw(std::invalid_argument)
 {
-	std::string true_path=_mount_point+std::string(file_path);
-	_DEBUG("file path=%s\n", true_path.c_str());
-	int fd=open64(true_path.c_str(), flag);
+	std::string real_path=_get_real_path(file_path);
+	_DEBUG("file path=%s\n", real_path.c_str());
+	int fd=open64(real_path.c_str(), flag);
 	
 	if(-1 == fd)
 	{
@@ -764,18 +850,19 @@ int Master::_parse_write_file(int clientfd, const std::string& ip)
 	off64_t start_point;
 	Recv(clientfd, file_no);
 	//Recv(clientfd, mode); 
-	std::string true_path(_mount_point+_buffered_files.at(file_no).path);
-	int fd=open64(true_path.c_str(), O_CREAT, 0600);
-	if(-1 == fd)
-	{
-		_LOG("file create error\n");
-		return FAILURE;
-	}
-	close(fd);
 	try
 	{
 		file_info &file=_buffered_files.at(file_no);
 		//file.block_size=_get_block_size(size);
+		std::string real_path=_get_real_path(file.path);
+		int fd=open64(real_path.c_str(), O_CREAT, 0600);
+		if(-1 == fd)
+		{
+			_LOG("file create error\n");
+			Send(clientfd, errno);
+			return FAILURE;
+		}
+		close(fd);
 		Send(clientfd, SUCCESS);
 		Send(clientfd, file.size);
 		Recv(clientfd, start_point);
@@ -788,6 +875,7 @@ int Master::_parse_write_file(int clientfd, const std::string& ip)
 		//node_t nodes=_select_IOnode(start_point, size, file.block_size);
 		node_t nodes;
 		node_id_pool_t node_pool;
+		_DEBUG("here\n");
 		Send(clientfd, size);
 		_get_IOnodes_for_IO(start_point, size, file, nodes, node_pool);
 		//insert allocate node into file node list
@@ -804,7 +892,7 @@ int Master::_parse_write_file(int clientfd, const std::string& ip)
 	}
 	catch(std::out_of_range &e)
 	{
-		Send(clientfd, FAILURE);	
+		Send(clientfd, errno);	
 		close(clientfd);
 		return FAILURE;
 	}
@@ -842,6 +930,22 @@ int Master::_parse_flush_file(int clientfd, const std::string& ip)
 		close(clientfd);
 		return FAILURE;
 	}
+}
+
+int Master::_remove_file(int file_no)
+{
+	file_info &file=_buffered_files.at(file_no);
+	for(node_pool_t::iterator it=file.nodes.begin();
+			it != file.nodes.end();++it)
+	{
+		int socket=_registed_IOnodes.at(*it).socket;
+		Send(socket, CLOSE_FILE);
+		Send(socket, file_no);
+	}
+	std::string &path=file.path;
+	_file_no.erase(path);
+	_buffered_files.erase(file_no);
+	return SUCCESS;
 }
 
 int Master::_parse_close_file(int clientfd, const std::string& ip)
@@ -884,3 +988,12 @@ int Master::_parse_close_file(int clientfd, const std::string& ip)
 	}
 }
 
+inline std::string Master::_get_real_path(const char* path)const
+{
+	return _mount_point+std::string(path);
+}
+
+inline std::string Master::_get_real_path(const std::string& path)const
+{
+	return _mount_point+path;
+}

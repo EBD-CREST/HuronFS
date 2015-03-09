@@ -7,7 +7,10 @@
 #include "include/CBB_const.h"
 #include "include/CBB_internal.h"
 
-int Client::_connect_to_server(struct sockaddr_in& client_addr, struct sockaddr_in& server_addr) throw(std::runtime_error)
+Client::~Client()
+{}
+
+int Client::_connect_to_server(const struct sockaddr_in& client_addr, const struct sockaddr_in& server_addr)const throw(std::runtime_error)
 {
 	int client_socket = socket(PF_INET,   SOCK_STREAM,  0);  
 	if( 0 > client_socket)
@@ -17,13 +20,13 @@ int Client::_connect_to_server(struct sockaddr_in& client_addr, struct sockaddr_
 	}
 	int on = 1; 
 	setsockopt( client_socket,  SOL_SOCKET,  SO_REUSEADDR,  &on,  sizeof(on) ); 
-	if(bind(client_socket,  reinterpret_cast<struct sockaddr*>(&client_addr),  sizeof(client_addr)))
+	if(bind(client_socket,  reinterpret_cast<struct sockaddr*>(const_cast<struct sockaddr_in*>(&client_addr)),  sizeof(client_addr)))
 	{
 		perror("client bind port failed\n"); 
 		throw std::runtime_error("client bind port failed\n"); 
 	}
 	int count=0; 
-	while( MAX_CONNECT_TIME > ++count  &&  0 !=  connect(client_socket, reinterpret_cast<struct sockaddr*>(&server_addr), sizeof(server_addr)))
+	while( MAX_CONNECT_TIME > ++count  &&  0 !=  connect(client_socket, reinterpret_cast<struct sockaddr*>(const_cast<struct sockaddr_in*>(&server_addr)), sizeof(server_addr)))
 	{
 		usleep(CONNECT_WAIT_TIME);
 		_DEBUG("connect failed %d\n", count+1);
@@ -36,3 +39,4 @@ int Client::_connect_to_server(struct sockaddr_in& client_addr, struct sockaddr_
 	}
 	return client_socket; 
 }
+
