@@ -241,8 +241,6 @@ int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_ad
 		_parse_regist_IOnode(clientfd, ip);break;
 	case PRINT_NODE_INFO:
 		_send_node_info(clientfd, ip);break;
-	case GET_FILE_INFO:
-		_send_file_info(clientfd, ip);break; 
 	case OPEN_FILE:
 		_parse_open_file(clientfd, ip);break; 
 	case READ_FILE:
@@ -272,7 +270,7 @@ int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_ad
 	return ans;
 }
 
-int Master::_parse_regist_IOnode(int clientfd,const std::string& ip)
+int Master::_parse_regist_IOnode(int clientfd, const std::string& ip)
 {
 	size_t total_memory;
 	_LOG("regist IOnode\nip=%s\n",ip.c_str());
@@ -282,28 +280,33 @@ int Master::_parse_regist_IOnode(int clientfd,const std::string& ip)
 	return 1;
 }
 
-void Master::_send_file_meta(int clientfd, const std::string& ip)const
+int Master::_send_file_meta(int clientfd, const std::string& ip)const
 {
-	ssize_t file_no; 
+	char *path=NULL;
 	_LOG("requery for File meta data, ip=%s\n", ip.c_str());
-	Recv(clientfd, file_no); 
-	_DEBUG("file no %ld\n", file_no);
-	const file_info *file=NULL; 
+	struct stat buff;
+	Recvv(clientfd, &path);
 	try
 	{
-		file=&(_buffered_files.at(file_no));
+		//const file_info &file=_buffered_files.at(file_no);
 		Send(clientfd, SUCCESS);
+		Sendv(clientfd, &buff, sizeof(struct stat));
 	}
 	catch(std::out_of_range &e)
 	{
-		//const char OUT_OF_RANGE[]="out of range\n"; 
-		Send(clientfd, OUT_OF_RANGE);
-		return; 
+		if(-1 == stat(path, &buff))
+		{
+			Send(clientfd, NO_SUCH_FILE);
+		}
+		else
+		{
+			Send(clientfd, SUCCESS);
+			Sendv(clientfd, &buff, sizeof(struct stat));
+		}
 	}
-	Send(clientfd, file->size);
-	Send(clientfd, file->block_size);
+	free(path);
 	close(clientfd);
-	return ;
+	return SUCCESS; 
 }
 
 void Master::_send_block_info(int clientfd, const node_id_pool_t& node_pool, const node_t& node_set)const

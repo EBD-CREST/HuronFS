@@ -309,7 +309,7 @@ extern "C" int CBB_WRAP(ftruncate)(int fd, off_t length)
 	}
 }
 
-extern "C" int CBB_WRAP(stat)(const char* path, struct stat *buf)
+extern "C" int CBB_WRAP(stat)(const char* path, struct stat* buf)
 {
 	CBB_FUNC_P(int, stat, (const char* path, struct stat* buf));
 	std::string formatted_path;
@@ -317,8 +317,8 @@ extern "C" int CBB_WRAP(stat)(const char* path, struct stat *buf)
 	CBB::_format_path(path, formatted_path);
 	if(CBB::_interpret_path(formatted_path.c_str()))
 	{
-		_DEBUG("do not support yet\n");
-		return -1;
+		_DEBUG("CBB stat path=%s\n", path);
+		return client._stat(path, buf);
 	}
 	else
 	{
@@ -338,5 +338,23 @@ extern "C" int CBB_WRAP(fstat)(int fd, struct stat* buf)
 	{
 		MAP_BACK(fstat);
 		return CBB_REAL(fstat)(fd, buf);
+	}
+}
+
+extern "C" int CBB_WRAP(lstat)(const char* path, struct stat* buf)
+{
+	CBB_FUNC_P(int, lstat, (const char* path, struct stat *buf));
+	std::string formatted_path;
+	std::string true_path;
+	CBB::_format_path(path, formatted_path);
+	if(CBB::_interpret_path(formatted_path.c_str()))
+	{
+		_DEBUG("do not support yet\n");
+		return -1;
+	}
+	else
+	{
+		MAP_BACK(lstat);
+		return CBB_REAL(lstat)(path, buf);
 	}
 }

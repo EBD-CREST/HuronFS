@@ -27,7 +27,7 @@ private:
 	class file_info
 	{
 	public:
-		file_info(ssize_t file_no, int fd, size_t size, size_t block_size, int flag);
+		file_info(ssize_t file_no, int fd, size_t size, size_t block_size, int flag, const char* path);
 		file_info();
 		ssize_t file_no;
 		off64_t current_point;
@@ -78,6 +78,8 @@ public:
 	int _rmdir(const char* path);
 
 	int _access(const char* path, int mode);
+
+	int _stat(const char* path, struct stat* buf);
 	
 	off64_t _tell(int fd);
 

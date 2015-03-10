@@ -101,7 +101,7 @@ private:
 	void _send_node_info(int socket, const std::string& ip)const;
 	void _send_block_info(int socket, const node_id_pool_t& node_id_pool, const node_t& node_set)const;
 	void _send_file_info(int socket, const std::string& ip)const; 
-	void _send_file_meta(int socket, const std::string& ip)const; 
+	int _send_file_meta(int socket, const std::string& ip)const; 
 	void _send_IO_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size, int mode)const;
 	void _send_append_request(ssize_t file_no, const node_block_map_t& append_node_block)const;
 	void _create_file(const char* file_path, mode_t mode)throw(std::runtime_error);

@@ -1,4 +1,3 @@
-
 #define FUSE_USE_VERSION 30
 
 #include <stdio.h>
@@ -8,7 +7,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#include <error.h>
 #include <errno.h>
 #include <fuse.h>
 
@@ -150,7 +148,7 @@ static int CBB_access(const char* path, int mode)
 	return ret;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
 	CBB_oper.open=CBB_open;
 	CBB_oper.read=CBB_read;

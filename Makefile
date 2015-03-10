@@ -1,4 +1,4 @@
-LIB = lib
+LIB = :ib
 BIN = bin
 SRC = src
 MASTER_DIR = $(SRC)/Master

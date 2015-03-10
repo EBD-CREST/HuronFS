@@ -4,6 +4,7 @@ CBB = CBB.o
 CBB_STREAM = CBB_stream.o
 CBB_STDIO = CBB_stdio.o
 CBB_POSIX = CBB_posix.o
+CBB_FUSE = CBB_fuse
 CLIENT = ../Common/Client.o
 CLIENT_FUSE = CBB_fuse
 
@@ -33,6 +34,9 @@ $(CBB_STREAM):$(SRC_DIR)/CBB_stream.cpp $(CBB) $(HEADER_DIR)/CBB_stream.h
 
 $(CBB):$(SRC_DIR)/CBB.cpp $(HEADER_DIR)/CBB.h
 	$(CC) -c $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $<
+
+fuse:$(SRC_DIR)/CBB_fuse.cpp
+	$(CC) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) $(FUSE_PATH) -D_FILE_OFFSET_BITS=64 -o $@ $<
 
 $(CLIENT):
 	cd ../Common && $(MAKE) $(notdir $@)
