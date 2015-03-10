@@ -67,13 +67,16 @@ static int CBB_creat(const char * path, mode_t mode, struct fuse_file_info* fi)
 static int CBB_read(const char* path, char *buffer, size_t count, off_t offset, struct fuse_file_info* fi)
 {
 	int fd=client._get_fd_from_path(path);
+	int ret=0;
 	if(-1 != fd)
 	{
 		if(-1 == client._lseek(fd, offset, SEEK_SET))
 		{
 			return -1;
 		}
-		return client._read(fd, buffer, count);
+		ret=client._read(fd, buffer, count);
+		_DEBUG("ret=%d, buffer=%s\n", ret, buffer);
+		return ret;
 	}
 	else
 	{

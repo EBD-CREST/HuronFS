@@ -94,7 +94,7 @@ private:
 	const node_t& _open_file(const char* file_path, int flag, ssize_t& file_no)throw(std::runtime_error, std::invalid_argument, std::bad_alloc);
 	int _update_file_info(int file_no); 
 	int _get_file_blocks(const std::string& file_path);
-	int _get_buffered_file_attr(int fd, struct stat* fstat)const;
+	int _get_buffered_file_attr(ssize_t fd, struct stat* fstat)const;
 	ssize_t _get_node_id(); 
 	ssize_t _get_file_no(); 
 	void _release_file_no(ssize_t fileno);

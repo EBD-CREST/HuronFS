@@ -255,11 +255,11 @@ ssize_t CBB::_read_from_IOnode(file_info& file, const _block_list_t& blocks, con
 				_DEBUG("current point=%ld\n", file.current_point);
 			}
 		}
+		*buffer=0;
 		close(IOnode_socket);
 	}
 #ifdef DEBUG
-	fwrite(buffer-ans, sizeof(char), ans, stderr); 
-	fflush(stderr);
+	fprintf(stderr, "%s\n", buffer-ans);
 #endif
 	return ans;
 }

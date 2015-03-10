@@ -27,6 +27,7 @@ protected:
 	virtual std::string _get_real_path(const char* path)const=0;
 	virtual std::string _get_real_path(const std::string& path)const=0;
 	std::string _recv_real_path(int clientfd)const;
+	int _recv_real_relative_path(int clientfd, std::string& real_path, std::string &relative_path)const;
 
 private:
 	struct sockaddr_in _server_addr;

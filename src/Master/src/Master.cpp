@@ -355,15 +355,17 @@ int Master::_parse_attr(int clientfd, const std::string& ip)const
 {
 	struct stat fstat;
 	_DEBUG("requery for File info, ip=%s\n", ip.c_str());
-	std::string real_path=Server::_recv_real_path(clientfd);
+	std::string real_path, relative_path;
+	Server::_recv_real_relative_path(clientfd, real_path, relative_path);
 	_DEBUG("file path=%s\n", real_path.c_str());
 	try
 	{
-		int fd=_file_no.at(real_path);
+		ssize_t fd=_file_no.at(relative_path);
+		_DEBUG("buffered file file_no=%ld\n", fd);
+		stat(real_path.c_str(), &fstat);
 		_get_buffered_file_attr(fd, &fstat);
 		Send(clientfd, SUCCESS);
 		Send(clientfd, fstat);
-		_DEBUG("finished\n");
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -414,9 +416,8 @@ int Master::_parse_readdir(int clientfd, const std::string &ip)const
 	}
 }
 
-int Master::_get_buffered_file_attr(int fd, struct stat* fstat)const
+int Master::_get_buffered_file_attr(ssize_t fd, struct stat* fstat)const
 {
-	memset(fstat, 0, sizeof(struct stat));
 	const file_info& file=_buffered_files.at(fd);
 	fstat->st_size=file.size;
 	return 1;
@@ -564,13 +565,11 @@ const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_
 
 int Master::_parse_unlink(int clientfd, const std::string& ip)
 {
-	char* path=NULL;
 	_LOG("request for unlink, ip=%s\n", ip.c_str()); 
-	Recvv(clientfd, &path);
-	std::string relative_path=std::string(path);
-	std::string real_path=_mount_point+relative_path;
+	std::string relative_path;
+	std::string real_path;
+	Server::_recv_real_relative_path(clientfd, real_path, relative_path);
 	_LOG("path=%s\n", real_path.c_str());
-	delete path;
 	try
 	{
 		int fd=_file_no.at(relative_path);
@@ -928,14 +927,14 @@ int Master::_parse_flush_file(int clientfd, const std::string& ip)
 	_LOG("request for writing ip=%s\n",ip.c_str());
 	ssize_t file_no;
 	Recv(clientfd, file_no);
-	file_info &file=_buffered_files.at(file_no);
-	Send(clientfd, SUCCESS);
 	try
 	{
+		file_info &file=_buffered_files.at(file_no);
+		Send(clientfd, SUCCESS);
 		for(node_pool_t::iterator it=file.nodes.begin();
 				it != file.nodes.end();++it)
 		{
-			_DEBUG("write back request to IOnode %ld, file_no %d\n", *it, file_no);
+			_DEBUG("write back request to IOnode %ld, file_no %ld\n", *it, file_no);
 			int socket=_IOnode_socket.at(*it)->socket;
 			Send(socket, FLUSH_FILE);
 			Send(socket, file_no);
@@ -974,10 +973,10 @@ int Master::_parse_close_file(int clientfd, const std::string& ip)
 	Recv(clientfd, file_no);
 	file_info &file=_buffered_files.at(file_no);
 	_LOG("file no %ld\n", file_no);
-	Send(clientfd, SUCCESS);
-	close(clientfd);
 	try
 	{
+		Send(clientfd, SUCCESS);
+		close(clientfd);
 		//if(0 == --file.open_count)
 		//{
 

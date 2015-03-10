@@ -137,3 +137,13 @@ std::string Server::_recv_real_path(int clientfd)const
 	delete path;
 	return ret;
 }
+
+int Server::_recv_real_relative_path(int clientfd, std::string& real_path, std::string& relative_path)const
+{
+	char* path=NULL;
+	Recvv(clientfd, &path);
+	relative_path=std::string(path);
+	real_path=_get_real_path(relative_path);
+	delete path;
+	return SUCCESS;
+}
