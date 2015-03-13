@@ -263,6 +263,10 @@ int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_ad
 		_parse_unlink(clientfd, ip);break;
 	case ACCESS:
 		_parse_access(clientfd, ip);break;
+	case RENAME:
+		_parse_rename(clientfd, ip);break;
+	case MKDIR:
+		_parse_mkdir(clientfd, ip);break;
 	default:
 		Send(clientfd, UNRECOGNISTED); 
 		close(clientfd); 
@@ -974,10 +978,10 @@ int Master::_parse_close_file(int clientfd, const std::string& ip)
 	_LOG("request for closing file ip=%s\n",ip.c_str());
 	ssize_t file_no;
 	Recv(clientfd, file_no);
-	file_info &file=_buffered_files.at(file_no);
-	_LOG("file no %ld\n", file_no);
 	try
 	{
+		file_info &file=_buffered_files.at(file_no);
+		_LOG("file no %ld\n", file_no);
 		Send(clientfd, SUCCESS);
 		close(clientfd);
 		//if(0 == --file.open_count)
@@ -1007,6 +1011,58 @@ int Master::_parse_close_file(int clientfd, const std::string& ip)
 		close(clientfd);
 		return FAILURE;
 	}
+}
+
+int Master::_parse_rename(int clientfd, const std::string& ip)
+{
+	_LOG("request for rename file ip=%s\n",ip.c_str());
+	std::string old_real_path, old_relative_path, new_real_path, new_relative_path;
+	_recv_real_relative_path(clientfd, old_real_path, old_relative_path);
+	_recv_real_relative_path(clientfd, new_real_path, new_relative_path); 
+	_LOG("old file path=%s, new file path=%s\n", old_real_path.c_str(), new_real_path.c_str());
+	try
+	{
+		int fd=_file_no.at(old_relative_path);
+		_file_no.erase(old_relative_path);
+		_file_no.insert(std::make_pair(new_relative_path, fd));
+		_buffered_files.at(fd).path=new_relative_path;
+		Send(clientfd, SUCCESS);
+		close(clientfd);
+		return SUCCESS;
+	}
+	catch(std::out_of_range &e)
+	{
+		int ret=rename(old_real_path.c_str(), new_real_path.c_str());
+		if(-1 == ret)
+		{
+			Send(clientfd, errno);
+		}
+		else
+		{
+			Send(clientfd, SUCCESS);
+		}
+		close(clientfd);
+		return SUCCESS;
+	}
+}
+
+int Master::_parse_mkdir(int clientfd, const std::string& ip)
+{
+	_LOG("request for mkdir ip=%s\n",ip.c_str());
+	mode_t mode;
+	std::string real_path=_recv_real_path(clientfd);
+	Recv(clientfd, mode);
+	_LOG("path=%s\n", real_path.c_str());
+	if(-1 == mkdir(real_path.c_str(), mode))
+	{
+		Send(clientfd, errno);
+	}
+	else
+	{
+		Send(clientfd, SUCCESS);
+	}
+	close(clientfd);
+	return SUCCESS;
 }
 
 inline std::string Master::_get_real_path(const char* path)const

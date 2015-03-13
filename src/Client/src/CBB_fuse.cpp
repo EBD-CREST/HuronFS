@@ -148,6 +148,31 @@ static int CBB_access(const char* path, int mode)
 	return ret;
 }
 
+static int CBB_release(const char* path, struct fuse_file_info* fi)
+{
+	_DEBUG("CBB access path=%s\n", path);
+	FILE* stream=client._get_stream_from_path(path);
+	int ret=client._close_stream(stream);
+	_DEBUG("ret=%d\n", ret);
+	return ret;
+}
+
+static int CBB_mkdir(const char* path, mode_t mode)
+{
+	_DEBUG("CBB mkdir path=%s\n", path);
+	int ret=client._mkdir(path, mode);
+	_DEBUG("ret=%d\n", ret);
+	return ret;
+}
+
+static int CBB_rename(const char* old_name, const char* new_name)
+{
+	_DEBUG("CBB rename path=%s\n", old_name);
+	int ret=client._rename(old_name, new_name);
+	_DEBUG("ret=%d\n", ret);
+	return ret;
+}
+
 int main(int argc, char *argv[])
 {
 	CBB_oper.open=CBB_open;
@@ -160,6 +185,9 @@ int main(int argc, char *argv[])
 	CBB_oper.unlink=CBB_unlink;
 	CBB_oper.rmdir=CBB_rmdir;
 	CBB_oper.access=CBB_access;
+	CBB_oper.release=CBB_release;
+	CBB_oper.rename=CBB_rename;
+	CBB_oper.mkdir=CBB_mkdir;
 
 	return fuse_main(argc, argv, &CBB_oper, NULL);
 }

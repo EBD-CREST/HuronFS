@@ -56,30 +56,20 @@ public:
 	virtual ~CBB();
 	//posix API
 	int _open(const char *path, int flag, mode_t mode);
-
 	ssize_t _read(int fd, void *buffer, size_t size);
-
 	ssize_t _write(int fd,const void *buffer, size_t size);
-
 	int _close(int fd);
-
 	int _flush(int fd);
-
 	off64_t _lseek(int fd, off64_t offset, int whence);
-
 	int _fstat(int fd, struct stat* buf);
-
 	int _getattr(const char *path, struct stat* fstat)const;
-	
 	int _readdir(const char* path, dir_t& dir)const;
-	
 	int _unlink(const char* path);
-	
 	int _rmdir(const char* path);
-
 	int _access(const char* path, int mode);
-
 	int _stat(const char* path, struct stat* buf);
+	int _rename(const char* old_name, const char* new_name);
+	int _mkdir(const char* path, mode_t mode);
 	
 	off64_t _tell(int fd);
 

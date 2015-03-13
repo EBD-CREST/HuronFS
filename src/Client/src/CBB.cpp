@@ -629,6 +629,50 @@ int CBB::_stat(const char* path, struct stat* buf)
 	}
 }
 
+int CBB::_rename(const char* old_name, const char* new_name)
+{
+	int ret=0;
+	_DEBUG("connect to master\n");
+	CHECK_INIT();
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
+	Send(master_socket, RENAME); 
+	Sendv(master_socket, old_name, strlen(old_name));
+	Sendv(master_socket, new_name, strlen(new_name));
+	Recv(master_socket, ret);
+	close(master_socket);
+	if(SUCCESS == ret)
+	{
+		return 0;
+	}
+	else
+	{
+		errno=ret;
+		return -errno;
+	}
+}
+
+int CBB::_mkdir(const char* path, mode_t mode)
+{
+	int ret=0;
+	_DEBUG("connect to master\n");
+	CHECK_INIT();
+	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
+	Send(master_socket, MKDIR); 
+	Sendv(master_socket, path, strlen(path));
+	Send(master_socket, mode);
+	Recv(master_socket, ret);
+	close(master_socket);
+	if(SUCCESS == ret)
+	{
+		return 0;
+	}
+	else
+	{
+		errno=ret;
+		return -errno;
+	}
+}
+
 off64_t CBB::_tell(int fd)
 {
 	int fid=_BB_fd_to_fid(fd);

@@ -126,8 +126,8 @@ private:
 	int _parse_unlink(int clientfd, const std::string &ip);
 	int _parse_rmdir(int clientfd, const std::string &ip);
 	int _parse_access(int clientfd, const std::string &ip)const;
-//	int _parse_setattr(int clientfd, const std::string &ip);
-//	int _parse_getattr(int clientfd, const std::string &ip)const;
+	int _parse_mkdir(int clientfd, const std::string& ip);
+	int _parse_rename(int clientfd, const std::string& ip);
 
 	node_t _send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length, size_t& block_size)throw(std::invalid_argument); 
 
