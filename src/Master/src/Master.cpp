@@ -429,8 +429,8 @@ int Master::_get_buffered_file_attr(ssize_t fd, struct stat* fstat)const
 int Master::_parse_registed_request(int clientfd)
 {
 	int request, ans=SUCCESS; 
-	ssize_t id;
 	Recv(clientfd, request); 
+	ssize_t id;
 	switch(request)
 	{
 	case I_AM_SHUT_DOWN:

@@ -36,12 +36,12 @@ extern "C"
 	void rewind(FILE* stream);
 
 	void clearerr(FILE* stream);
-	int feof(FILE* stream);
-	int ferror(FILE* stream);
+	int feof(FILE* stream)throw();
+	int ferror(FILE* stream)throw();
 
 	int fseeko(FILE* stream, off_t offset, int whence);
 	off_t ftello(FILE* stream);
-	int fileno(FILE* stream);
+	int fileno(FILE* stream)throw();
 }
 
 #endif

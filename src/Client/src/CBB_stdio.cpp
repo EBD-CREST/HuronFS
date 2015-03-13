@@ -434,7 +434,7 @@ extern "C" void CBB_WRAP(clearerr)(FILE *stream)
 	}
 }
 
-extern "C" int CBB_WRAP(feof)(FILE *stream)
+extern "C" int CBB_WRAP(feof)(FILE *stream)throw()
 {
 	CBB_FUNC_P(int, feof, (FILE *stream));
 
@@ -450,7 +450,7 @@ extern "C" int CBB_WRAP(feof)(FILE *stream)
 	}
 }
 
-extern "C" int CBB_WRAP(ferror)(FILE *stream)
+extern "C" int CBB_WRAP(ferror)(FILE *stream)throw()
 {
 	CBB_FUNC_P(int, ferror, (FILE *stream));
 
@@ -498,7 +498,7 @@ extern "C" off_t CBB_WRAP(ftello)(FILE *stream)
 	}
 }
 
-extern "C" int CBB_WRAP(fileno)(FILE *stream)
+extern "C" int CBB_WRAP(fileno)(FILE *stream)throw()
 {
 	CBB_FUNC_P(int, fileno, (FILE *stream));
 

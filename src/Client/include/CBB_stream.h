@@ -48,11 +48,13 @@ private:
 
 	typedef stream_info stream_info_t;
 	typedef std::map<stream_info_t*, int> stream_pool_t;
+	typedef std::map<std::string, stream_info*> path_stream_map_t;
 public:
 	CBB_stream();
 	~CBB_stream();
 	bool _interpret_stream(void* stream)const;
 	FILE* _open_stream(const char* path, const char* mode);
+	FILE* _open_stream(const char* path, int flag, mode_t mode);
 	int _flush_stream(FILE* stream);
 	int _close_stream(FILE* stream);
 	void _freebuf_stream(FILE* stream);
@@ -65,9 +67,14 @@ public:
 	int _eof_stream(FILE* stream);
 	int _error_stream(FILE* stream);
 	int _fileno_stream(FILE* stream);
+
+	const FILE* _get_stream_from_path(const char* path)const;
+	FILE* _get_stream_from_path(const char* path);
 private:
-	stream_pool_t _stream_pool;
 	int _parse_open_mode_flag(const char* path, int& flag, mode_t& open_mode)const;
+
+	stream_pool_t _stream_pool;
+	path_stream_map_t _path_stream_map;
 };
 
 #endif

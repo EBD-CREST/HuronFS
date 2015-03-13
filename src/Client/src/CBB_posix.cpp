@@ -295,7 +295,7 @@ extern "C" int CBB_WRAP(posix_fadvise)(int fd, off_t offset, off_t len, int advi
 		return CBB_REAL(posix_fadvise)(fd, offset, len, advice);
 	}
 }
-extern "C" int CBB_WRAP(ftruncate)(int fd, off_t length)
+extern "C" int CBB_WRAP(ftruncate)(int fd, off_t length)throw()
 {
 	CBB_FUNC_P(int, ftruncate, (int fd, off_t length));
 	if(CBB::_interpret_fd(fd))

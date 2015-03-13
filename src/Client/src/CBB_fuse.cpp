@@ -20,10 +20,10 @@ static int CBB_open(const char* path, struct fuse_file_info *fi)
 {
 	mode_t mode=0600;
 	int flag=fi->flags;
-	int ret;
+	FILE *ret=NULL;
 	_DEBUG("open with CBB path=%s\n", path);
-	ret=client._open(path, flag, mode);
-	if(-1 == ret)
+	ret=client._open_stream(path, flag, mode);
+	if(NULL == ret)
 	{
 		return -errno;
 	}
@@ -35,10 +35,10 @@ static int CBB_open(const char* path, struct fuse_file_info *fi)
 
 static int CBB_flush(const char *path, struct fuse_file_info* fi)
 {
-	int fd=client._get_fd_from_path(path);
-	if(-1 != fd)
+	FILE* stream=client._get_stream_from_path(path);
+	if(NULL != stream)
 	{
-		return client._flush(fd);
+		return client._flush_stream(stream);
 	}
 	else
 	{
@@ -49,10 +49,10 @@ static int CBB_flush(const char *path, struct fuse_file_info* fi)
 
 static int CBB_creat(const char * path, mode_t mode, struct fuse_file_info* fi)
 {
-	int ret=0;
+	FILE* ret=NULL;
 	_DEBUG("CBB create file path=%s\n", path);
-	ret=client._open(path, O_CREAT|O_WRONLY|O_TRUNC, mode);
-	if(-1 == ret)
+	ret=client._open_stream(path, O_CREAT|O_WRONLY|O_TRUNC, mode);
+	if(NULL == ret)
 	{
 		return -errno;
 	}
@@ -64,15 +64,15 @@ static int CBB_creat(const char * path, mode_t mode, struct fuse_file_info* fi)
 
 static int CBB_read(const char* path, char *buffer, size_t count, off_t offset, struct fuse_file_info* fi)
 {
-	int fd=client._get_fd_from_path(path);
+	FILE* stream=client._get_stream_from_path(path);
 	int ret=0;
-	if(-1 != fd)
+	if(NULL != stream)
 	{
-		if(-1 == client._lseek(fd, offset, SEEK_SET))
+		if(-1 == client._seek_stream(stream, offset, SEEK_SET))
 		{
 			return -1;
 		}
-		ret=client._read(fd, buffer, count);
+		ret=client._read_stream(stream, buffer, count);
 		_DEBUG("ret=%d, buffer=%s\n", ret, buffer);
 		return ret;
 	}
@@ -85,14 +85,14 @@ static int CBB_read(const char* path, char *buffer, size_t count, off_t offset, 
 
 static int CBB_write(const char* path, const char*buffer, size_t count, off_t offset, struct fuse_file_info* fi)
 {
-	int fd=client._get_fd_from_path(path);
-	if(-1 != fd)
+	FILE* stream=client._get_stream_from_path(path);
+	if(NULL != stream)
 	{
-		if(-1 == client._lseek(fd, offset, SEEK_SET))
+		if(-1 == client._seek_stream(stream, offset, SEEK_SET))
 		{
 			return -1;
 		}
-		return client._write(fd, buffer, count);
+		return client._write_stream(stream, buffer, count);
 	}
 	else
 	{

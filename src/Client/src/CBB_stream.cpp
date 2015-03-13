@@ -41,7 +41,8 @@ CBB_stream::stream_info::~stream_info()
 
 CBB_stream::CBB_stream():
 	CBB(),
-	_stream_pool()
+	_stream_pool(),
+	_path_stream_map()
 {}
 
 CBB_stream::~CBB_stream()
@@ -102,6 +103,24 @@ FILE* CBB_stream::_open_stream(const char* path, const char* mode)
 		size_t file_size=_get_file_size(fd);
 		stream_info* new_stream=new stream_info(CLEAN, true, fd, file_size, 0, flag, open_mode);
 		_stream_pool.insert(std::make_pair(new_stream, fd));
+		_path_stream_map.insert(std::make_pair(std::string(path), new_stream));
+		return reinterpret_cast<FILE*>(new_stream);
+	}
+}
+
+FILE* CBB_stream::_open_stream(const char* path, int flag, mode_t mode)
+{
+	int fd=_open(path, flag, mode);
+	if(-1 == fd)
+	{
+		return NULL;
+	}
+	else
+	{
+		size_t file_size=_get_file_size(fd);
+		stream_info* new_stream=new stream_info(CLEAN, true, fd, file_size, 0, flag, mode);
+		_stream_pool.insert(std::make_pair(new_stream, fd));
+		_path_stream_map.insert(std::make_pair(std::string(path), new_stream));
 		return reinterpret_cast<FILE*>(new_stream);
 	}
 }
@@ -386,4 +405,32 @@ int CBB_stream::_fileno_stream(FILE* file_stream)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
 	return stream->fd;
+}
+
+FILE* CBB_stream::_get_stream_from_path(const char* path)
+{
+	try
+	{
+		stream_info* stream=_path_stream_map.at(std::string(path));
+		return reinterpret_cast<FILE*>(stream);
+	}
+	catch(std::out_of_range &e)
+	{
+		fprintf(stderr, "open file frist\n");
+		return NULL;
+	}
+}
+
+const FILE* CBB_stream::_get_stream_from_path(const char* path)const
+{
+	try
+	{
+		const stream_info* stream=_path_stream_map.at(std::string(path));
+		return reinterpret_cast<const FILE*>(stream);
+	}
+	catch(std::out_of_range &e)
+	{
+		fprintf(stderr, "open file frist\n");
+		return NULL;
+	}
 }

@@ -32,7 +32,7 @@ extern "C"
 	int fstat(int fd, struct stat* buf);
 	int lstat(const char *path, struct stat* buf);
 
-	int ftruncate(int fd, off_t length);
+	int ftruncate(int fd, off_t length)throw();
 	int fsync(int fd);
 	int fdatasync(int fd);
 	int flock(int fd, int operation);
