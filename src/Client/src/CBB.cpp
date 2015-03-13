@@ -15,6 +15,8 @@
 #include <limits.h>
 #include <errno.h>
 
+#include <sys/syscall.h>
+
 #include "CBB.h"
 #include "CBB_internal.h"
 #include "CBB_const.h"
@@ -25,6 +27,12 @@ const char* CBB::MASTER_IP="CBB_MASTER_IP";
 
 const char *mount_point=NULL;
 
+pid_t gettid()
+{
+	  pid_t tid;
+	  tid = syscall(SYS_gettid);
+	  return tid;
+}
 CBB::CBB():
 	_fid_now(0),
 	_file_list(_file_list_t()),
@@ -265,9 +273,6 @@ ssize_t CBB::_read_from_IOnode(file_info& file, const _block_list_t& blocks, con
 		*buffer=0;
 		close(IOnode_socket);
 	}
-#ifdef DEBUG
-	fprintf(stderr, "%s\n", buffer-ans);
-#endif
 	return ans;
 }
 
@@ -501,6 +506,7 @@ int CBB::_getattr(const char* path, struct stat* fstat)const
 	Recv(master_socket, ret);
 	if(SUCCESS == ret)
 	{
+		_DEBUG("SUCCESS\n");
 		Recv(master_socket, *fstat);
 		close(master_socket);
 		return 0;

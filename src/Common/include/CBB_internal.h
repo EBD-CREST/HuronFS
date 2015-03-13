@@ -3,14 +3,14 @@
 #define _CBB_INTERNAL_H_
 
 #ifdef DEBUG
-	#define _DEBUG(fmt, args... ) printf("%s:"fmt, __func__, ##args)
-	#define _LOG(fmt, args... ) printf("%s:"fmt, __func__, ##args)
-	#define _ERROR(fmt, args... ) printf("%s:"fmt, __func__, ##args)
+	#define _DEBUG(fmt, args... ) printf("[%s] "fmt, __func__, ##args)
+	#define _LOG(fmt, args... ) printf("[%s]"fmt, __func__, ##args)
+	#define _ERROR(fmt, args... ) printf("[%s]"fmt, __func__, ##args)
 #else
 	#define _DEBUG(fmt, args... )
 	#define _LOG(fmt, args... ) 
-	//#define _LOG(fmt, args... ) printf("%s:"fmt, __func__, ##args)
-	#define _ERROR(fmt, args... ) printf("%s:"fmt, __func__, ##args)
+	//#define _LOG(fmt, args... ) printf("[%s]"fmt, __func__, ##args)
+	#define _ERROR(fmt, args... ) printf("[%s]"fmt, __func__, ##args)
 #endif
 
 

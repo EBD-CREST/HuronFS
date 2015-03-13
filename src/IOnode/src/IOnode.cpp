@@ -516,19 +516,26 @@ int IOnode::_flush_file(int sockfd)
 	Recv(sockfd, file_no);
 	std::string &path=_file_path.at(file_no);
 	_DEBUG("flush file, path=%s\n", path.c_str());
-	block_info_t &blocks=_files.at(file_no);
-	for(block_info_t::iterator it=blocks.begin();
-			it != blocks.end();++it)
+	try
 	{
-		block* _block=it->second;
-		if(DIRTY == _block->dirty_flag)
+		block_info_t &blocks=_files.at(file_no);
+		for(block_info_t::iterator it=blocks.begin();
+				it != blocks.end();++it)
 		{
-			_write_to_storage(path, _block);
-			_block->dirty_flag=CLEAN;
+			block* _block=it->second;
+			if(DIRTY == _block->dirty_flag)
+			{
+				_write_to_storage(path, _block);
+				_block->dirty_flag=CLEAN;
+			}
 		}
+		return SUCCESS;
+	}
+	catch(std::out_of_range& e)
+	{
+		return FAILURE;
 	}
 	//Send(sockfd, SUCCESS);
-	return SUCCESS;
 }
 
 int IOnode::_close_file(int sockfd)

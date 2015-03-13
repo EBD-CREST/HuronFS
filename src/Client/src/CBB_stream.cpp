@@ -4,6 +4,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include <pthread.h>
+
 #include "CBB_stream.h"
 #include "CBB_internal.h"
 
@@ -136,8 +138,8 @@ int CBB_stream::_close_stream(FILE* file_stream)
 
 int CBB_stream::_flush_stream(FILE* file_stream)
 {
-
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
+	_DEBUG("current offset=%ld\n", stream->_cur_file_off());
 	if(DIRTY == stream->dirty_flag)
 	{
 		_lseek(stream->fd, stream->buf_file_off, SEEK_SET);
@@ -345,6 +347,7 @@ off64_t CBB_stream::_seek_stream(FILE* file_stream, off64_t offset, int whence)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
 	off64_t new_pos=0;
+	_DEBUG("old off=%ld, tid=%lu\n", stream->_cur_file_off(), pthread_self());
 	switch(whence)
 	{
 		case SEEK_SET:new_pos=offset;break;
@@ -362,6 +365,7 @@ off64_t CBB_stream::_seek_stream(FILE* file_stream, off64_t offset, int whence)
 	{
 		stream->cur_buf_ptr = stream->buf + stream->_get_buf_off_from_file_off(new_pos);
 	}
+	_DEBUG("new off=%ld\n", stream->_cur_file_off());
 	return new_pos;
 }
 

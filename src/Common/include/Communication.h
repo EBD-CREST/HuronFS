@@ -144,8 +144,6 @@ template<class T> size_t Sendv(int sockfd,const T* buffer, size_t count)
 	iov.iov_len=length; 
 
 	Send(sockfd, length); 
-	_DEBUG("length=%lu\n",length);
-	_DEBUG("before sending\n");
 	while(0 != length && 0 != (ret=writev(sockfd, &iov, 1)))
 	{
 		if(-1 == ret)
@@ -156,7 +154,6 @@ template<class T> size_t Sendv(int sockfd,const T* buffer, size_t count)
 			}
 			break; 
 		}
-		_DEBUG("ret=%lu\n",ret);
 		buffer_tmp += ret; 
 		length -= ret; 
 		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 
@@ -173,8 +170,6 @@ template<class T> size_t Sendv_pre_alloc(int sockfd,const T* buffer, size_t coun
 	struct iovec iov; 
 	iov.iov_base=const_cast<void *>(reinterpret_cast<const void*>(buffer)); 
 	iov.iov_len=length; 
-	_DEBUG("length=%lu\n",length);
-	_DEBUG("before sending\n");
 	while(0 != length && 0 != (ret=writev(sockfd, &iov, 1)))
 	{
 		if(-1 == ret)
@@ -185,7 +180,6 @@ template<class T> size_t Sendv_pre_alloc(int sockfd,const T* buffer, size_t coun
 			}
 			break; 
 		}
-		_DEBUG("ret=%lu\n",ret);
 		buffer_tmp += ret; 
 		length -= ret; 
 		iov.iov_base=reinterpret_cast<void*>(buffer_tmp); 

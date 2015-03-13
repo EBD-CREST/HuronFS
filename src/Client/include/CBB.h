@@ -101,5 +101,6 @@ private:
 	bool _initial;
 };
 
+pid_t gettid();
 
 #endif
