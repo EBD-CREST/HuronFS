@@ -6,8 +6,8 @@ const size_t MB=KB*1000;
 const size_t GB=MB*1000;
 
 const int MASTER_PORT = 9000; 
-const int MASTER_CONN_PORT = 8001; 
-const int IONODE_PORT = 8000; 
+const int MASTER_CONN_PORT = 7001; 
+const int IONODE_PORT = 7000; 
 //const int CLIENT_PORT = 8001;
 //const int IO_CLIENT_PORT = 8002;
 
@@ -56,9 +56,11 @@ const int UNLINK = 16;
 const int ACCESS = 17;
 const int MKDIR = 18;
 const int RENAME = 19;
+const int NEW_CLIENT = 20;
+const int CLOSE_CLIENT = 21;
 
-const int SERVER_SHUT_DOWN = 20; 
-const int I_AM_SHUT_DOWN = 21;
+const int SERVER_SHUT_DOWN = 30; 
+const int I_AM_SHUT_DOWN = 31;
 
 const int TOO_MANY_FILES =50;
 const int FILE_NOT_FOUND = 51;

@@ -98,10 +98,7 @@ private:
 	ssize_t _get_node_id(); 
 	ssize_t _get_file_no(); 
 	void _release_file_no(ssize_t fileno);
-	void _send_node_info(int socket, const std::string& ip)const;
 	void _send_block_info(int socket, const node_id_pool_t& node_id_pool, const node_t& node_set)const;
-	void _send_file_info(int socket, const std::string& ip)const; 
-	int _send_file_meta(int socket, const std::string& ip)const; 
 	void _send_IO_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size, int mode)const;
 	void _send_append_request(ssize_t file_no, const node_block_map_t& append_node_block)const;
 	void _create_file(const char* file_path, mode_t mode)throw(std::runtime_error);
@@ -114,20 +111,26 @@ private:
 	virtual std::string _get_real_path(const std::string& path)const;
 
 	int _parse_regist_IOnode(int clientfd, const std::string& ip);
+	int _parse_new_client(int clientfd, const std::string& ip);
 	//file operation
-	int _parse_open_file(int clientfd, const std::string& ip); 
-	int _parse_read_file(int clientfd, const std::string& ip);
-	int _parse_write_file(int clientfd, const std::string& ip);
-	int _parse_flush_file(int clientfd, const std::string& ip);
-	int _parse_close_file(int clientfd, const std::string& ip);
-	int _parse_node_info(int clientfd, const std::string& ip)const;
-	int _parse_attr(int clientfd, const std::string& ip)const;
-	int _parse_readdir(int clientfd, const std::string &ip)const;
-	int _parse_unlink(int clientfd, const std::string &ip);
-	int _parse_rmdir(int clientfd, const std::string &ip);
-	int _parse_access(int clientfd, const std::string &ip)const;
-	int _parse_mkdir(int clientfd, const std::string& ip);
-	int _parse_rename(int clientfd, const std::string& ip);
+	void _send_node_info(int socket)const;
+	void _send_file_info(int socket)const; 
+	int _send_file_meta(int socket)const; 
+
+	int _parse_open_file(int clientfd); 
+	int _parse_read_file(int clientfd);
+	int _parse_write_file(int clientfd);
+	int _parse_flush_file(int clientfd);
+	int _parse_close_file(int clientfd);
+	int _parse_node_info(int clientfd)const;
+	int _parse_attr(int clientfd)const;
+	int _parse_readdir(int clientfd)const;
+	int _parse_unlink(int clientfd);
+	int _parse_rmdir(int clientfd);
+	int _parse_access(int clientfd)const;
+	int _parse_mkdir(int clientfd);
+	int _parse_rename(int clientfd);
+	int _parse_close_client(int clientfd);
 
 	node_t _send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length, size_t& block_size)throw(std::invalid_argument); 
 

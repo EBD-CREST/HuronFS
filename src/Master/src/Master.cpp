@@ -184,9 +184,9 @@ ssize_t Master::_get_file_no()
 	return -1;
 }
 
-void Master::_send_node_info(int clientfd, const std::string& ip)const 
+void Master::_send_node_info(int clientfd)const 
 {
-	_LOG("requery for IOnode info, ip=%s\n", ip.c_str());
+	_LOG("requery for IOnode info\n");
 	Send(clientfd, static_cast<int>(_registed_IOnodes.size()));
 
 	for(IOnode_t::const_iterator it=_registed_IOnodes.begin(); it!=_registed_IOnodes.end(); ++it)
@@ -196,14 +196,13 @@ void Master::_send_node_info(int clientfd, const std::string& ip)const
 		Send(clientfd, node.total_memory);
 		Send(clientfd, node.avaliable_memory);
 	}
-	close(clientfd);
 	return; 
 }
 
-void Master::_send_file_info(int clientfd, const std::string& ip)const 
+void Master::_send_file_info(int clientfd)const 
 {
 	ssize_t file_no=0;
-	_LOG("requery for File info, ip=%s\n", ip.c_str());
+	_LOG("requery for File info\n");
 	Recv(clientfd, file_no);
 
 	try
@@ -219,7 +218,6 @@ void Master::_send_file_info(int clientfd, const std::string& ip)const
 	{
 		Send(clientfd, NO_SUCH_FILE);
 	}
-	close(clientfd);
 	return; 
 }
 
@@ -239,34 +237,8 @@ int Master::_parse_new_request(int clientfd, const struct sockaddr_in& client_ad
 	{
 	case REGIST:
 		_parse_regist_IOnode(clientfd, ip);break;
-	case PRINT_NODE_INFO:
-		_send_node_info(clientfd, ip);break;
-	case OPEN_FILE:
-		_parse_open_file(clientfd, ip);break; 
-	case READ_FILE:
-		_parse_read_file(clientfd, ip);break;
-	case WRITE_FILE:
-		_parse_write_file(clientfd, ip);break;
-	case FLUSH_FILE:
-		_parse_flush_file(clientfd, ip);break;
-	case CLOSE_FILE:
-		_parse_close_file(clientfd, ip);break;
-	case GET_FILE_META:
-		_send_file_meta(clientfd, ip);break;
-	case GET_ATTR:
-		_parse_attr(clientfd, ip);break;
-	case READ_DIR:
-		_parse_readdir(clientfd, ip);break;
-	case RM_DIR:
-		_parse_rmdir(clientfd, ip);break;
-	case UNLINK:
-		_parse_unlink(clientfd, ip);break;
-	case ACCESS:
-		_parse_access(clientfd, ip);break;
-	case RENAME:
-		_parse_rename(clientfd, ip);break;
-	case MKDIR:
-		_parse_mkdir(clientfd, ip);break;
+	case NEW_CLIENT:
+		_parse_new_client(clientfd, ip);break;
 	default:
 		Send(clientfd, UNRECOGNISTED); 
 		close(clientfd); 
@@ -284,10 +256,10 @@ int Master::_parse_regist_IOnode(int clientfd, const std::string& ip)
 	return 1;
 }
 
-int Master::_send_file_meta(int clientfd, const std::string& ip)const
+int Master::_send_file_meta(int clientfd)const
 {
 	char *path=NULL;
-	_LOG("requery for File meta data, ip=%s\n", ip.c_str());
+	_LOG("requery for File meta data\n");
 	struct stat buff;
 	Recvv(clientfd, &path);
 	try
@@ -309,7 +281,6 @@ int Master::_send_file_meta(int clientfd, const std::string& ip)const
 		}
 	}
 	free(path);
-	close(clientfd);
 	return SUCCESS; 
 }
 
@@ -331,7 +302,6 @@ void Master::_send_block_info(int clientfd, const node_id_pool_t& node_pool, con
 		Send(clientfd, it->first);
 		Send(clientfd, it->second);
 	}
-	close(clientfd);
 	return; 
 }	
 
@@ -354,14 +324,13 @@ void Master::_send_block_info(int clientfd, const node_id_pool_t& node_pool, con
 	Send(clientfd, file->size);
 	node_id_pool_t node_id;
 	_send_block_info(clientfd, node_id, file->p_node);
-	close(clientfd);
 	return SUCCESS;
 }*/
 
-int Master::_parse_attr(int clientfd, const std::string& ip)const
+int Master::_parse_attr(int clientfd)const
 {
 	struct stat fstat;
-	_DEBUG("requery for File info, ip=%s\n", ip.c_str());
+	_DEBUG("requery for File info\n");
 	std::string real_path, relative_path;
 	Server::_recv_real_relative_path(clientfd, real_path, relative_path);
 	_DEBUG("file path=%s\n", real_path.c_str());
@@ -392,9 +361,9 @@ int Master::_parse_attr(int clientfd, const std::string& ip)const
 	}
 }
 
-int Master::_parse_readdir(int clientfd, const std::string &ip)const
+int Master::_parse_readdir(int clientfd)const
 {
-	_DEBUG("requery for dir info, ip=%s\n", ip.c_str());
+	_DEBUG("requery for dir info\n");
 	std::string real_path=Server::_recv_real_path(clientfd);
 	_DEBUG("file path=%s\n", real_path.c_str());
 	DIR *dir=opendir(real_path.c_str());
@@ -437,6 +406,36 @@ int Master::_parse_registed_request(int clientfd)
 	ssize_t id;
 	switch(request)
 	{
+	case PRINT_NODE_INFO:
+		_send_node_info(clientfd);break;
+	case OPEN_FILE:
+		_parse_open_file(clientfd);break; 
+	case READ_FILE:
+		_parse_read_file(clientfd);break;
+	case WRITE_FILE:
+		_parse_write_file(clientfd);break;
+	case FLUSH_FILE:
+		_parse_flush_file(clientfd);break;
+	case CLOSE_FILE:
+		_parse_close_file(clientfd);break;
+	case GET_FILE_META:
+		_send_file_meta(clientfd);break;
+	case GET_ATTR:
+		_parse_attr(clientfd);break;
+	case READ_DIR:
+		_parse_readdir(clientfd);break;
+	case RM_DIR:
+		_parse_rmdir(clientfd);break;
+	case UNLINK:
+		_parse_unlink(clientfd);break;
+	case ACCESS:
+		_parse_access(clientfd);break;
+	case RENAME:
+		_parse_rename(clientfd);break;
+	case MKDIR:
+		_parse_mkdir(clientfd);break;
+	case CLOSE_CLIENT:
+		_parse_close_client(clientfd);break;
 	case I_AM_SHUT_DOWN:
 		id=_IOnode_socket.at(clientfd)->node_id;
 		_DEBUG("IOnode %ld shutdown\nIP Address=%s, Unregisted\n", id, _registed_IOnodes.at(id).ip.c_str()); 
@@ -447,10 +446,26 @@ int Master::_parse_registed_request(int clientfd)
 	return ans; 
 }
 
-int Master::_parse_open_file(int clientfd, const std::string& ip)
+int Master::_parse_new_client(int clientfd, const std::string& ip)
+{
+	_LOG("new client ip=%s\n", ip.c_str());
+	Server::_add_socket(clientfd); 
+	Send(clientfd, SUCCESS);
+	return SUCCESS;
+}
+
+int Master::_parse_close_client(int clientfd)
+{
+	_LOG("close client\n");
+	Server::_delete_socket(clientfd);
+	close(clientfd);
+	return SUCCESS;
+}
+	
+int Master::_parse_open_file(int clientfd)
 {
 	char *file_path=NULL;
-	_LOG("request for open file, ip=%s\n", ip.c_str()); 
+	_LOG("request for open file\n");
 	Recvv(clientfd, &file_path); 
 	int flag ,ret=SUCCESS;
 	Recv(clientfd, flag); 
@@ -498,7 +513,6 @@ int Master::_parse_open_file(int clientfd, const std::string& ip)
 		Send(clientfd, TOO_MANY_FILES);
 		ret=FAILURE;
 	}
-	close(clientfd);
 	return ret;
 }
 
@@ -512,7 +526,6 @@ void Master::_create_file(const char* file_path, mode_t mode)throw(std::runtime_
 	}
 	else
 	{
-		close(fd);
 		return ;
 	}
 }
@@ -570,9 +583,9 @@ const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_
 	return file->p_node;
 }
 
-int Master::_parse_unlink(int clientfd, const std::string& ip)
+int Master::_parse_unlink(int clientfd)
 {
-	_LOG("request for unlink, ip=%s\n", ip.c_str()); 
+	_LOG("request for unlink\n"); 
 	std::string relative_path;
 	std::string real_path;
 	Server::_recv_real_relative_path(clientfd, real_path, relative_path);
@@ -598,9 +611,9 @@ int Master::_parse_unlink(int clientfd, const std::string& ip)
 		}
 	}
 }
-int Master::_parse_rmdir(int clientfd, const std::string& ip)
+int Master::_parse_rmdir(int clientfd)
 {
-	_LOG("request for rmdir, ip=%s\n", ip.c_str()); 
+	_LOG("request for rmdir\n");
 	std::string file_path=Server::_recv_real_path(clientfd);
 	_LOG("path=%s\n", file_path.c_str());
 	if(-1 != rmdir(file_path.c_str()))
@@ -628,9 +641,9 @@ Master::node_t Master::_send_request_to_IOnodes(const char *file_path, ssize_t f
 
 	struct stat file_stat;
 	fstat(fd, &file_stat);
+	close(fd);
 	file_length=file_stat.st_size;
 	block_size=_get_block_size(file_length); 
-	close(fd);
 	node_block_map_t node_block_map;
 	node_t nodes=_select_IOnode(0, file_length, block_size, node_block_map);
 	for(node_block_map_t::const_iterator it=node_block_map.begin(); 
@@ -692,13 +705,13 @@ Master::node_t Master::_select_IOnode(off64_t start_point,
 	return nodes; 
 }
 
-int Master::_parse_read_file(int clientfd, const std::string& ip)
+int Master::_parse_read_file(int clientfd)
 {
 	ssize_t file_no;
 	size_t size;
 	off64_t start_point;
 	file_info *file=NULL; 
-	_LOG("request for reading ip=%s\n",ip.c_str());
+	_LOG("request for reading\n");
 	Recv(clientfd, file_no); 
 	try
 	{
@@ -732,7 +745,6 @@ int Master::_parse_read_file(int clientfd, const std::string& ip)
 	_get_IOnodes_for_IO(start_point, size, *file, nodes, node_pool);
 	//_send_IO_request(file_no, *file, nodes, size, READ_FILE);
 	_send_block_info(clientfd, node_pool, nodes);
-	close(clientfd);
 	return 1;
 }
 
@@ -847,9 +859,9 @@ Master::node_t& Master::_get_IOnodes_for_IO(off64_t start_point, size_t &size, s
 	return node_set;
 }
 
-int Master::_parse_write_file(int clientfd, const std::string& ip)
+int Master::_parse_write_file(int clientfd)
 {
-	_LOG("request for writing ip=%s\n",ip.c_str());
+	_LOG("request for writing\n");
 	ssize_t file_no;
 	size_t size;
 	off64_t start_point;
@@ -892,21 +904,19 @@ int Master::_parse_write_file(int clientfd, const std::string& ip)
 
 		//_send_IO_request(file_no, file, nodes, size, WRITE_FILE);
 		_send_block_info(clientfd, node_pool, nodes);
-		close(clientfd);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
 		Send(clientfd, errno);	
-		close(clientfd);
 		return FAILURE;
 	}
 }
 
-int Master::_parse_access(int clientfd, const std::string& ip)const
+int Master::_parse_access(int clientfd)const
 {
 	int mode;
-	_LOG("request for access, ip=%s\n", ip.c_str()); 
+	_LOG("request for access\n");
 	std::string file_path=Server::_recv_real_path(clientfd);	
 	Recv(clientfd, mode);
 	_LOG("path=%s\n, mode=%d", file_path.c_str(), mode);
@@ -929,9 +939,9 @@ size_t Master::_get_block_size(size_t size)
 	//return (size+_node_number-1)/_node_number;
 }
 
-int Master::_parse_flush_file(int clientfd, const std::string& ip)
+int Master::_parse_flush_file(int clientfd)
 {
-	_LOG("request for writing ip=%s\n",ip.c_str());
+	_LOG("request for writing\n");
 	ssize_t file_no;
 	Recv(clientfd, file_no);
 	try
@@ -946,13 +956,11 @@ int Master::_parse_flush_file(int clientfd, const std::string& ip)
 			Send(socket, FLUSH_FILE);
 			Send(socket, file_no);
 		}
-		close(clientfd);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
 		Send(clientfd, FAILURE);
-		close(clientfd);
 		return FAILURE;
 	}
 }
@@ -973,9 +981,9 @@ int Master::_remove_file(int file_no)
 	return SUCCESS;
 }
 
-int Master::_parse_close_file(int clientfd, const std::string& ip)
+int Master::_parse_close_file(int clientfd)
 {
-	_LOG("request for closing file ip=%s\n",ip.c_str());
+	_LOG("request for closing file\n");
 	ssize_t file_no;
 	Recv(clientfd, file_no);
 	try
@@ -983,7 +991,6 @@ int Master::_parse_close_file(int clientfd, const std::string& ip)
 		file_info &file=_buffered_files.at(file_no);
 		_LOG("file no %ld\n", file_no);
 		Send(clientfd, SUCCESS);
-		close(clientfd);
 		//if(0 == --file.open_count)
 		//{
 
@@ -1008,14 +1015,13 @@ int Master::_parse_close_file(int clientfd, const std::string& ip)
 	catch(std::out_of_range &e)
 	{
 		Send(clientfd, FAILURE);
-		close(clientfd);
 		return FAILURE;
 	}
 }
 
-int Master::_parse_rename(int clientfd, const std::string& ip)
+int Master::_parse_rename(int clientfd)
 {
-	_LOG("request for rename file ip=%s\n",ip.c_str());
+	_LOG("request for rename file\n");
 	std::string old_real_path, old_relative_path, new_real_path, new_relative_path;
 	_recv_real_relative_path(clientfd, old_real_path, old_relative_path);
 	_recv_real_relative_path(clientfd, new_real_path, new_relative_path); 
@@ -1027,7 +1033,6 @@ int Master::_parse_rename(int clientfd, const std::string& ip)
 		_file_no.insert(std::make_pair(new_relative_path, fd));
 		_buffered_files.at(fd).path=new_relative_path;
 		Send(clientfd, SUCCESS);
-		close(clientfd);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -1041,14 +1046,13 @@ int Master::_parse_rename(int clientfd, const std::string& ip)
 		{
 			Send(clientfd, SUCCESS);
 		}
-		close(clientfd);
 		return SUCCESS;
 	}
 }
 
-int Master::_parse_mkdir(int clientfd, const std::string& ip)
+int Master::_parse_mkdir(int clientfd)
 {
-	_LOG("request for mkdir ip=%s\n",ip.c_str());
+	_LOG("request for mkdir\n");
 	mode_t mode;
 	std::string real_path=_recv_real_path(clientfd);
 	Recv(clientfd, mode);
@@ -1061,7 +1065,6 @@ int Master::_parse_mkdir(int clientfd, const std::string& ip)
 	{
 		Send(clientfd, SUCCESS);
 	}
-	close(clientfd);
 	return SUCCESS;
 }
 

@@ -61,8 +61,8 @@ int Server::_add_socket(int socketfd)
 {
 	struct epoll_event event; 
 	event.data.fd=socketfd; 
-	//event.events=EPOLLIN|EPOLLET; 
-	event.events=EPOLLIN; 
+	event.events=EPOLLIN|EPOLLET; 
+	//event.events=EPOLLIN; 
 	_IOnode_socket_pool.insert(socketfd); 
 	return epoll_ctl(_epollfd, EPOLL_CTL_ADD, socketfd, &event); 
 }
@@ -71,8 +71,8 @@ int Server::_delete_socket(int socketfd)
 {
 	struct epoll_event event; 
 	event.data.fd=socketfd; 
-	//event.events=EPOLLIN|EPOLLET;
-	event.events=EPOLLIN;
+	event.events=EPOLLIN|EPOLLET;
+	//event.events=EPOLLIN;
 	_IOnode_socket_pool.erase(socketfd); 
 	return epoll_ctl(_epollfd, EPOLL_CTL_DEL, socketfd, &event); 
 }

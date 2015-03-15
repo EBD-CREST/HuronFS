@@ -46,6 +46,8 @@ public:
 	typedef std::map<ssize_t, std::string> _node_pool_t;
 	typedef std::map<std::string, int> _path_fd_map_t;
 	typedef std::vector<std::string> dir_t;
+	//map IOnode id: fd
+	typedef std::map<int, int> IOnode_fd_map_t;
 
 	static const char *CLIENT_MOUNT_POINT;
 	static const char *MASTER_IP;
@@ -88,6 +90,7 @@ private:
 	ssize_t _write_to_IOnode(file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, const char *buffer, size_t size);
 
 	int _get_fid();
+	int _regist_to_master();
 	
 	static inline int _BB_fd_to_fid(int fd);
 	static inline int _BB_fid_to_fd(int fid);
@@ -99,8 +102,8 @@ private:
 	struct sockaddr_in _master_addr;
 	struct sockaddr_in _client_addr;
 	bool _initial;
+	int master_socket;
+	IOnode_fd_map_t IOnode_fd_map;
 };
-
-pid_t gettid();
 
 #endif

@@ -4,8 +4,6 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include <pthread.h>
-
 #include "CBB_stream.h"
 #include "CBB_internal.h"
 
@@ -131,9 +129,20 @@ int CBB_stream::_close_stream(FILE* file_stream)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
 	_flush_stream(file_stream);
+	_DEBUG("close stream, fd=%d\n", stream->fd);
 	_close(stream->fd);
 	_stream_pool.erase(stream);
+	stream->~stream_info();
+	_path_stream_map.erase(_get_stream_path(stream));
 	return SUCCESS;
+}
+
+CBB_stream::path_stream_map_t::iterator CBB_stream::_get_stream_path(stream_info_t *stream)
+{
+	path_stream_map_t::iterator it;
+	for(it=_path_stream_map.begin();
+			it!=_path_stream_map.end() && stream!=it->second;++it);
+	return it;
 }
 
 int CBB_stream::_flush_stream(FILE* file_stream)
@@ -241,6 +250,7 @@ size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 		size_t buffered_size=MIN(remaining_size, size);
 		size_t unbuffered_size=size-buffered_size;
 		size_t total_size=0;;
+		_DEBUG("remaining_size=%lu, buffered_size=%lu, unbuffered_size=%lu\n", remaining_size, buffered_size, unbuffered_size);
 		memcpy(buffer, stream->cur_buf_ptr, buffered_size);
 		
 		stream->_update_cur_buf_ptr(*this, buffered_size);
@@ -312,6 +322,7 @@ size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t s
 		size_t buffered_size=MIN(remaining_size, size);
 		size_t unbuffered_size=size-buffered_size;
 		size_t total_size=0;;
+		_DEBUG("remaining_size=%lu, buffered_size=%lu, unbuffered_size=%lu\n", remaining_size, buffered_size, unbuffered_size);
 		memcpy(stream->cur_buf_ptr, buffer, buffered_size);
 		stream->_write_meta_update(buffered_size);
 		total_size+=buffered_size;
@@ -347,19 +358,22 @@ off64_t CBB_stream::_seek_stream(FILE* file_stream, off64_t offset, int whence)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
 	off64_t new_pos=0;
-	_DEBUG("old off=%ld, tid=%lu\n", stream->_cur_file_off(), pthread_self());
+	_DEBUG("old off=%ld\n", stream->_cur_file_off());
 	switch(whence)
 	{
 		case SEEK_SET:new_pos=offset;break;
 		case SEEK_CUR:new_pos=stream->_cur_file_off()+offset;break;
 		case SEEK_END:new_pos=static_cast<off64_t>(_get_file_size(stream->fd))+offset;break;
 	}
-	if( new_pos > stream->_cur_file_off()|| new_pos < stream->buf_file_off)
+	if( new_pos > stream->buf_file_off+stream->buffered_data_size|| new_pos < stream->buf_file_off)
 	{
+		_DEBUG("flush stream, new_pos=%ld, current buffered data offset=%ld, current buffer offset =%d\n",
+				new_pos,stream->buf_file_off+stream->buffered_data_size, stream->buf_file_off);
 		_flush_stream(file_stream);
 		stream->cur_buf_ptr=stream->buf;
 		stream->buf_file_off=new_pos;
 		stream->buffered_data_size=0;
+		_lseek(stream->fd, new_pos, SEEK_SET);
 	}
 	else
 	{

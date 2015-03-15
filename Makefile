@@ -17,8 +17,8 @@ CLIENT_FUSE= $(CLIENT_DIR)/CBB_fuse
 
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
-export FLAG=-O0 -g -Wall -DDEBUG
-#export FLAG=-O3 -Wall 
+#export FLAG=-O0 -g -Wall -DDEBUG
+export FLAG=-O3 -Wall 
 
 run:
 	@echo 'run'

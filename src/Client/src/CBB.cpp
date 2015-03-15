@@ -72,7 +72,17 @@ CBB::CBB():
 	_client_addr.sin_port = htons(0);
 	_client_addr.sin_addr.s_addr = htons(INADDR_ANY);
 	_DEBUG("initialization finished\n");
+	_regist_to_master();
 	_initial=true;
+}
+
+inline int CBB::_regist_to_master()
+{
+	int ret;
+	master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
+	Send(master_socket, NEW_CLIENT);
+	Recv(master_socket, ret);
+	return ret;
 }
 
 CBB::~CBB()
@@ -81,11 +91,12 @@ CBB::~CBB()
 			it!=_file_list.end();++it)
 	{
 		int ret=0;
-		int master_socket=Client::_connect_to_server(_client_addr, _master_addr);
 		Send(master_socket, CLOSE_FILE);
 		Send(master_socket, it->second.file_no);
 		Recv(master_socket, ret);
 	}
+	Send(master_socket, CLOSE_CLIENT);
+	close(master_socket);
 }
 
 CBB::block_info::block_info(ssize_t node_id, off64_t start_point, size_t size):
@@ -145,7 +156,6 @@ void CBB::_getblock(int socket, off64_t start_point, size_t& size, std::vector<b
 		Recv(socket, node_id);
 		block.push_back(block_info(node_id, start_point, BLOCK_SIZE));
 	}
-	close(socket);
 }
 	
 
@@ -177,7 +187,6 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	Send(master_socket, OPEN_FILE); 
 	Sendv(master_socket, path, strlen(path));
 	Send(master_socket, flag); 
@@ -201,7 +210,6 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 		Recv(master_socket, file.file_no);
 		Recv(master_socket, file.size);
 		Recv(master_socket, file.block_size);
-		close(master_socket);
 		if(flag & O_APPEND)
 		{
 			file.current_point=file.size;
@@ -215,7 +223,6 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	else
 	{
 		Recv(master_socket, errno);
-		close(master_socket);
 		return -1;
 	}
 }
@@ -344,7 +351,6 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 		CHECK_INIT();
 
 		ssize_t file_no=file.file_no;
-		int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 		_block_list_t blocks;
 		_node_pool_t node_pool;
 		Send(master_socket, READ_FILE);
@@ -359,7 +365,6 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 		{
 			errno=EBADFD;
 			_DEBUG("open file first\n");
-			close(master_socket);
 			return -1;
 		}
 
@@ -386,7 +391,6 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 		off64_t &current_point=file.current_point;
 		CHECK_INIT();
 
-		int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 		_block_list_t blocks;
 		_node_pool_t node_pool;
 
@@ -402,7 +406,6 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 		{
 			errno=EBADFD;
 			_DEBUG("open file first\n");
-			close(master_socket);
 			return -1;
 		}
 	}
@@ -419,7 +422,6 @@ int CBB::_close(int fd)
 	int ret=0;
 	int fid=_BB_fd_to_fid(fd);
 	CHECK_INIT();
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr);
 	Send(master_socket, CLOSE_FILE);
 	Send(master_socket, _file_list[fid].file_no);
 	Recv(master_socket, ret);
@@ -440,7 +442,6 @@ int CBB::_flush(int fd)
 	int ret=0;
 	int fid=_BB_fd_to_fid(fd);
 	CHECK_INIT();
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr);
 	Send(master_socket, FLUSH_FILE);
 	Send(master_socket, _file_list[fid].file_no);
 	Recv(master_socket, ret);
@@ -500,7 +501,6 @@ int CBB::_getattr(const char* path, struct stat* fstat)const
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	Send(master_socket, GET_ATTR); 
 	Sendv(master_socket, path, strlen(path));
 	Recv(master_socket, ret);
@@ -508,13 +508,11 @@ int CBB::_getattr(const char* path, struct stat* fstat)const
 	{
 		_DEBUG("SUCCESS\n");
 		Recv(master_socket, *fstat);
-		close(master_socket);
 		return 0;
 	}
 	else
 	{
 		errno=ret;
-		close(master_socket);
 		return -errno;
 	}
 }
@@ -524,7 +522,6 @@ int CBB::_readdir(const char * path, dir_t& dir)const
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	Send(master_socket, READ_DIR); 
 	Sendv(master_socket, path, strlen(path));
 	Recv(master_socket, ret);
@@ -540,13 +537,11 @@ int CBB::_readdir(const char * path, dir_t& dir)const
 			dir.push_back(std::string(path));
 			free(path);
 		}
-		close(master_socket);
 		return 0;
 	}
 	else
 	{
 		errno=ret;
-		close(master_socket);
 		return -errno;
 	}
 }
@@ -556,11 +551,9 @@ int CBB::_rmdir(const char * path)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	Send(master_socket, RM_DIR); 
 	Sendv(master_socket, path, strlen(path));
 	Recv(master_socket, ret);
-	close(master_socket);
 	if(SUCCESS == ret)
 	{
 		return 0;
@@ -577,11 +570,9 @@ int CBB::_unlink(const char * path)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	Send(master_socket, UNLINK); 
 	Sendv(master_socket, path, strlen(path));
 	Recv(master_socket, ret);
-	close(master_socket);
 	if(SUCCESS == ret)
 	{
 		return 0;
@@ -598,12 +589,10 @@ int CBB::_access(const char* path, int mode)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	Send(master_socket, ACCESS); 
 	Sendv(master_socket, path, strlen(path));
 	Send(master_socket, mode);
 	Recv(master_socket, ret);
-	close(master_socket);
 	if(SUCCESS == ret)
 	{
 		return 0;
@@ -620,7 +609,6 @@ int CBB::_stat(const char* path, struct stat* buf)
 	CHECK_INIT();
 	int ret;
 	memset(buf, 0, sizeof(struct stat));
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr);
 	Send(master_socket, GET_FILE_META);
 	Sendv(master_socket, path, strlen(path));
 	Recv(master_socket, ret);
@@ -640,12 +628,10 @@ int CBB::_rename(const char* old_name, const char* new_name)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	Send(master_socket, RENAME); 
 	Sendv(master_socket, old_name, strlen(old_name));
 	Sendv(master_socket, new_name, strlen(new_name));
 	Recv(master_socket, ret);
-	close(master_socket);
 	if(SUCCESS == ret)
 	{
 		return 0;
@@ -662,12 +648,10 @@ int CBB::_mkdir(const char* path, mode_t mode)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
 	Send(master_socket, MKDIR); 
 	Sendv(master_socket, path, strlen(path));
 	Send(master_socket, mode);
 	Recv(master_socket, ret);
-	close(master_socket);
 	if(SUCCESS == ret)
 	{
 		return 0;

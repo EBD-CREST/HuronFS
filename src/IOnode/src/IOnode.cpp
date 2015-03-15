@@ -14,6 +14,8 @@
 #include <errno.h>
 #include <sys/types.h>
 
+#include <linux/limits.h>
+
 #include "IOnode.h"
 #include "CBB_const.h"
 #include "Communication.h"
@@ -542,24 +544,31 @@ int IOnode::_close_file(int sockfd)
 {
 	ssize_t file_no;
 	Recv(sockfd, file_no);
-	std::string &path=_file_path.at(file_no);
-	block_info_t &blocks=_files.at(file_no);
-	_DEBUG("close file, path=%s\n", path.c_str());
-	for(block_info_t::iterator it=blocks.begin();
-			it != blocks.end();++it)
+	try
 	{
-		block* _block=it->second;
-		if(DIRTY == _block->dirty_flag)
+		std::string &path=_file_path.at(file_no);
+		block_info_t &blocks=_files.at(file_no);
+		_DEBUG("close file, path=%s\n", path.c_str());
+		for(block_info_t::iterator it=blocks.begin();
+				it != blocks.end();++it)
 		{
-			_write_to_storage(path, _block);
-			puts((char*)_block->data);
+			block* _block=it->second;
+			if(DIRTY == _block->dirty_flag)
+			{
+				_write_to_storage(path, _block);
+				puts((char*)_block->data);
+			}
+			delete _block;
 		}
-		delete _block;
+		_files.erase(file_no);
+		_file_path.erase(file_no);
+		//Send(sockfd, SUCCESS);
+		return SUCCESS;
 	}
-	_files.erase(file_no);
-	_file_path.erase(file_no);
-	//Send(sockfd, SUCCESS);
-	return SUCCESS;
+	catch(std::out_of_range &e)
+	{
+		return FAILURE;
+	}
 }
 
 inline std::string IOnode::_get_real_path(const char* path)const
