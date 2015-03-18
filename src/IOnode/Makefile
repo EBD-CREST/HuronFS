@@ -2,7 +2,6 @@ LIB = libIOnode.so
 OBJ = IOnode
 SRC_DIR = src
 HEADER_DIR = include
-CC = g++
 INCLUDE_PATH = -I./include -I../Common/include
 SERVER = ../Common/Server.o
 CLIENT = ../Common/Client.o

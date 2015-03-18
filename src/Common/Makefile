@@ -3,7 +3,6 @@ CLIENT = Client.o
 
 SRC_DIR = src
 HEADER_DIR = include
-CC = g++
 INCLUDE_PATH = -I./
 
 vpath %.cpp src/

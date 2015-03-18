@@ -8,7 +8,7 @@
 #include <error.h>
 
 #include "CBB_stream.h"
-#include "CBB_posix.h"
+//#include "CBB_posix.h"
 #include "CBB_internal.h"
 
 CBB_stream client;

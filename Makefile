@@ -15,10 +15,11 @@ IONODE = $(IONODE_DIR)/IOnode
 CLIENT_LIB = $(CLIENT_DIR)/libCBB.so
 CLIENT_FUSE= $(CLIENT_DIR)/CBB_fuse
 
+export CC=g++
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
-#export FLAG=-O0 -g -Wall -DDEBUG
-export FLAG=-O3 -Wall 
+export FLAG=-O0 -g -Wall -DDEBUG
+#export FLAG=-O3 -Wall 
 
 run:
 	@echo 'run'

@@ -41,8 +41,7 @@ CBB_stream::stream_info::~stream_info()
 
 CBB_stream::CBB_stream():
 	CBB(),
-	_stream_pool(),
-	_path_stream_map()
+	_stream_pool()
 {}
 
 CBB_stream::~CBB_stream()
@@ -103,7 +102,6 @@ FILE* CBB_stream::_open_stream(const char* path, const char* mode)
 		size_t file_size=_get_file_size(fd);
 		stream_info* new_stream=new stream_info(CLEAN, true, fd, file_size, 0, flag, open_mode);
 		_stream_pool.insert(std::make_pair(new_stream, fd));
-		_path_stream_map.insert(std::make_pair(std::string(path), new_stream));
 		return reinterpret_cast<FILE*>(new_stream);
 	}
 }
@@ -120,7 +118,6 @@ FILE* CBB_stream::_open_stream(const char* path, int flag, mode_t mode)
 		size_t file_size=_get_file_size(fd);
 		stream_info* new_stream=new stream_info(CLEAN, true, fd, file_size, 0, flag, mode);
 		_stream_pool.insert(std::make_pair(new_stream, fd));
-		_path_stream_map.insert(std::make_pair(std::string(path), new_stream));
 		return reinterpret_cast<FILE*>(new_stream);
 	}
 }
@@ -133,16 +130,7 @@ int CBB_stream::_close_stream(FILE* file_stream)
 	_close(stream->fd);
 	_stream_pool.erase(stream);
 	stream->~stream_info();
-	_path_stream_map.erase(_get_stream_path(stream));
 	return SUCCESS;
-}
-
-CBB_stream::path_stream_map_t::iterator CBB_stream::_get_stream_path(stream_info_t *stream)
-{
-	path_stream_map_t::iterator it;
-	for(it=_path_stream_map.begin();
-			it!=_path_stream_map.end() && stream!=it->second;++it);
-	return it;
 }
 
 int CBB_stream::_flush_stream(FILE* file_stream)
@@ -151,6 +139,7 @@ int CBB_stream::_flush_stream(FILE* file_stream)
 	_DEBUG("current offset=%ld\n", stream->_cur_file_off());
 	if(DIRTY == stream->dirty_flag)
 	{
+		_update_file_size(stream->fd, stream->file_size);
 		_lseek(stream->fd, stream->buf_file_off, SEEK_SET);
 		_write(stream->fd, stream->buf, stream->buffered_data_size);
 		stream->dirty_flag=CLEAN;
@@ -290,6 +279,13 @@ size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 	}
 }
 
+int CBB_stream::_update_underlying_file_size(FILE* file_stream)
+{
+	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
+	CBB::_update_file_size(stream->fd, stream->file_size);
+	return SUCCESS;
+}
+
 size_t CBB_stream::stream_info::_write_meta_update(size_t write_size)
 {
 
@@ -298,9 +294,9 @@ size_t CBB_stream::stream_info::_write_meta_update(size_t write_size)
 	{
 		buffered_data_size=_cur_buf_off();
 	}
-	if(buffered_data_size + _cur_file_off() > file_size)
+	if(_cur_file_off() > file_size)
 	{
-		file_size = buffered_data_size + _cur_file_off();
+		file_size = _cur_file_off();
 	}
 	return write_size;
 }
@@ -309,7 +305,7 @@ size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t s
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
 	//use buffer
-	
+
 	if(!(stream->open_flag & O_WRONLY || stream->open_flag & O_RDWR))
 	{
 		stream->err=EBADF;
@@ -425,7 +421,7 @@ int CBB_stream::_fileno_stream(FILE* file_stream)
 	return stream->fd;
 }
 
-FILE* CBB_stream::_get_stream_from_path(const char* path)
+/*FILE* CBB_stream::_get_stream_from_path(const char* path)
 {
 	try
 	{
@@ -451,4 +447,4 @@ const FILE* CBB_stream::_get_stream_from_path(const char* path)const
 		fprintf(stderr, "open file frist\n");
 		return NULL;
 	}
-}
+}*/

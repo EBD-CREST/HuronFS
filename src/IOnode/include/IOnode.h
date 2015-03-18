@@ -74,6 +74,8 @@ private:
 	int _flush_file(int sockfd);
 	int _close_file(int sockfd);
 	int _append_new_block(int sockfd);
+	int _regist_new_client(int sockfd);
+	int _close_client(int sockfd);
 	block *_buffer_block(off64_t start_point, size_t size)throw(std::runtime_error);
 	int _receive_data(int sockfd); 
 	//int _write_back_file(int sockfd);

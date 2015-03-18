@@ -12,7 +12,6 @@ OBJ = $(CBB) $(CBB_STREAM) $(CBB_STDIO) $(CBB_POSIX)
 
 SRC_DIR = src
 HEADER_DIR = include
-CC = g++
 INCLUDE_PATH = -I./include/ -I../Common/include
 FUSE_HEADER = $(shell pkg-config --cflags --libs fuse)
 
@@ -36,7 +35,7 @@ $(CBB):$(SRC_DIR)/CBB.cpp $(HEADER_DIR)/CBB.h
 	$(CC) -c $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $<
 
 fuse:$(SRC_DIR)/CBB_fuse.cpp
-	$(CC) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) $(FUSE_PATH) -D_FILE_OFFSET_BITS=64 -o $@ $<
+	$(CC) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) $(FUSE_PATH) -o $@ $<
 
 $(CLIENT):
 	cd ../Common && $(MAKE) $(notdir $@)

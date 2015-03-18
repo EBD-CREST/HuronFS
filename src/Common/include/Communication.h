@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include "CBB_internal.h"
 
@@ -188,4 +189,27 @@ template<class T> size_t Sendv_pre_alloc(int sockfd,const T* buffer, size_t coun
 	return count*sizeof(T)-length;
 }
 
+inline int Send_attr(int socket, struct stat* file_stat)
+{
+	Send(socket, file_stat->st_mode);    /* protection */
+	Send(socket, file_stat->st_uid);     /* user ID of owner */
+	Send(socket, file_stat->st_gid);     /* group ID of owner */
+	Send(socket, file_stat->st_size);    /* total size, in bytes */
+	Send(socket, file_stat->st_atime);   /* time of last access */
+	Send(socket, file_stat->st_mtime);   /* time of last modification */
+	Send(socket, file_stat->st_ctime);   /* time of last status change */
+	return SUCCESS;
+}
+
+inline int Recv_attr(int socket, struct stat* file_stat)
+{
+	Recv(socket, file_stat->st_mode);    /* protection */
+	Recv(socket, file_stat->st_uid);     /* user ID of owner */
+	Recv(socket, file_stat->st_gid);     /* group ID of owner */
+	Recv(socket, file_stat->st_size);    /* total size, in bytes */
+	Recv(socket, file_stat->st_atime);   /* time of last access */
+	Recv(socket, file_stat->st_mtime);   /* time of last modification */
+	Recv(socket, file_stat->st_ctime);   /* time of last status change */
+	return SUCCESS;
+}
 #endif

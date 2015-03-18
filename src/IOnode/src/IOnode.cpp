@@ -144,10 +144,10 @@ int IOnode::_parse_new_request(int sockfd, const struct sockaddr_in& client_addr
 		ans=SERVER_SHUT_DOWN; break; */
 	case READ_FILE:
 		_send_data(sockfd);break;
-	case WRITE_FILE:
-		_receive_data(sockfd);break;
-/*	dafault:
-		break; */
+	case NEW_CLIENT:
+		_regist_new_client(sockfd);break;
+	default:
+		break; 
 	}
 	return ans; 
 }
@@ -159,6 +159,10 @@ int IOnode::_parse_registed_request(int sockfd)
 	Recv(sockfd, request); 
 	switch(request)
 	{
+	case READ_FILE:
+		_send_data(sockfd);break;
+	case WRITE_FILE:
+		_receive_data(sockfd);break;
 	case OPEN_FILE:
 		_open_file(sockfd);break;
 	case APPEND_BLOCK:
@@ -173,8 +177,10 @@ int IOnode::_parse_registed_request(int sockfd)
 		_flush_file(sockfd);break;
 	case CLOSE_FILE:
 		_close_file(sockfd);break;
-/*	default:
-		break; */
+	case CLOSE_CLIENT:
+		_close_client(sockfd);break;
+	default:
+		break; 
 	}
 	return ans; 
 }
@@ -204,13 +210,11 @@ int IOnode::_send_data(int sockfd)
 		}
 		Send(sockfd, SUCCESS);
 		Sendv_pre_alloc(sockfd, reinterpret_cast<char*>(requested_block->data)+offset, size);
-		close(sockfd);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
 		Send(sockfd, FILE_NOT_FOUND);
-		close(sockfd);
 		return FAILURE;
 	}
 }
@@ -235,7 +239,7 @@ int IOnode::_open_file(int sockfd)
 	{
 		_append_block(sockfd, blocks);
 	}
-	delete path_buffer; 
+	delete[] path_buffer; 
 	return SUCCESS; 
 }
 
@@ -436,13 +440,11 @@ int IOnode::_receive_data(int clientfd)
 			_block->data_size = offset+size;
 		}
 		_block->dirty_flag=DIRTY;
-		close(clientfd);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
 		Send(clientfd, FILE_NOT_FOUND);
-		close(clientfd);
 		return FAILURE;
 	}
 }
@@ -569,6 +571,23 @@ int IOnode::_close_file(int sockfd)
 	{
 		return FAILURE;
 	}
+}
+
+int IOnode::_regist_new_client(int sockfd)
+{
+	_LOG("new client\n");
+	Server::_add_socket(sockfd);
+	Send(sockfd, SUCCESS);
+	return SUCCESS;
+}
+
+int IOnode::_close_client(int sockfd)
+{
+	_LOG("close client\n");
+	Server::_delete_socket(sockfd);
+	Send(sockfd, SUCCESS);
+	close(sockfd);
+	return SUCCESS;
 }
 
 inline std::string IOnode::_get_real_path(const char* path)const

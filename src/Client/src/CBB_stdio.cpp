@@ -9,7 +9,7 @@
 #include <limits.h>
 
 #include "CBB.h"
-#include "CBB_stdio.h"
+//#include "CBB_stdio.h"
 #include "CBB_internal.h"
 #include "CBB_stream.h"
 

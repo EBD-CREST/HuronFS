@@ -12,6 +12,8 @@
 #include <set>
 #include <string>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <stdexcept>
 #include <stdlib.h>
 #include <vector>
@@ -38,13 +40,13 @@ private:
 	typedef std::set<ssize_t> node_pool_t;
 	//map file_path: file_no
 	typedef std::map<std::string, ssize_t> file_no_t; 
-	//map socket, node_info	
+	//map socket, node_info	need delete
 	typedef std::map<int, node_info*> IOnode_sock_t; 
 	
-	//map node_id:node_info
-	typedef std::map<ssize_t, node_info> IOnode_t; 
-	//map file_no:file_info
-	typedef std::map<ssize_t, file_info> File_t; 
+	//map node_id:node_info need delete
+	typedef std::map<ssize_t, node_info*> IOnode_t; 
+	//map file_no:file_info need delete
+	typedef std::map<ssize_t, file_info*> File_t; 
 	//map file_no: ip
 	typedef std::set<ssize_t> node_id_pool_t;
 
@@ -55,24 +57,29 @@ private:
 
 	typedef std::vector<std::string> dir_t;
 
-	struct file_info
+	class file_info
 	{
+	public:
 		file_info(const std::string& path,
 				ssize_t fileno,
-				size_t size,
+				size_t file_size,
 				size_t block_size,
 				const node_t& IOnodes,
 				int flag); 
+		file_info(const std::string& path,
+				ssize_t fileno,
+				int flag);
+		void _set_nodes_pool();
 
 		ssize_t file_no;
 		std::string path; 
 		node_t p_node;
 		node_pool_t nodes;
-		size_t size; 
 		size_t block_size;
 		int open_count;
 		//open file
 		int flag; 
+		struct stat fstat;
 	}; 
 
 	struct node_info
@@ -105,9 +112,7 @@ private:
 
 	IOnode_t::iterator _find_by_ip(const std::string& ip);
 
-	virtual int _parse_new_request(int socketfd, const struct sockaddr_in& client_addr);
-	virtual int _parse_registed_request(int socketfd); 
-	virtual std::string _get_real_path(const char* path)const;
+	virtual int _parse_new_request(int socketfd, const struct sockaddr_in& client_addr); virtual int _parse_registed_request(int socketfd); virtual std::string _get_real_path(const char* path)const;
 	virtual std::string _get_real_path(const std::string& path)const;
 
 	int _parse_regist_IOnode(int clientfd, const std::string& ip);
@@ -132,7 +137,7 @@ private:
 	int _parse_rename(int clientfd);
 	int _parse_close_client(int clientfd);
 
-	node_t _send_request_to_IOnodes(const char *file_path, ssize_t file_no, int flag, size_t& file_length, size_t& block_size)throw(std::invalid_argument); 
+	int _send_request_to_IOnodes(struct file_info& file);
 
 	node_t _select_IOnode(off64_t start_point, size_t file_size, size_t block_size, node_block_map_t& node_block_map)const; 
 
@@ -143,6 +148,10 @@ private:
 	int _allocate_one_block(const struct file_info &file)throw(std::bad_alloc);
 	void _append_block(struct file_info& file, int node_id, off64_t start_point);
 	int _remove_file(int fd);
+
+	int _get_file_meta(struct file_info& file)throw (std::invalid_argument);
+	
+	int _get_client_file_meta_update(int clientfd, struct stat* file_stat);
 
 private:
 	IOnode_t _registed_IOnodes;

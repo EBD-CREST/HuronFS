@@ -146,6 +146,6 @@ int Server::_recv_real_relative_path(int clientfd, std::string& real_path, std::
 	Recvv(clientfd, &path);
 	relative_path=std::string(path);
 	real_path=_get_real_path(relative_path);
-	delete path;
+	delete[] path;
 	return SUCCESS;
 }

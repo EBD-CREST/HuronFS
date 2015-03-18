@@ -2,7 +2,6 @@ LIB = libMaster.so
 OBJ = Master 
 SRC_DIR = src
 HEADER_DIR = include
-CC = g++
 INCLUDE_PATH = -I./include -I../Common/include
 LINK_PATH = -L./
 SERVER = ../Common/Server.o
