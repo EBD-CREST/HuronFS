@@ -18,14 +18,15 @@ CLIENT_FUSE= $(CLIENT_DIR)/CBB_fuse
 export CC=g++
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
-export FLAG=-O0 -g -Wall -DDEBUG
-#export FLAG=-O3 -Wall 
+#export FLAG=-O0 -g -Wall -DDEBUG
+export FLAG=-O3 -Wall 
 
 run:
 	@echo 'run'
 	@echo 'make Master'
 	@echo 'or make IOnode'
 	@echo 'or make Client'
+	@echo 'or make Client_fuse'
 	@echo 'or make all'
 
 .PHONY:clean clean_all Master IOnode Client all

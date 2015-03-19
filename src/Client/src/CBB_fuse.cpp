@@ -125,6 +125,7 @@ static int CBB_write(const char* path, const char*buffer, size_t count, off_t of
 		}
 		_DEBUG("path=%s\n", path);
 		ret=client._write_stream(stream, buffer, count);
+		client._update_underlying_file_size(stream);
 #ifdef MULTITHREAD
 		funlockfile(stdout);
 #endif

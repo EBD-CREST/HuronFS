@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <string.h>
 
 #include "CBB_internal.h"
 
@@ -189,7 +190,7 @@ template<class T> size_t Sendv_pre_alloc(int sockfd,const T* buffer, size_t coun
 	return count*sizeof(T)-length;
 }
 
-inline int Send_attr(int socket, struct stat* file_stat)
+inline int Send_attr(int socket, const struct stat* file_stat)
 {
 	Send(socket, file_stat->st_mode);    /* protection */
 	Send(socket, file_stat->st_uid);     /* user ID of owner */

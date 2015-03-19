@@ -204,6 +204,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 {
 	int ret=0;
 	file_meta* file_meta_p=NULL;
+	std::string string_path=std::string(path);
 	CHECK_INIT();
 	int fid;
 	if(-1 == (fid=_get_fid()))
@@ -213,7 +214,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	}
 	try
 	{
-		file_meta_p=_path_file_meta_map.at(std::string(path));
+		file_meta_p=_path_file_meta_map.at(string_path);
 		if(-1 == file_meta_p->file_no)
 		{
 			throw std::out_of_range("");
@@ -236,6 +237,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 			if(NULL == file_meta_p)
 			{
 				file_meta_p=_create_new_file(path);
+				_path_file_meta_map.insert(std::make_pair(string_path, file_meta_p));
 			}
 			else
 			{
@@ -434,7 +436,6 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 		Recv(master_socket, ret);
 		if(SUCCESS == ret)
 		{
-			_update_fstat_to_server(file);
 			if(size+file.current_point > file.file_meta_p->file_stat.st_size)
 			{
 				if(file.file_meta_p->file_stat.st_size>file.current_point)
@@ -488,17 +489,9 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 		Recv(master_socket, ret);
 		if(SUCCESS == ret)
 		{
-			ret=_update_fstat_to_server(file);
-			if(SEND_META == ret)
-			{
-				_getblock(master_socket, current_point, size, blocks, node_pool);
-				return _write_to_IOnode(file, blocks, node_pool,  static_cast<const char *>(buffer), size);
-			}
-			else
-			{
-				//write data is out of date
-				return size;
-			}
+			Send_attr(master_socket, &file.file_meta_p->file_stat);
+			_getblock(master_socket, current_point, size, blocks, node_pool);
+			return _write_to_IOnode(file, blocks, node_pool,  static_cast<const char *>(buffer), size);
 		}
 		else
 		{
@@ -552,14 +545,7 @@ int CBB::_touch(int fd)
 	{
 		file_info& file=_file_list.at(fid);
 		time_t new_time=time(NULL);
-		if(file.file_meta_p->file_stat.st_mtime == new_time)
-		{
-			file.file_meta_p->file_stat.st_mtime=new_time+1;
-		}
-		else
-		{
-			file.file_meta_p->file_stat.st_mtime=new_time;
-		}
+		file.file_meta_p->file_stat.st_mtime=new_time;
 		file.file_meta_p->file_stat.st_atime=file.file_meta_p->file_stat.st_mtime;
 		return 0;
 	}
@@ -584,6 +570,10 @@ int CBB::_close(int fd)
 		if(SUCCESS == ret)
 		{
 			_opened_file[fid]=false;
+			if(1 == file.file_meta_p->open_count)
+			{
+				_path_file_meta_map.erase(file.file_meta_p->file_path);
+			}
 			_file_list.erase(fid);
 
 			return 0;
@@ -689,9 +679,9 @@ int CBB::_getattr(const char* path, struct stat* fstat)
 		{
 			_DEBUG("SUCCESS\n");
 			Recv_attr(master_socket, fstat);
-			file_meta* file_meta_p=new file_meta(-1, path, -1, fstat);
-			++file_meta_p->open_count;
-			_path_file_meta_map.insert(std::make_pair(std::string(path), file_meta_p));
+			//file_meta* file_meta_p=new file_meta(-1, path, 0, fstat);
+			//++file_meta_p->open_count;
+			//_path_file_meta_map.insert(std::make_pair(std::string(path), file_meta_p));
 			return 0;
 		}
 		else
@@ -951,7 +941,7 @@ size_t CBB::_get_file_size(int fd)
 	}
 }*/
 
-int CBB::_update_fstat_to_server(file_info& file)
+/*int CBB::_update_fstat_to_server(file_info& file)
 {
 	int ret;
 	Send(master_socket, file.file_meta_p->file_stat.st_mtime);
@@ -971,7 +961,7 @@ int CBB::_update_fstat_to_server(file_info& file)
 		_DEBUG("not update attr\n");
 	}
 	return ret;
-}
+}*/
 
 int CBB::_get_local_attr(const char* path, struct stat *file_stat)
 {

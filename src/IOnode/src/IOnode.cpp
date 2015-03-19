@@ -502,7 +502,6 @@ size_t IOnode::_write_to_storage(const std::string& path, const block* block_dat
 		perror("Seek"); 
 		throw std::runtime_error("Seek File Error"); 
 	}
-	printf("seek %ld\n",pos);
 	struct iovec iov;
 	iov.iov_base=const_cast<void*>(block_data->data);
 	iov.iov_len=block_data->data_size;

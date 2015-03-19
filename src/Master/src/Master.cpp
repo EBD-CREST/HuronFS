@@ -618,7 +618,7 @@ int Master::_get_file_meta(struct file_info& file) throw(std::invalid_argument)
 	return SUCCESS;
 }
 
-int Master::_get_client_file_meta_update(int clientfd, struct stat* file_stat)
+/*int Master::_get_client_file_meta_update(int clientfd, struct stat* file_stat)
 {
 	time_t time;
 	Recv(clientfd, time);
@@ -639,7 +639,10 @@ int Master::_get_client_file_meta_update(int clientfd, struct stat* file_stat)
 		Send(clientfd, NO_NEED_META);
 		return NO_NEED_META;
 	}
-}
+	Send(clientfd, SEND_META);
+	Send_attr(clientfd, file_stat);
+	return SUCCESS;
+}*/
 
 
 int Master::_parse_unlink(int clientfd)
@@ -771,7 +774,6 @@ int Master::_parse_read_file(int clientfd)
 		Send(clientfd, OUT_OF_RANGE);
 		return -1; 
 	}
-	_get_client_file_meta_update(clientfd, &file->fstat);
 	
 	Recv(clientfd, start_point);
 	Recv(clientfd, size);
@@ -929,31 +931,29 @@ int Master::_parse_write_file(int clientfd)
 		}
 		close(fd);*/
 		Send(clientfd, SUCCESS);
-		int ret=_get_client_file_meta_update(clientfd, &file.fstat);
-		if(SEND_META== ret)
-		{
-			Recv(clientfd, start_point);
-			Recv(clientfd, size);
-			/*if(file.fstat.st_size< start_point+size)
-			  {
-			  file.fstat.st_size=start_point+size;
-			  }*/
-			_DEBUG("real_path=%s, file_size=%d\n", real_path.c_str(), file.fstat.st_size);
+		//int ret=_get_client_file_meta_update(clientfd, &file.fstat);
+		Recv_attr(clientfd, &file.fstat);
+		Recv(clientfd, start_point);
+		Recv(clientfd, size);
+		/*if(file.fstat.st_size< start_point+size)
+		  {
+		  file.fstat.st_size=start_point+size;
+		  }*/
+		_DEBUG("real_path=%s, file_size=%d\n", real_path.c_str(), file.fstat.st_size);
 
-			//node_t nodes=_select_IOnode(start_point, size, file.block_size);
-			node_t nodes;
-			node_id_pool_t node_pool;
-			_get_IOnodes_for_IO(start_point, size, file, nodes, node_pool);
-			//insert allocate node into file node list
-			/*for(node_t::const_iterator it=nodes.begin();
-			  it!=nodes.end();++it)
-			  {
-			  file.p_node.insert(std::make_pair(it->first, it->second));
-			  }*/
+		//node_t nodes=_select_IOnode(start_point, size, file.block_size);
+		node_t nodes;
+		node_id_pool_t node_pool;
+		_get_IOnodes_for_IO(start_point, size, file, nodes, node_pool);
+		//insert allocate node into file node list
+		/*for(node_t::const_iterator it=nodes.begin();
+		  it!=nodes.end();++it)
+		  {
+		  file.p_node.insert(std::make_pair(it->first, it->second));
+		  }*/
 
-			//_send_IO_request(file_no, file, nodes, size, WRITE_FILE);
-			_send_block_info(clientfd, node_pool, nodes);
-		}
+		//_send_IO_request(file_no, file, nodes, size, WRITE_FILE);
+		_send_block_info(clientfd, node_pool, nodes);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
