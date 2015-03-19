@@ -15,13 +15,16 @@
 
 class CBB:Client
 {
-public:
-	typedef std::set<int> opened_fd_t;
 private:
 	class block_info;
 	class file_meta;
 	class file_info;
+	//map path, fd
+	typedef std::map<std::string, file_meta*> _path_file_meta_map_t;
 
+public:
+	typedef std::set<int> opened_fd_t;
+private:
 
 	class  block_info
 	{
@@ -39,14 +42,15 @@ private:
 	public:
 		friend class CBB;
 		friend class file_info;
-		file_meta(ssize_t file_no, const char* file_path, size_t block_size,const struct stat* file_stat);
+		file_meta(ssize_t file_no, size_t block_size,const struct stat* file_stat);
 	private:
 		ssize_t file_no;
 		int open_count;
 		size_t block_size;
-		std::string file_path;
 		struct stat file_stat;
 		opened_fd_t opened_fd;
+		_path_file_meta_map_t::iterator it;
+
 	};
 
 	class file_info
@@ -71,8 +75,6 @@ public:
 	typedef std::vector<bool> _file_t;
 	typedef std::vector<block_info> _block_list_t;
 	typedef std::map<ssize_t, std::string> _node_pool_t;
-	//map path, fd
-	typedef std::map<std::string, file_meta*> _path_file_meta_map_t;
 	typedef std::vector<std::string> dir_t;
 	//map IOnode id: fd
 	typedef std::map<int, int> IOnode_fd_map_t;
@@ -101,6 +103,8 @@ public:
 	int _rename(const char* old_name, const char* new_name);
 	int _mkdir(const char* path, mode_t mode);
 	int _touch(int fd);
+	int _truncate(const char*path, off64_t size);
+	int _ftruncate(int fd, off64_t size);
 	
 	off64_t _tell(int fd);
 
@@ -128,7 +132,7 @@ private:
 	static inline int _BB_fid_to_fd(int fid);
 	int _update_fstat_to_server(file_info& file);
 	int _get_local_attr(const char*path, struct stat *file_stat);
-	file_meta* _create_new_file(const char* path);
+	file_meta* _create_new_file();
 	int _close_local_opened_file(const char* path);
 private:
 	int _fid_now;

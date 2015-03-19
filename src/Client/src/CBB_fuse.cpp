@@ -18,19 +18,29 @@
 static CBB_stream client;
 struct fuse_operations CBB_oper;
 
+inline void lock_stream(FILE* stream)
+{
+#ifdef MULTITHREAD
+	flockfile(stream);
+#endif
+}
+
+inline void unlock_stream(FILE* stream)
+{
+#ifdef MULTITHREAD
+	funlockfile(stream);
+#endif
+}
+
 static int CBB_open(const char* path, struct fuse_file_info *fi)
 {
 	mode_t mode=0600;
 	int flag=fi->flags;
 	FILE* stream=NULL;
 	_DEBUG("open with CBB path=%s\n", path);
-#ifdef MULTITHREAD
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	stream=client._open_stream(path, flag, mode);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
+	unlock_stream(stdout);
 	fi->fh=(uint64_t)stream;
 	if(NULL == stream)
 	{
@@ -46,13 +56,9 @@ static int CBB_flush(const char *path, struct fuse_file_info* fi)
 {
 	FILE* stream=(FILE*)(fi->fh);
 	int ret=0;
-#ifdef MULTITHREAD
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	ret=client._flush_stream(stream);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
+	unlock_stream(stdout);
 	return ret;
 }
 
@@ -60,13 +66,9 @@ static int CBB_creat(const char * path, mode_t mode, struct fuse_file_info* fi)
 {
 	FILE* stream=NULL;
 	_DEBUG("CBB create file path=%s\n", path);
-#ifdef MULTITHREAD 
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	stream=client._open_stream(path, O_CREAT|O_WRONLY|O_TRUNC, mode);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
+	unlock_stream(stdout);
 	fi->fh=(uint64_t)stream;
 	if(NULL == stream)
 	{
@@ -82,25 +84,16 @@ static int CBB_read(const char* path, char *buffer, size_t count, off_t offset, 
 {
 	FILE* stream=(FILE*)fi->fh;
 	int ret=0;
-	//return 2;
 	if(NULL != stream)
 	{
-#ifdef MULTITHREAD
-		flockfile(stdout);
-#endif
+		lock_stream(stdout);
 		if(-1 == client._seek_stream(stream, offset, SEEK_SET))
 		{
 			return -1;
 		}
 		ret=client._read_stream(stream, buffer, count);
 		_DEBUG("ret=%d path=%s\n", ret,path);
-#ifdef MULTITHREAD
-		funlockfile(stdout);
-#endif
-	/*	char real_path[PATH_MAX];
-		sprintf(real_path, "/tmp/test/%s", path);
-		int fd=open(real_path, O_RDONLY);
-		pread(fd, buffer, count, offset);*/
+		unlock_stream(stdout);
 		return ret;
 	}
 	else
@@ -116,19 +109,16 @@ static int CBB_write(const char* path, const char*buffer, size_t count, off_t of
 	int ret;
 	if(NULL != stream)
 	{
-#ifdef MULTITHREAD
-		flockfile(stdout);
-#endif
+		lock_stream(stdout);
 		if(-1 == client._seek_stream(stream, offset, SEEK_SET))
 		{
+			unlock_stream(stdout);
 			return -1;
 		}
 		_DEBUG("path=%s\n", path);
 		ret=client._write_stream(stream, buffer, count);
 		client._update_underlying_file_size(stream);
-#ifdef MULTITHREAD
-		funlockfile(stdout);
-#endif
+		unlock_stream(stdout);
 		return ret;
 	}
 	else
@@ -141,13 +131,9 @@ static int CBB_write(const char* path, const char*buffer, size_t count, off_t of
 static int CBB_getattr(const char* path, struct stat* stbuf)
 {
 	_DEBUG("CBB getattr path=%s\n", path);
-#ifdef MULTITHREAD
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	int ret=client._getattr(path, stbuf);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
+	unlock_stream(stdout);
 	_DEBUG("ret=%d path=%s file_size=%lu\n", ret,path,stbuf->st_size);
 	return ret;
 }
@@ -155,13 +141,9 @@ static int CBB_getattr(const char* path, struct stat* stbuf)
 static int CBB_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi)
 {
 	CBB::dir_t dir;
-#ifdef MULTITHREAD
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	client._readdir(path,dir);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
+	unlock_stream(stdout);
 	for(CBB::dir_t::const_iterator it=dir.begin();
 			it!=dir.end();++it)
 	{
@@ -176,13 +158,9 @@ static int CBB_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_
 static int CBB_unlink(const char* path)
 {
 	_DEBUG("CBB unlink path=%s\n", path);
-#ifdef MULTITHREAD
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	int ret=client._unlink(path);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
+	unlock_stream(stdout);
 	_DEBUG("ret=%d\n", ret);
 	return ret;
 }
@@ -190,13 +168,9 @@ static int CBB_unlink(const char* path)
 static int CBB_rmdir(const char* path)
 {
 	_DEBUG("CBB rmdir path=%s\n", path);
-#ifdef MULTITHREAD
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	int ret=client._rmdir(path);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
+	unlock_stream(stdout);
 	_DEBUG("ret=%d\n", ret);
 	return ret;
 }
@@ -204,13 +178,9 @@ static int CBB_rmdir(const char* path)
 static int CBB_access(const char* path, int mode)
 {
 	_DEBUG("CBB access path=%s\n", path);
-#ifdef MULTITHREAD
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	int ret=client._access(path, mode);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
+	unlock_stream(stdout);
 	_DEBUG("ret=%d path=%s\n", ret, path);
 	return ret;
 }
@@ -220,27 +190,19 @@ static int CBB_release(const char* path, struct fuse_file_info* fi)
 	FILE* stream=(FILE*)fi->fh;
 	int ret=-1;
 	_DEBUG("CBB release path=%s\n", path);
-#ifdef MULTITHREAD
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	ret=client._close_stream(stream);
+	unlock_stream(stdout);
 	_DEBUG("ret=%d path=%s\n", ret, path);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
 	return ret;
 }
 
 static int CBB_mkdir(const char* path, mode_t mode)
 {
 	_DEBUG("CBB mkdir path=%s\n", path);
-#ifdef MULTITHREAD
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	int ret=client._mkdir(path, mode);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
+	unlock_stream(stdout);
 	_DEBUG("ret=%d\n", ret);
 	return ret;
 }
@@ -248,14 +210,29 @@ static int CBB_mkdir(const char* path, mode_t mode)
 static int CBB_rename(const char* old_name, const char* new_name)
 {
 	_DEBUG("CBB rename path=%s\n", old_name);
-#ifdef MULTITHREAD
-	flockfile(stdout);
-#endif
+	lock_stream(stdout);
 	int ret=client._rename(old_name, new_name);
-#ifdef MULTITHREAD
-	funlockfile(stdout);
-#endif
+	unlock_stream(stdout);
 	_DEBUG("ret=%d\n", ret);
+	return ret;
+}
+
+static int CBB_truncate(const char* path, off_t size)
+{
+	_DEBUG("CBB truncate path=%s\n", path);
+	lock_stream(stdout);
+	int ret=client._truncate(path, size);
+	unlock_stream(stdout);
+	return ret;
+}
+
+static int CBB_ftruncate(const char* path, off_t size, struct fuse_file_info* fi)
+{
+	FILE* stream=(FILE*)fi->fh;
+	_DEBUG("CBB ftruncate path=%s\n", path);
+	lock_stream(stdout);
+	int ret=client._truncate_stream(stream, size);
+	unlock_stream(stdout);
 	return ret;
 }
 
@@ -272,8 +249,10 @@ int main(int argc, char *argv[])
 	CBB_oper.rmdir=CBB_rmdir;
 	CBB_oper.access=CBB_access;
 	CBB_oper.release=CBB_release;
-	CBB_oper.rename=CBB_rename;
+	//CBB_oper.rename=CBB_rename;
 	CBB_oper.mkdir=CBB_mkdir;
+	CBB_oper.truncate=CBB_truncate;
+	CBB_oper.ftruncate=CBB_ftruncate;
 
 	return fuse_main(argc, argv, &CBB_oper, NULL);
 }

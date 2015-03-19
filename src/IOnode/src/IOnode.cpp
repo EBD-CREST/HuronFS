@@ -179,6 +179,8 @@ int IOnode::_parse_registed_request(int sockfd)
 		_close_file(sockfd);break;
 	case CLOSE_CLIENT:
 		_close_client(sockfd);break;
+	case TRUNCATE:
+		_truncate_file(sockfd);break;
 	default:
 		break; 
 	}
@@ -598,3 +600,17 @@ inline std::string IOnode::_get_real_path(const std::string& path)const
 {
 	return _mount_point+path;
 }
+
+int IOnode::_truncate_file(int sockfd)
+{
+	_LOG("truncate file\n");
+	off64_t start_point;
+	int fd;
+	Recv(sockfd, fd);
+	Recv(sockfd, start_point);
+	_LOG("fd=%ld, start_point=%ld\n", fd, start_point);
+	block_info_t& file=_files[fd];
+	delete file[start_point];
+	return SUCCESS;
+}
+	

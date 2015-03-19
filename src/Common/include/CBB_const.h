@@ -58,6 +58,7 @@ const int MKDIR = 18;
 const int RENAME = 19;
 const int NEW_CLIENT = 20;
 const int CLOSE_CLIENT = 21;
+const int TRUNCATE = 22;
 
 const int SERVER_SHUT_DOWN = 30; 
 const int I_AM_SHUT_DOWN = 31;

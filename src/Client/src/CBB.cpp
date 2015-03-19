@@ -107,12 +107,13 @@ CBB::block_info::block_info(ssize_t node_id, off64_t start_point, size_t size):
 	size(size)
 {}
 
-CBB::file_meta::file_meta(ssize_t file_no, const char* file_path, size_t block_size, const struct stat* file_stat):
+CBB::file_meta::file_meta(ssize_t file_no, size_t block_size, const struct stat* file_stat):
 	file_no(file_no),
 	open_count(0),
 	block_size(block_size),
-	file_path(file_path),
-	file_stat(*file_stat)
+	file_stat(*file_stat),
+	opened_fd(),
+	it(NULL)
 {}
 
 CBB::file_info::file_info(int fd,
@@ -203,9 +204,9 @@ int CBB::_get_fid()
 int CBB::_open(const char * path, int flag, mode_t mode)
 {
 	int ret=0;
+	CHECK_INIT();
 	file_meta* file_meta_p=NULL;
 	std::string string_path=std::string(path);
-	CHECK_INIT();
 	int fid;
 	if(-1 == (fid=_get_fid()))
 	{
@@ -215,10 +216,10 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	try
 	{
 		file_meta_p=_path_file_meta_map.at(string_path);
-		if(-1 == file_meta_p->file_no)
+		/*if(-1 == file_meta_p->file_no)
 		{
 			throw std::out_of_range("");
-		}
+		}*/
 	}
 	catch(std::out_of_range& e)
 	{
@@ -236,8 +237,9 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 			_DEBUG("open finished\n");
 			if(NULL == file_meta_p)
 			{
-				file_meta_p=_create_new_file(path);
-				_path_file_meta_map.insert(std::make_pair(string_path, file_meta_p));
+				file_meta_p=_create_new_file();
+				_path_file_meta_map_t::iterator it=_path_file_meta_map.insert(std::make_pair(string_path, file_meta_p)).first;
+				file_meta_p->it=it;
 			}
 			else
 			{
@@ -263,7 +265,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	return fd;
 }
 
-CBB::file_meta* CBB::_create_new_file(const char* path)
+CBB::file_meta* CBB::_create_new_file()
 {
 	ssize_t file_no;
 	size_t block_size;
@@ -271,7 +273,7 @@ CBB::file_meta* CBB::_create_new_file(const char* path)
 	Recv(master_socket, file_no);
 	Recv(master_socket, block_size);
 	Recv_attr(master_socket, &file_stat);
-	file_meta* file_meta_p=new file_meta(file_no, path, block_size, &file_stat);
+	file_meta* file_meta_p=new file_meta(file_no, block_size, &file_stat);
 	if(NULL != file_meta_p)
 	{
 		return file_meta_p;
@@ -418,6 +420,7 @@ int CBB::_get_IOnode_socket(int IOnode_id, const std::string& ip)
 ssize_t CBB::_read(int fd, void *buffer, size_t size)
 {
 	int ret=0;
+	CHECK_INIT();
 	int fid=_BB_fd_to_fid(fd);
 	if(0 == size)
 	{
@@ -426,7 +429,6 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 	try
 	{
 		file_info& file=_file_list.at(fid);
-		CHECK_INIT();
 
 		ssize_t file_no=file.file_meta_p->file_no;
 		_block_list_t blocks;
@@ -572,7 +574,7 @@ int CBB::_close(int fd)
 			_opened_file[fid]=false;
 			if(1 == file.file_meta_p->open_count)
 			{
-				_path_file_meta_map.erase(file.file_meta_p->file_path);
+				_path_file_meta_map.erase(file.file_meta_p->it);
 			}
 			_file_list.erase(fid);
 
@@ -977,4 +979,33 @@ int CBB::_get_local_attr(const char* path, struct stat *file_stat)
 		return FAILURE;
 	}
 }
-	
+
+int CBB::_truncate(const char* path, off64_t size)
+{
+	int ret=0;
+	_DEBUG("connect to master\n");
+	CHECK_INIT();
+	Send(master_socket, TRUNCATE); 
+	Sendv(master_socket, path, strlen(path));
+	Send(master_socket, size);
+	Recv(master_socket, ret);
+	if(SUCCESS == ret)
+	{
+		return 0;
+	}
+	else
+	{
+		errno=ret;
+		return -errno;
+	}
+}
+
+int CBB::_ftruncate(int fd, off64_t size)
+{
+	int fid=_BB_fd_to_fid(fd);
+	CHECK_INIT();
+	file_info& file=_file_list.at(fid);
+	file.file_meta_p->file_stat.st_size=size;
+	_touch(fd);
+	return _truncate(file.file_meta_p->it->first.c_str(), size);
+}

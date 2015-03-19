@@ -462,6 +462,8 @@ int Master::_parse_registed_request(int clientfd)
 		_parse_rename(clientfd);break;
 	case MKDIR:
 		_parse_mkdir(clientfd);break;
+	case TRUNCATE:
+		_parse_truncate_file(clientfd);break;
 	case CLOSE_CLIENT:
 		_parse_close_client(clientfd);break;
 	case I_AM_SHUT_DOWN:
@@ -553,6 +555,7 @@ void Master::_create_file(const char* file_path, mode_t mode)throw(std::runtime_
 	}
 	else
 	{
+		close(fd);
 		return ;
 	}
 }
@@ -654,7 +657,7 @@ int Master::_parse_unlink(int clientfd)
 	_LOG("path=%s\n", real_path.c_str());
 	try
 	{
-		int fd=_file_no.at(relative_path);
+		ssize_t fd=_file_no.at(relative_path);
 		_remove_file(fd);
 		unlink(real_path.c_str());
 		Send(clientfd, SUCCESS);
@@ -1078,7 +1081,7 @@ int Master::_parse_rename(int clientfd)
 	_LOG("old file path=%s, new file path=%s\n", old_real_path.c_str(), new_real_path.c_str());
 	try
 	{
-		int fd=_file_no.at(old_relative_path);
+		ssize_t fd=_file_no.at(old_relative_path);
 		_file_no.erase(old_relative_path);
 		_file_no.insert(std::make_pair(new_relative_path, fd));
 		_buffered_files.at(fd)->path=new_relative_path;
@@ -1126,4 +1129,53 @@ inline std::string Master::_get_real_path(const char* path)const
 inline std::string Master::_get_real_path(const std::string& path)const
 {
 	return _mount_point+path;
+}
+
+int Master::_parse_truncate_file(int clientfd)
+{
+	_LOG("request for mkdir\n");
+	off64_t size;
+	std::string real_path, relative_path;
+	_recv_real_relative_path(clientfd, real_path, relative_path);
+	Recv(clientfd, size);
+	_LOG("path=%s\n", real_path.c_str());
+	try
+	{
+		ssize_t fd=_file_no.at(relative_path);
+		file_info* file=_buffered_files.at(fd);
+		if(file->fstat.st_size > size)
+		{
+			//send free to IOnode;
+			for(off64_t block_start_point=0;
+					file->fstat.st_size > block_start_point+BLOCK_SIZE;
+					block_start_point+=BLOCK_SIZE)
+			{
+				node_t::iterator it=file->p_node.find(block_start_point);
+				ssize_t node_id=it->second;
+				int IOnode_socket=_registed_IOnodes[node_id]->socket;
+				Send(IOnode_socket, TRUNCATE);
+				Send(IOnode_socket, fd);
+				Send(IOnode_socket, block_start_point);
+				file->p_node.erase(it);
+			}
+		}
+		file->fstat.st_size=size;
+		Send(clientfd, SUCCESS);
+		return SUCCESS;
+	}
+	catch(std::out_of_range &e)
+	{
+		//ignore
+		;
+	}
+	int ret=truncate(real_path.c_str(), size); 
+	if(-1 == ret)
+	{
+		Send(clientfd, errno);
+	}
+	else
+	{
+		Send(clientfd, SUCCESS);
+	}
+	return SUCCESS;
 }

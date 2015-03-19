@@ -448,3 +448,26 @@ const FILE* CBB_stream::_get_stream_from_path(const char* path)const
 		return NULL;
 	}
 }*/
+
+int CBB_stream::_truncate_stream(FILE* file_stream, off64_t size)
+{
+	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
+	stream->file_size=size;
+	if(stream->buffer_flag)
+	{
+		if(stream->_cur_file_off() > size)
+		{
+			if(stream->buf_file_off > size)
+			{
+				stream->buf_file_off=size;
+			}
+			if(stream->buffered_data_size>size-stream->buf_file_off)
+			{
+				stream->buffered_data_size=size-stream->buf_file_off;
+				stream->cur_buf_ptr=stream->buf+stream->buffered_data_size;
+			}
+		}
+	}
+	return _ftruncate(stream->fd, size);
+}
+
