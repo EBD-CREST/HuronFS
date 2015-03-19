@@ -18,8 +18,8 @@ CLIENT_FUSE= $(CLIENT_DIR)/CBB_fuse
 export CC=g++
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
-#export FLAG=-O0 -g -Wall -DDEBUG
-export FLAG=-O3 -Wall 
+export FLAG=-O0 -g -Wall -DDEBUG
+#export FLAG=-O3 -Wall 
 
 run:
 	@echo 'run'
@@ -35,26 +35,22 @@ Master:
 	mkdir -p bin lib
 	mv $(MASTER_LIB) lib
 	mv $(MASTER) bin
-	echo $$ld_library_path|grep `pwd` || export ld_library_path=`pwd`/lib:$$ld_library_path
 
 IOnode:
 	$(MAKE) -C $(IONODE_DIR)
 	mkdir -p bin lib
 	mv $(IONODE_LIB) lib
 	mv $(IONODE) bin
-	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
 Client:
 	$(MAKE) -C $(CLIENT_DIR)
 	mkdir -p lib
 	mv $(CLIENT_LIB) lib
-	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
 Client_fuse:
 	$(MAKE) -C $(CLIENT_DIR) CBB_fuse
 	mkdir -p bin 
 	mv $(CLIENT_FUSE) bin
-	echo $$LD_LIBRARY_PATH|grep `pwd` || export LD_LIBRARY_PATH=`pwd`/lib:$$LD_LIBRARY_PATH
 
 all:Master IOnode Client Client_fuse
 

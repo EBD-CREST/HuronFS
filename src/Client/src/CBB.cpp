@@ -436,7 +436,7 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 		Recv(master_socket, ret);
 		if(SUCCESS == ret)
 		{
-			if(size+file.current_point > file.file_meta_p->file_stat.st_size)
+			if(size+file.current_point > (size_t)file.file_meta_p->file_stat.st_size)
 			{
 				if(file.file_meta_p->file_stat.st_size>file.current_point)
 				{
@@ -509,7 +509,7 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 
 int CBB::_write_update_file_size(file_info& file, size_t size)
 {
-	if(file.current_point + size > file.file_meta_p->file_stat.st_size)
+	if(file.current_point + size > (size_t)file.file_meta_p->file_stat.st_size)
 	{
 		file.file_meta_p->file_stat.st_size=file.current_point + size;
 		return SUCCESS;
@@ -524,7 +524,7 @@ int CBB::_update_file_size(int fd, size_t size)
 	try
 	{
 		file_info& file=_file_list.at(fid);
-		if(file.file_meta_p->file_stat.st_size < size)
+		if((size_t)file.file_meta_p->file_stat.st_size < size)
 		{
 			file.file_meta_p->file_stat.st_size = size;
 		}

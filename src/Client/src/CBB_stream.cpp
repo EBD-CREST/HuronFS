@@ -294,7 +294,7 @@ size_t CBB_stream::stream_info::_write_meta_update(size_t write_size)
 	{
 		buffered_data_size=_cur_buf_off();
 	}
-	if(_cur_file_off() > file_size)
+	if((size_t)_cur_file_off() > file_size)
 	{
 		file_size = _cur_file_off();
 	}
