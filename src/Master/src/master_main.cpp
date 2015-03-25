@@ -27,7 +27,7 @@ int parse_opt(int argc, char ** argv)
 			case 'h':
 				usage();exit(0);exit(EXIT_SUCCESS);break;
 			case '?':
-				fprintf(stderr, "unknown option %s\n", (char)optopt);
+				fprintf(stderr, "unknown option %c\n", (char)optopt);
 				usage();exit(EXIT_SUCCESS);
 		}
 

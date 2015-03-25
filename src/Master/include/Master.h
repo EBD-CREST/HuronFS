@@ -30,8 +30,9 @@ public:
 	~Master();
 private:
 	//map file_no, vector<start_point>
-	struct file_info; 
+	class file_info; 
 	struct node_info; 
+	class file_stat;
 	//set file_no
 	typedef std::set<ssize_t> file_t;
 	//map file start_point:node_id
@@ -39,7 +40,7 @@ private:
 
 	typedef std::set<ssize_t> node_pool_t;
 	//map file_path: file_no
-	typedef std::map<std::string, ssize_t> file_no_t; 
+	typedef std::map<std::string, file_stat> file_stat_t; 
 	//map socket, node_info	need delete
 	typedef std::map<int, node_info*> IOnode_sock_t; 
 	
@@ -60,27 +61,46 @@ private:
 	class file_info
 	{
 	public:
-		file_info(const std::string& path,
-				ssize_t fileno,
-				size_t file_size,
+		file_info(ssize_t fileno,
 				size_t block_size,
 				const node_t& IOnodes,
-				int flag); 
-		file_info(const std::string& path,
-				ssize_t fileno,
-				int flag);
+				int flag,
+				file_stat* file_stat); 
+		file_info(ssize_t fileno,
+				int flag,
+				file_stat* file_stat);
 		void _set_nodes_pool();
+		const std::string& get_path()const;
+		struct stat& get_stat();
+		const struct stat& get_stat()const;
+		friend class Master;
+	private:
 
 		ssize_t file_no;
-		std::string path; 
 		node_t p_node;
 		node_pool_t nodes;
 		size_t block_size;
 		int open_count;
 		//open file
 		int flag; 
-		struct stat fstat;
+		file_stat* file_status;
 	}; 
+
+	class file_stat
+	{
+	public:
+		file_stat(const struct stat* file_stat, file_info* opened_file_info);
+		file_stat();
+		const std::string& get_path()const;
+		int get_fd()const throw(std::out_of_range);
+		int get_fd()throw(std::out_of_range);
+		friend class Master;
+		friend class file_info;
+	private:
+		struct stat fstat;
+		file_info* opened_file_info;
+		file_stat_t::iterator it;
+	};
 
 	struct node_info
 	{
@@ -101,7 +121,7 @@ private:
 	const node_t& _open_file(const char* file_path, int flag, ssize_t& file_no)throw(std::runtime_error, std::invalid_argument, std::bad_alloc);
 	int _update_file_info(int file_no); 
 	int _get_file_blocks(const std::string& file_path);
-	int _get_buffered_file_attr(ssize_t fd, struct stat* fstat)const;
+	//int _get_buffered_file_attr(ssize_t fd, struct stat* fstat)const;
 	ssize_t _get_node_id(); 
 	ssize_t _get_file_no(); 
 	void _release_file_no(ssize_t fileno);
@@ -128,15 +148,18 @@ private:
 	int _parse_flush_file(int clientfd);
 	int _parse_close_file(int clientfd);
 	int _parse_node_info(int clientfd)const;
-	int _parse_attr(int clientfd)const;
+	int _parse_attr(int clientfd);
 	int _parse_readdir(int clientfd)const;
 	int _parse_unlink(int clientfd);
 	int _parse_rmdir(int clientfd);
 	int _parse_access(int clientfd)const;
 	int _parse_mkdir(int clientfd);
-	int _parse_rename(int clientfd);
+	//int _parse_rename(int clientfd);
 	int _parse_close_client(int clientfd);
 	int _parse_truncate_file(int clientfd);
+
+	file_stat* _create_new_file_stat(const char* relative_path)throw(std::invalid_argument);
+	file_info* _create_new_file_info(ssize_t file_no, int flag, file_stat* file_status)throw(std::invalid_argument);
 
 	int _send_request_to_IOnodes(struct file_info& file);
 
@@ -150,13 +173,13 @@ private:
 	void _append_block(struct file_info& file, int node_id, off64_t start_point);
 	int _remove_file(int fd);
 
-	int _get_file_meta(struct file_info& file)throw (std::invalid_argument);
+	//int _get_file_meta(struct file_info& file)throw (std::invalid_argument);
 	
 	int _get_client_file_meta_update(int clientfd, struct stat* file_stat);
 
 private:
 	IOnode_t _registed_IOnodes;
-	file_no_t _file_no;  
+	file_stat_t _file_stat;  
 	File_t _buffered_files; 
 	IOnode_sock_t _IOnode_socket; 
 
@@ -168,5 +191,49 @@ private:
 	ssize_t _current_file_no; 
 	std::string _mount_point;
 };
+
+inline const std::string& Master::file_info::get_path()const
+{
+	return file_status->get_path();
+}
+
+inline struct stat& Master::file_info::get_stat()
+{
+	return file_status->fstat;
+}
+
+inline const struct stat& Master::file_info::get_stat()const
+{
+	return file_status->fstat;
+}
+
+inline const std::string& Master::file_stat::get_path()const
+{
+	return it->first;
+}
+
+inline int Master::file_stat::get_fd()throw(std::out_of_range)
+{
+	if(NULL != opened_file_info)
+	{
+		return opened_file_info->file_no;
+	}
+	else
+	{
+		throw std::out_of_range("");
+	}
+}
+
+inline int Master::file_stat::get_fd()const throw(std::out_of_range)
+{
+	if(NULL != opened_file_info)
+	{
+		return opened_file_info->file_no;
+	}
+	else
+	{
+		throw std::out_of_range("");
+	}
+}
 
 #endif

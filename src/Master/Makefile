@@ -13,7 +13,7 @@ $(OBJ):$(SRC_DIR)/master_main.cpp $(LIB)
 	$(CC) $(FLAG) $(INCLUDE_PATH) $(LINK_PATH) -o $@ $< -lMaster
 
 $(LIB):$(SRC_DIR)/Master.cpp $(HEADER_DIR)/Master.h $(SERVER)
-	$(CC) $(FLAG) $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $^
+	$(CC) -std=c++0x $(FLAG) $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $^
 
 $(SERVER):
 	cd ../Common && $(MAKE) $(notdir $@)
