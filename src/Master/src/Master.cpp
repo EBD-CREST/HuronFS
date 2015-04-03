@@ -16,8 +16,8 @@
 #include <dirent.h>
 
 #include "Master.h"
-#include "Communication.h"
 #include "CBB_internal.h"
+#include "Communication.h"
 
 const char *Master::MASTER_MOUNT_POINT="CBB_MASTER_MOUNT_POINT";
 
@@ -233,7 +233,7 @@ void Master::_send_node_info(int clientfd)const
 		const node_info *node=it->second;
 		Sendv(clientfd, node->ip.c_str(), node->ip.size());
 		Send(clientfd, node->total_memory);
-		Send(clientfd, node->avaliable_memory);
+		Send_flush(clientfd, node->avaliable_memory);
 	}
 	return; 
 }
@@ -251,11 +251,11 @@ void Master::_send_file_info(int clientfd)const
 		Sendv(clientfd, file->get_path().c_str(), file->get_path().size());
 		Send(clientfd, file->get_stat().st_size);
 		Send(clientfd, file->block_size);
-		Send(clientfd, file->flag);
+		Send_flush(clientfd, file->flag);
 	}
 	catch(std::out_of_range &e)
 	{
-		Send(clientfd, NO_SUCH_FILE);
+		Send_flush(clientfd, NO_SUCH_FILE);
 	}
 	return; 
 }
@@ -290,7 +290,7 @@ int Master::_parse_regist_IOnode(int clientfd, const std::string& ip)
 	size_t total_memory;
 	_LOG("regist IOnode\nip=%s\n",ip.c_str());
 	Recv(clientfd, total_memory);
-	Send(clientfd, _add_IO_node(ip, total_memory, clientfd));
+	Send_flush(clientfd, _add_IO_node(ip, total_memory, clientfd));
 	_DEBUG("total memory %lu\n", total_memory);
 	return 1;
 }
@@ -305,18 +305,18 @@ int Master::_send_file_meta(int clientfd)const
 	{
 		//const file_info &file=_buffered_files.at(file_no);
 		Send(clientfd, SUCCESS);
-		Sendv(clientfd, &buff, sizeof(struct stat));
+		Sendv_flush(clientfd, &buff, sizeof(struct stat));
 	}
 	catch(std::out_of_range &e)
 	{
 		if(-1 == stat(path, &buff))
 		{
-			Send(clientfd, NO_SUCH_FILE);
+			Send_flush(clientfd, NO_SUCH_FILE);
 		}
 		else
 		{
 			Send(clientfd, SUCCESS);
-			Sendv(clientfd, &buff, sizeof(struct stat));
+			Sendv_flush(clientfd, &buff, sizeof(struct stat));
 		}
 	}
 	free(path);
@@ -341,8 +341,9 @@ void Master::_send_block_info(int clientfd, const node_id_pool_t& node_pool, con
 		Send(clientfd, it->first);
 		Send(clientfd, it->second);
 	}
+	Send_flush(clientfd, SUCCESS);
 	return; 
-}	
+}
 
 int Master::_parse_attr(int clientfd)
 {
@@ -374,7 +375,7 @@ int Master::_parse_attr(int clientfd)
 		}
 		catch(std::invalid_argument &e)
 		{
-			Send(clientfd, errno);
+			Send_flush(clientfd, errno);
 			return FAILURE;
 		}
 	}
@@ -401,12 +402,13 @@ int Master::_parse_readdir(int clientfd)const
 		{
 			Sendv(clientfd, it->c_str(), it->length());
 		}
+		Send_flush(clientfd, SUCCESS);
 		closedir(dir);
 		return SUCCESS;
 	}
 	else
 	{
-		Send(clientfd, errno);
+		Send_flush(clientfd, errno);
 		return FAILURE;
 	}
 }
@@ -462,7 +464,7 @@ int Master::_parse_registed_request(int clientfd)
 		_DEBUG("IOnode %ld shutdown\nIP Address=%s, Unregisted\n", id, _registed_IOnodes.at(id)->ip.c_str()); 
 		_delete_IO_node(clientfd);break;
 	default:
-		Send(clientfd, UNRECOGNISTED); 
+		Send_flush(clientfd, UNRECOGNISTED); 
 	}
 	return ans; 
 }
@@ -471,7 +473,7 @@ int Master::_parse_new_client(int clientfd, const std::string& ip)
 {
 	_LOG("new client ip=%s\n", ip.c_str());
 	Server::_add_socket(clientfd); 
-	Send(clientfd, SUCCESS);
+	Send_flush(clientfd, SUCCESS);
 	return SUCCESS;
 }
 
@@ -519,18 +521,18 @@ int Master::_parse_open_file(int clientfd)
 	catch(std::runtime_error &e)
 	{
 		_DEBUG("%s\n",e.what());
-		Send(clientfd, UNKNOWN_ERROR);
+		Send_flush(clientfd, UNKNOWN_ERROR);
 		ret=FAILURE;
 	}
 	catch(std::invalid_argument &e)
 	{
 		_DEBUG("%s\n",e.what());
-		Send(clientfd, FILE_NOT_FOUND);
+		Send_flush(clientfd, FILE_NOT_FOUND);
 		ret=FAILURE;
 	}
 	catch(std::bad_alloc &e)
 	{
-		Send(clientfd, TOO_MANY_FILES);
+		Send_flush(clientfd, TOO_MANY_FILES);
 		ret=FAILURE;
 	}
 	return ret;
@@ -659,19 +661,19 @@ int Master::_parse_unlink(int clientfd)
 		ssize_t fd=_file_stat.at(relative_path).get_fd();
 		_remove_file(fd);
 		unlink(real_path.c_str());
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 		return SUCCESS;
 	}
 	catch(std::out_of_range& e)
 	{
 		if(-1 != unlink(real_path.c_str()))
 		{
-			Send(clientfd, SUCCESS);
+			Send_flush(clientfd, SUCCESS);
 			return SUCCESS;
 		}
 		else
 		{
-			Send(clientfd, errno);
+			Send_flush(clientfd, errno);
 			return FAILURE;
 		}
 	}
@@ -684,12 +686,12 @@ int Master::_parse_rmdir(int clientfd)
 	_LOG("path=%s\n", file_path.c_str());
 	if(-1 != rmdir(file_path.c_str()))
 	{
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 		return SUCCESS;
 	}
 	else
 	{
-		Send(clientfd, errno);
+		Send_flush(clientfd, errno);
 		return FAILURE;
 	}
 }
@@ -709,6 +711,7 @@ int Master::_send_request_to_IOnodes(struct file_info& file)
 		Send(socket, file.file_no); 
 		Send(socket, file.flag);
 		Sendv(socket, file.get_path().c_str(), file.get_path().size());
+		_DEBUG("%s\n", file.get_path().c_str());
 		
 		Send(socket, static_cast<int>(it->second.size()));
 		for(block_info_t::const_iterator blocks_it=it->second.begin();
@@ -717,6 +720,9 @@ int Master::_send_request_to_IOnodes(struct file_info& file)
 			Send(socket, blocks_it->first);
 			Send(socket, blocks_it->second);
 		}
+		Send_flush(socket, SUCCESS);
+		int ret;
+		Recv(socket, ret);
 	}
 	return SUCCESS; 
 }
@@ -773,11 +779,11 @@ int Master::_parse_read_file(int clientfd)
 	try
 	{
 		file=_buffered_files.at(file_no);
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 	}
 	catch(std::out_of_range &e)
 	{
-		Send(clientfd, OUT_OF_RANGE);
+		Send_flush(clientfd, OUT_OF_RANGE);
 		return -1; 
 	}
 	
@@ -804,9 +810,9 @@ int Master::_parse_read_file(int clientfd)
 	return 1;
 }
 
-void Master::_send_IO_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size, int mode)const
+/*void Master::_send_IO_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size, int mode)const
 {
-	/*for(node_t::const_iterator it=node_set.begin(); 
+	for(node_t::const_iterator it=node_set.begin(); 
 			node_set.end()!=it; ++it)
 	{
 		//send read request to each IOnode
@@ -818,7 +824,7 @@ void Master::_send_IO_request(ssize_t file_no, const file_info& file, const node
 		Sendv(socket, file.path.c_str(), file.path.size());
 		Send(socket, it->first); 
 		Send(socket, my_block_size); 
-	}*/
+	}
 	int socket=_registed_IOnodes.at(node_set.begin()->second)->socket;
 	Send(socket, mode);
 	Send(socket, file_no);
@@ -830,9 +836,10 @@ void Master::_send_IO_request(ssize_t file_no, const file_info& file, const node
 	{
 		Send(socket, it->first); 
 	}
+	Send(socket, SUCCESS);
 
 	return;
-}
+}*/
 
 int Master::_allocate_one_block(const struct file_info& file)throw(std::bad_alloc)
 {
@@ -877,6 +884,7 @@ void Master::_send_append_request(ssize_t file_no, const node_block_map_t& appen
 				Send(socket, block_it->second);
 			}
 		}
+		Send_flush(socket, SUCCESS);
 	}
 	return;
 }
@@ -927,7 +935,7 @@ int Master::_parse_write_file(int clientfd)
 	{
 		file_info &file=*_buffered_files.at(file_no);
 		std::string real_path=_get_real_path(file.get_path());
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 		Recv_attr(clientfd, &file.get_stat());
 		Recv(clientfd, start_point);
 		Recv(clientfd, size);
@@ -941,7 +949,7 @@ int Master::_parse_write_file(int clientfd)
 	}
 	catch(std::out_of_range &e)
 	{
-		Send(clientfd, errno);	
+		Send_flush(clientfd, errno);	
 		return FAILURE;
 	}
 }
@@ -956,12 +964,12 @@ int Master::_parse_access(int clientfd)const
 	if(-1 != access(file_path.c_str(), mode))
 	{
 		_LOG("SUCCESS\n");
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 		return SUCCESS;
 	}
 	else
 	{
-		Send(clientfd, errno);
+		Send_flush(clientfd, errno);
 		return FAILURE;
 	}
 }
@@ -980,7 +988,7 @@ int Master::_parse_flush_file(int clientfd)
 	try
 	{
 		file_info &file=*_buffered_files.at(file_no);
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 		for(node_pool_t::iterator it=file.nodes.begin();
 				it != file.nodes.end();++it)
 		{
@@ -993,7 +1001,7 @@ int Master::_parse_flush_file(int clientfd)
 	}
 	catch(std::out_of_range &e)
 	{
-		Send(clientfd, FAILURE);
+		Send_flush(clientfd, FAILURE);
 		return FAILURE;
 	}
 }
@@ -1006,7 +1014,7 @@ int Master::_remove_file(int file_no)
 	{
 		int socket=_registed_IOnodes.at(*it)->socket;
 		Send(socket, UNLINK);
-		Send(socket, file_no);
+		Send_flush(socket, file_no);
 	}
 	_file_stat.erase(file.file_status->it);
 	_buffered_files.erase(file_no);
@@ -1022,7 +1030,7 @@ int Master::_parse_close_file(int clientfd)
 	{
 		file_info &file=*_buffered_files.at(file_no);
 		_LOG("file no %ld\n", file_no);
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 		//if(0 == --file.open_count)
 		//{
 
@@ -1031,9 +1039,11 @@ int Master::_parse_close_file(int clientfd)
 		{
 			_DEBUG("write back request to IOnode %ld\n", *it);
 			int socket=_registed_IOnodes.at(*it)->socket;
-			Send(socket, FLUSH_FILE);
+			//Send(socket, FLUSH_FILE);
 			//Send(socket, CLOSE_FILE);
-			Send(socket, file_no);
+			//Send_flush(socket, file_no);
+			int ret;
+			//Recv(socket, ret);
 			//			int ret=0;
 			//			Recv(socket, ret);
 		}
@@ -1047,7 +1057,7 @@ int Master::_parse_close_file(int clientfd)
 	}
 	catch(std::out_of_range &e)
 	{
-		Send(clientfd, FAILURE);
+		Send_flush(clientfd, FAILURE);
 		return FAILURE;
 	}
 }
@@ -1094,11 +1104,11 @@ int Master::_parse_mkdir(int clientfd)
 	_LOG("path=%s\n", real_path.c_str());
 	if(-1 == mkdir(real_path.c_str(), mode))
 	{
-		Send(clientfd, errno);
+		Send_flush(clientfd, errno);
 	}
 	else
 	{
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 	}
 	return SUCCESS;
 }
@@ -1138,12 +1148,12 @@ int Master::_parse_truncate_file(int clientfd)
 				int IOnode_socket=_registed_IOnodes[node_id]->socket;
 				Send(IOnode_socket, TRUNCATE);
 				Send(IOnode_socket, fd);
-				Send(IOnode_socket, block_start_point);
+				Send_flush(IOnode_socket, block_start_point);
 				file->p_node.erase(it);
 			}
 		}
 		file->get_stat().st_size=size;
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)

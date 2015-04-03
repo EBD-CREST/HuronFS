@@ -126,7 +126,7 @@ ssize_t IOnode::_regist(const std::string& master_ip, int master_port) throw(std
 		throw;
 	}
 	Send(master_socket, REGIST);
-	Send(master_socket, _memory);
+	Send_flush(master_socket, _memory);
 	ssize_t id=-1;
 	Recv(master_socket, id);
 	Server::_add_socket(master_socket);
@@ -202,7 +202,7 @@ int IOnode::_send_data(int sockfd)
 
 	try
 	{
-		const std::string& path = _file_path[file_no];
+		const std::string& path = _file_path.at(file_no);
 		block* requested_block=_files.at(file_no).at(start_point);
 		if(INVALID == requested_block->valid)
 		{
@@ -211,12 +211,14 @@ int IOnode::_send_data(int sockfd)
 			requested_block->valid = VALID;
 		}
 		Send(sockfd, SUCCESS);
-		Sendv_pre_alloc(sockfd, reinterpret_cast<char*>(requested_block->data)+offset, size);
+		//_DEBUG("%si\n", (requested_block->data)+offset);
+		Sendv_pre_alloc_flush(sockfd, reinterpret_cast<char*>(requested_block->data)+offset, size);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
-		Send(sockfd, FILE_NOT_FOUND);
+		_DEBUG("out of range\n");
+		Send_flush(sockfd, FILE_NOT_FOUND);
 		return FAILURE;
 	}
 }
@@ -242,6 +244,8 @@ int IOnode::_open_file(int sockfd)
 		_append_block(sockfd, blocks);
 	}
 	delete[] path_buffer; 
+	Recv(sockfd, count);
+	Send_flush(sockfd, SUCCESS);
 	return SUCCESS; 
 }
 
@@ -264,7 +268,7 @@ int IOnode::_append_new_block(int sockfd)
 	off64_t start_point;
 	size_t data_size;
 	Recv(sockfd, file_no);
-	Send(sockfd, static_cast<int>(SUCCESS));
+	Send_flush(sockfd, static_cast<int>(SUCCESS));
 	Recv(sockfd, count);
 	try
 	{
@@ -275,6 +279,7 @@ int IOnode::_append_new_block(int sockfd)
 			Recv(sockfd, data_size);
 			blocks.insert(std::make_pair(start_point, new block(start_point, data_size, CLEAN, INVALID)));
 		}
+		Recv(sockfd, count);
 	}
 	catch(std::out_of_range &e)
 	{
@@ -329,6 +334,7 @@ size_t IOnode::_read_from_storage(const std::string& path, block* block_data)thr
 	off64_t start_point=block_data->start_point;
 	std::string real_path=_get_real_path(path);
 	int fd=open64(real_path.c_str(), O_RDONLY); 
+	_DEBUG("%s\n", real_path.c_str());
 	if(-1 == fd)
 	{
 		perror("File Open Error"); 
@@ -429,7 +435,7 @@ int IOnode::_receive_data(int clientfd)
 	{
 		block_info_t &blocks=_files.at(file_no);
 		block* _block=blocks.at(start_point);
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 		if(INVALID == _block->valid)
 		{
 			_block->allocate_memory();
@@ -446,7 +452,7 @@ int IOnode::_receive_data(int clientfd)
 	}
 	catch(std::out_of_range &e)
 	{
-		Send(clientfd, FILE_NOT_FOUND);
+		Send_flush(clientfd, FILE_NOT_FOUND);
 		return FAILURE;
 	}
 }
@@ -520,7 +526,8 @@ int IOnode::_flush_file(int sockfd)
 	ssize_t file_no;
 	Recv(sockfd, file_no);
 	std::string &path=_file_path.at(file_no);
-	_DEBUG("flush file, path=%s\n", path.c_str());
+	_DEBUG("flush file file_no=%d, path=%s\n", file_no, path.c_str());
+	Send_flush(sockfd, SUCCESS);
 	try
 	{
 		block_info_t &blocks=_files.at(file_no);
@@ -547,6 +554,7 @@ int IOnode::_close_file(int sockfd)
 {
 	ssize_t file_no;
 	Recv(sockfd, file_no);
+	Send_flush(sockfd, SUCCESS);
 	try
 	{
 		std::string &path=_file_path.at(file_no);
@@ -578,7 +586,7 @@ int IOnode::_regist_new_client(int sockfd)
 {
 	_LOG("new client\n");
 	Server::_add_socket(sockfd);
-	Send(sockfd, SUCCESS);
+	Send_flush(sockfd, SUCCESS);
 	return SUCCESS;
 }
 
@@ -586,7 +594,7 @@ int IOnode::_close_client(int sockfd)
 {
 	_LOG("close client\n");
 	Server::_delete_socket(sockfd);
-	Send(sockfd, SUCCESS);
+	Send_flush(sockfd, SUCCESS);
 	close(sockfd);
 	return SUCCESS;
 }
@@ -613,4 +621,3 @@ int IOnode::_truncate_file(int sockfd)
 	delete file[start_point];
 	return SUCCESS;
 }
-	
