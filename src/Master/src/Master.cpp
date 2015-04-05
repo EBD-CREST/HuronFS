@@ -885,6 +885,7 @@ void Master::_send_append_request(ssize_t file_no, const node_block_map_t& appen
 			}
 		}
 		Send_flush(socket, SUCCESS);
+		Recv(socket, ret);
 	}
 	return;
 }

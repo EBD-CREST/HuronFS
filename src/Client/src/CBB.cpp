@@ -323,6 +323,7 @@ ssize_t CBB::_read_from_IOnode(file_info& file, const _block_list_t& blocks, con
 		Recv(IOnode_socket, ret);
 		if(SUCCESS == ret)
 		{
+			_DEBUG("IO_size=%lu, start_point=%ld, file_no=%ld\n", IO_size, it->start_point, file.file_meta_p->file_no);
 			ssize_t ret_size=Recvv_pre_alloc(IOnode_socket, buffer, IO_size);
 			if(-1 == ret_size)
 			{
@@ -375,6 +376,7 @@ ssize_t CBB::_write_to_IOnode(file_info& file, const _block_list_t& blocks, cons
 		Recv(IOnode_socket, ret);
 		if(SUCCESS == ret)
 		{
+			_DEBUG("IO_size=%lu, start_point=%ld, file_no=%ld\n", IO_size, it->start_point, file.file_meta_p->file_no);
 			ssize_t ret_size=Sendv_pre_alloc_flush(IOnode_socket, buffer, IO_size);
 			if(-1 == ret_size)
 			{

@@ -72,7 +72,7 @@ template<class T> inline size_t Sendv(int sockfd, const T* buffer, size_t count)
 
 template<class T> inline size_t Recvv_pre_alloc(int sockfd, T* buffer, size_t count)
 {
-	return Do_recv<T>(sockfd, buffer, count, MSG_NOSIGNAL);
+	return Do_recv<T>(sockfd, buffer, count, MSG_WAITALL);
 }
 
 template<class T> inline size_t Sendv_pre_alloc(int sockfd, const T* buffer, size_t count)

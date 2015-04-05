@@ -19,7 +19,7 @@ export CC=g++
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
 #export FLAG=-O0 -g -Wall -DDEBUG
-export FLAG=-O3 -Wall 
+export FLAG=-O3 -g -Wall
 
 run:
 	@echo 'run'

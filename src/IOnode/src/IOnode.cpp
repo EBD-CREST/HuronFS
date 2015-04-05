@@ -210,9 +210,9 @@ int IOnode::_send_data(int sockfd)
 			_read_from_storage(path, requested_block);
 			requested_block->valid = VALID;
 		}
-		Send(sockfd, SUCCESS);
+		Send_flush(sockfd, SUCCESS);
 		//_DEBUG("%si\n", (requested_block->data)+offset);
-		Sendv_pre_alloc_flush(sockfd, reinterpret_cast<char*>(requested_block->data)+offset, size);
+		Sendv_pre_alloc(sockfd, reinterpret_cast<char*>(requested_block->data)+offset, size);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -280,6 +280,7 @@ int IOnode::_append_new_block(int sockfd)
 			blocks.insert(std::make_pair(start_point, new block(start_point, data_size, CLEAN, INVALID)));
 		}
 		Recv(sockfd, count);
+		Send_flush(sockfd, SUCCESS);
 	}
 	catch(std::out_of_range &e)
 	{
@@ -288,7 +289,7 @@ int IOnode::_append_new_block(int sockfd)
 	return SUCCESS;
 }
 
-int IOnode::_IOrequest_from_master(int sockfd)
+/*int IOnode::_IOrequest_from_master(int sockfd)
 {
 	off64_t start_point=0;
 	size_t size=0;
@@ -328,6 +329,7 @@ int IOnode::_IOrequest_from_master(int sockfd)
 	}
 	return SUCCESS;
 }
+*/
 
 size_t IOnode::_read_from_storage(const std::string& path, block* block_data)throw(std::runtime_error)
 {
@@ -435,13 +437,13 @@ int IOnode::_receive_data(int clientfd)
 	{
 		block_info_t &blocks=_files.at(file_no);
 		block* _block=blocks.at(start_point);
-		Send_flush(clientfd, SUCCESS);
 		if(INVALID == _block->valid)
 		{
 			_block->allocate_memory();
 			_block->data_size=_read_from_storage(_file_path.at(file_no), _block);
 			_block->valid = VALID;
 		}
+		Send_flush(clientfd, SUCCESS);
 		Recvv_pre_alloc(clientfd, reinterpret_cast<char*>(_block->data)+offset, size);
 		if(_block->data_size < offset+size)
 		{
