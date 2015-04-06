@@ -212,7 +212,7 @@ int IOnode::_send_data(int sockfd)
 		}
 		Send_flush(sockfd, SUCCESS);
 		//_DEBUG("%si\n", (requested_block->data)+offset);
-		Sendv_pre_alloc(sockfd, reinterpret_cast<char*>(requested_block->data)+offset, size);
+		Sendv_pre_alloc_flush(sockfd, reinterpret_cast<char*>(requested_block->data)+offset, size);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
