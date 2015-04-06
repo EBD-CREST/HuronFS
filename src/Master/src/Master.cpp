@@ -91,7 +91,8 @@ Master::Master()throw(std::runtime_error):
 	_file_no_pool(new bool[MAX_FILE_NUMBER]), 
 	_current_node_number(0), 
 	_current_file_no(0),
-	_mount_point(std::string())
+	_mount_point(std::string()),
+	_current_IOnode(_registed_IOnodes.end())
 {
 	memset(_node_id_pool, 0, MAX_NODE_NUMBER*sizeof(bool)); 
 	memset(_file_no_pool, 0, MAX_FILE_NUMBER*sizeof(bool)); 
@@ -737,7 +738,7 @@ inline off64_t Master::_get_block_start_point(off64_t start_point, size_t& size)
 Master::node_t Master::_select_IOnode(off64_t start_point,
 		size_t file_size,
 		size_t block_size,
-		node_block_map_t& node_block_map)const
+		node_block_map_t& node_block_map)
 {
 	off64_t block_start_point=_get_block_start_point(start_point, file_size);
 	//int node_number = (file_size+block_size-1)/block_size,count=(node_number+_node_number-1)/_node_number, count_node=0;
@@ -753,7 +754,11 @@ Master::node_t Master::_select_IOnode(off64_t start_point,
 		count=1;
 		node_number=1;
 	}
-	for(IOnode_t::const_iterator it=_registed_IOnodes.begin();
+	if(_registed_IOnodes.end() == _current_IOnode)
+	{
+		_current_IOnode=_registed_IOnodes.begin();
+	}
+	for(IOnode_t::const_iterator it=_current_IOnode++;
 			_registed_IOnodes.end() != it;++it)
 	{
 		for(int i=0;i<count && (count_node++)<node_number;++i)

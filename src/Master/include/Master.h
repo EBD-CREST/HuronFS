@@ -163,7 +163,7 @@ private:
 
 	int _send_request_to_IOnodes(struct file_info& file);
 
-	node_t _select_IOnode(off64_t start_point, size_t file_size, size_t block_size, node_block_map_t& node_block_map)const; 
+	node_t _select_IOnode(off64_t start_point, size_t file_size, size_t block_size, node_block_map_t& node_block_map); 
 
 	size_t _get_block_size(size_t length);
 	off64_t _get_block_start_point(off64_t start_point, size_t& size)const;
@@ -190,6 +190,8 @@ private:
 	ssize_t _current_node_number; 
 	ssize_t _current_file_no; 
 	std::string _mount_point;
+
+	IOnode_t::iterator _current_IOnode;
 };
 
 inline const std::string& Master::file_info::get_path()const
