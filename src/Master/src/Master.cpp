@@ -67,7 +67,9 @@ Master::file_stat::file_stat():
 	fstat(),
 	opened_file_info(NULL),
 	it(NULL)
-{}
+{
+	memset(&fstat,0, sizeof(fstat));
+}
 
 
 Master::node_info::node_info(ssize_t id, const std::string& ip, size_t total_memory, int socket):
@@ -365,7 +367,7 @@ int Master::_parse_attr(int clientfd)
 	{
 		try
 		{
-			file_stat* new_file_status=_create_new_file_stat(relative_path.c_str());
+			file_stat* new_file_status=_create_new_file_stat(relative_path.c_str(), EXISTING);
 		//if(-1 != stat(real_path.c_str(), &fstat))
 			Send(clientfd, SUCCESS);
 			Send_attr(clientfd, &(new_file_status->fstat));
@@ -496,14 +498,16 @@ int Master::_parse_open_file(int clientfd)
 	try
 	{
 		ssize_t file_no;
+		int exist_flag=EXISTING;
 		if(flag & O_CREAT)
 		{
 			mode_t mode;
 			Recv(clientfd, mode);
-			_create_file(file_path, mode);
+			exist_flag=NOT_EXIST;
+			//_create_file(file_path, mode);
 			flag &= ~(O_CREAT | O_TRUNC);
 		}
-		_open_file(file_path, flag, file_no); 
+		_open_file(file_path, flag, file_no, exist_flag); 
 		file_info *opened_file=_buffered_files.at(file_no);
 		size_t block_size=opened_file->block_size;
 		delete file_path; 
@@ -542,7 +546,8 @@ int Master::_parse_open_file(int clientfd)
 void Master::_create_file(const char* file_path, mode_t mode)throw(std::runtime_error)
 {
 	std::string real_path=_get_real_path(file_path);
-	int fd=creat64(real_path.c_str(), mode);
+
+	/*int fd=creat64(real_path.c_str(), mode);
 	if(-1 == fd)
 	{
 		throw std::runtime_error("error on create file");
@@ -551,10 +556,10 @@ void Master::_create_file(const char* file_path, mode_t mode)throw(std::runtime_
 	{
 		close(fd);
 		return ;
-	}
+	}*/
 }
 
-const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_t& file_no)throw(std::runtime_error, std::invalid_argument, std::bad_alloc)
+const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_t& file_no, int exist_flag)throw(std::runtime_error, std::invalid_argument, std::bad_alloc)
 {
 	file_stat_t::iterator it; 
 	file_info *file=NULL; 
@@ -564,7 +569,7 @@ const Master::node_t& Master::_open_file(const char* file_path, int flag, ssize_
 		file_no=_get_file_no(); 
 		if(-1 != file_no)
 		{
-			file_stat* file_status=_create_new_file_stat(file_path);
+			file_stat* file_status=_create_new_file_stat(file_path, exist_flag);
 			file=_create_new_file_info(file_no, flag, file_status);
 		}
 		else
@@ -612,22 +617,38 @@ Master::file_info* Master::_create_new_file_info(ssize_t file_no, int flag, file
 	}
 }
 
-Master::file_stat* Master::_create_new_file_stat(const char* relative_path)throw(std::invalid_argument)
+Master::file_stat* Master::_create_new_file_stat(const char* relative_path, int exist_flag)throw(std::invalid_argument)
 {
 	std::string relative_path_string = std::string(relative_path);
 	std::string real_path=_get_real_path(relative_path_string);
 	_DEBUG("file path=%s\n", real_path.c_str());
-	int fd=open64(real_path.c_str(), O_RDONLY);
+	struct stat file_status;
 
-	if(-1 == fd)
+	if(EXISTING == exist_flag)
 	{
-		throw std::invalid_argument("file can not open");
+		if(-1 == stat(real_path.c_str(), &file_status))
+		{
+			throw std::invalid_argument("file can not open");
+		}
+	}
+	else
+	{
+		time_t current_time;
+		memset(&file_status, 0, sizeof(file_status));
+		time(&current_time);
+		file_status.st_mtime=current_time;
+		file_status.st_atime=current_time;
+		file_status.st_ctime=current_time;
+		file_status.st_size=0;
+		file_status.st_uid=getuid();
+		file_status.st_gid=getgid();
+		file_status.st_mode=S_IFREG;
 	}
 	file_stat_t::iterator it=_file_stat.insert(std::make_pair(relative_path_string, file_stat())).first;
 	file_stat* new_file_status=&(it->second);
-	fstat(fd, &new_file_status->fstat);
 	new_file_status->it=it;
-	close(fd);
+	new_file_status->exist_flag=exist_flag;
+	memcpy(&new_file_status->fstat, &file_status, sizeof(file_status));
 	return new_file_status;
 }
 
@@ -964,19 +985,29 @@ int Master::_parse_access(int clientfd)const
 {
 	int mode;
 	_LOG("request for access\n");
-	std::string file_path=Server::_recv_real_path(clientfd);	
+	std::string real_path, relative_path;
+	Server::_recv_real_relative_path(clientfd, real_path, relative_path);
 	Recv(clientfd, mode);
-	_LOG("path=%s\n, mode=%d", file_path.c_str(), mode);
-	if(-1 != access(file_path.c_str(), mode))
+	_LOG("path=%s\n, mode=%d", real_path.c_str(), mode);
+	try
 	{
-		_LOG("SUCCESS\n");
+		const file_stat& file=_file_stat.at(relative_path);
 		Send_flush(clientfd, SUCCESS);
 		return SUCCESS;
 	}
-	else
+	catch(std::out_of_range &e)
 	{
-		Send_flush(clientfd, errno);
-		return FAILURE;
+		if(-1 != access(real_path.c_str(), mode))
+		{
+			_LOG("SUCCESS\n");
+			Send_flush(clientfd, SUCCESS);
+			return SUCCESS;
+		}
+		else
+		{
+			Send_flush(clientfd, errno);
+			return FAILURE;
+		}
 	}
 }
 
@@ -1037,6 +1068,14 @@ int Master::_parse_close_file(int clientfd)
 		file_info &file=*_buffered_files.at(file_no);
 		_LOG("file no %ld\n", file_no);
 		Send_flush(clientfd, SUCCESS);
+		if(NOT_EXIST == file.file_status->exist_flag)
+		{
+			if(-1 == creat(file.file_status->get_path().c_str(), 0600))
+			{
+				perror("create");
+			}
+			file.file_status->exist_flag=EXISTING;
+		}
 		//if(0 == --file.open_count)
 		//{
 

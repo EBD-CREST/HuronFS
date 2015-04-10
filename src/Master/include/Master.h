@@ -99,6 +99,7 @@ private:
 	private:
 		struct stat fstat;
 		file_info* opened_file_info;
+		int exist_flag;
 		file_stat_t::iterator it;
 	};
 
@@ -118,7 +119,7 @@ private:
 private:
 	ssize_t _add_IO_node(const std::string& node_ip, std::size_t avaliable_memory, int socket);
 	ssize_t _delete_IO_node(int socket);
-	const node_t& _open_file(const char* file_path, int flag, ssize_t& file_no)throw(std::runtime_error, std::invalid_argument, std::bad_alloc);
+	const node_t& _open_file(const char* file_path, int flag, ssize_t& file_no, int exist_flag)throw(std::runtime_error, std::invalid_argument, std::bad_alloc);
 	int _update_file_info(int file_no); 
 	int _get_file_blocks(const std::string& file_path);
 	//int _get_buffered_file_attr(ssize_t fd, struct stat* fstat)const;
@@ -158,7 +159,7 @@ private:
 	int _parse_close_client(int clientfd);
 	int _parse_truncate_file(int clientfd);
 
-	file_stat* _create_new_file_stat(const char* relative_path)throw(std::invalid_argument);
+	file_stat* _create_new_file_stat(const char* relative_path, int exist_flag)throw(std::invalid_argument);
 	file_info* _create_new_file_info(ssize_t file_no, int flag, file_stat* file_status)throw(std::invalid_argument);
 
 	int _send_request_to_IOnodes(struct file_info& file);

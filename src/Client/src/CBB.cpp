@@ -468,7 +468,7 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 	int ret=0;
 	CHECK_INIT();
 	int fid=_BB_fd_to_fid(fd);
-	int master_socket=_get_master_socket_from_fd(fd);
+	int master_socket=_get_master_socket_from_fd(fid);
 	if(0 == size)
 	{
 		return size;
@@ -517,7 +517,7 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 	int ret=0;
 	int fid=_BB_fd_to_fid(fd);
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_fd(fd);
+	int master_socket=_get_master_socket_from_fd(fid);
 	if(0 == size)
 	{
 		return size;
@@ -610,7 +610,7 @@ int CBB::_close(int fd)
 	int ret=0;
 	int fid=_BB_fd_to_fid(fd);
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_fd(fd);
+	int master_socket=_get_master_socket_from_fd(fid);
 	try
 	{
 		file_info& file=_file_list.at(fid);
@@ -645,7 +645,7 @@ int CBB::_flush(int fd)
 {
 	int ret=0;
 	int fid=_BB_fd_to_fid(fd);
-	int master_socket=_get_master_socket_from_fd(fd);
+	int master_socket=_get_master_socket_from_fd(fid);
 	CHECK_INIT();
 	try
 	{
@@ -1073,7 +1073,7 @@ int CBB::_get_master_socket_from_path(const std::string& path)const
 {
 	static std::hash<std::string> string_hash;
 	static size_t size=master_socket_list.size();
-	return master_socket_list[string_hash(path)%size];
+	return master_socket_list.at(string_hash(path)%size);
 }
 
 int CBB::_get_master_socket_from_fd(int fd)const

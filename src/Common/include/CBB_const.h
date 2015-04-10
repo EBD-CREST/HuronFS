@@ -71,6 +71,8 @@ const int OUT_OF_DATE = 54;
 const int SEND_META = 55;
 const int RECV_META = 56;
 const int NO_NEED_META = 57;
+const int EXISTING = 1;
+const int NOT_EXIST = 0;
 
 const int OUT_OF_RANGE=100;//"out of range\n"; 
 

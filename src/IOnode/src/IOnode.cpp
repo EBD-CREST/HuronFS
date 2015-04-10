@@ -340,10 +340,12 @@ size_t IOnode::_read_from_storage(const std::string& path, block* block_data)thr
 	if(-1 == fd)
 	{
 		perror("File Open Error"); 
+		return 0;
 	}
 	if(-1  == lseek(fd, start_point, SEEK_SET))
 	{
 		perror("Seek"); 
+		return 0;
 	}
 	ssize_t ret; 
 	struct iovec vec;
