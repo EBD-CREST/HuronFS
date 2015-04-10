@@ -42,13 +42,17 @@ private:
 	public:
 		friend class CBB;
 		friend class file_info;
-		file_meta(ssize_t file_no, size_t block_size,const struct stat* file_stat);
+		file_meta(ssize_t file_no,
+				size_t block_size,
+				const struct stat* file_stat,
+				int master_socket);
 	private:
 		ssize_t file_no;
 		int open_count;
 		size_t block_size;
 		struct stat file_stat;
 		opened_fd_t opened_fd;
+		int master_socket;
 		_path_file_meta_map_t::iterator it;
 
 	};
@@ -78,9 +82,10 @@ public:
 	typedef std::vector<std::string> dir_t;
 	//map IOnode id: fd
 	typedef std::map<int, int> IOnode_fd_map_t;
+	typedef std::vector<int> master_list_t;
 
 	static const char *CLIENT_MOUNT_POINT;
-	static const char *MASTER_IP;
+	static const char *MASTER_IP_LIST;
 
 public:
 	//initalize parameters
@@ -132,18 +137,21 @@ private:
 	static inline int _BB_fid_to_fd(int fid);
 	int _update_fstat_to_server(file_info& file);
 	int _get_local_attr(const char*path, struct stat *file_stat);
-	file_meta* _create_new_file();
+	file_meta* _create_new_file(int master_socket);
 	int _close_local_opened_file(const char* path);
+	int _get_master_socket_from_path(const std::string& path)const;
+	int _get_master_socket_from_fd(int fd)const;
 private:
 	int _fid_now;
 	_file_list_t _file_list;
 	_file_t _opened_file;
 	_path_file_meta_map_t _path_file_meta_map;
-	struct sockaddr_in _master_addr;
 	struct sockaddr_in _client_addr;
 	bool _initial;
-	int master_socket;
+
+	master_list_t master_socket_list;
 	IOnode_fd_map_t IOnode_fd_map;
 };
+
 
 #endif

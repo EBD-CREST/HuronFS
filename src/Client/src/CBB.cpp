@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <limits.h>
 #include <errno.h>
+#include <functional>
 
 #include "CBB.h"
 #include "CBB_internal.h"
@@ -21,7 +22,7 @@
 #include "Communication.h"
 
 const char* CBB::CLIENT_MOUNT_POINT="CBB_CLIENT_MOUNT_POINT";
-const char* CBB::MASTER_IP="CBB_MASTER_IP";
+const char* CBB::MASTER_IP_LIST="CBB_MASTER_IP_LIST";
 
 const char *mount_point=NULL;
 
@@ -30,17 +31,12 @@ CBB::CBB():
 	_file_list(_file_list_t()),
 	_opened_file(_file_t(MAX_FILE)),
 	_path_file_meta_map(),
-	_master_addr(sockaddr_in()),
 	_client_addr(sockaddr_in()),
 	_initial(false),
-	master_socket(-1),
+	master_socket_list(),
 	IOnode_fd_map()
 {
-	const char *master_ip=NULL;
-	_DEBUG("start initalizing\n"); if(NULL == (master_ip=getenv(MASTER_IP))) {
-		fprintf(stderr, "please set master ip\n");
-		return;
-	}
+	_DEBUG("start initalizing\n");
 	
 	if(NULL == (mount_point=getenv(CLIENT_MOUNT_POINT)))
 	{
@@ -48,34 +44,66 @@ CBB::CBB():
 		return;
 	}
 	//_DEBUG("%s\n", mount_point);
-	memset(&_master_addr, 0, sizeof(_master_addr));
 	memset(&_client_addr, 0, sizeof(_client_addr));
-	_master_addr.sin_family = AF_INET;
-	_master_addr.sin_port = htons(MASTER_PORT);
 	for(int i=0;i<MAX_FILE; ++i)
 	{
 		_opened_file[i]=false;
 	}
 
-	if(0 == inet_aton(master_ip, &_master_addr.sin_addr))
-	{
-		perror("Master IP Address Error");
-		return;
-	}
 	_client_addr.sin_family = AF_INET;
 	_client_addr.sin_port = htons(0);
 	_client_addr.sin_addr.s_addr = htons(INADDR_ANY);
+	if(-1 == _regist_to_master())
+	{
+		return;
+	}
 	_DEBUG("initialization finished\n");
-	_regist_to_master();
 	_initial=true;
 }
 
 inline int CBB::_regist_to_master()
 {
 	int ret;
-	master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
-	Send_flush(master_socket, NEW_CLIENT);
-	Recv(master_socket, ret);
+	struct sockaddr_in _master_addr;
+	const char* master_ip_list=getenv(MASTER_IP_LIST), *next_master_ip=NULL;
+	char master_ip[20];
+	if(NULL == master_ip_list)
+	{
+		fprintf(stderr, "please set master ip\n");
+		return -1;
+	}
+	memset(&_master_addr, 0, sizeof(_master_addr));
+	_master_addr.sin_family = AF_INET;
+	_master_addr.sin_port = htons(MASTER_PORT);
+	while(0 != *master_ip_list)
+	{
+		next_master_ip=strchr(master_ip_list, ',');
+		if(NULL == next_master_ip)
+		{
+			for(next_master_ip=master_ip_list;
+					'\0' != *next_master_ip; ++ next_master_ip);
+			strncpy(master_ip, master_ip_list, next_master_ip-master_ip_list);
+			master_ip[next_master_ip-master_ip_list]=0;
+			master_ip_list=next_master_ip;
+		}
+		else
+		{
+			strncpy(master_ip, master_ip_list, next_master_ip-master_ip_list);
+			master_ip[next_master_ip-master_ip_list]=0;
+			master_ip_list=next_master_ip+1;
+		}
+
+		if(0 == inet_aton(master_ip, &_master_addr.sin_addr))
+		{
+			perror("Master IP Address Error");
+			_DEBUG("%s\n", master_ip);
+			return -1;
+		}
+		int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
+		Send_flush(master_socket, NEW_CLIENT);
+		Recv(master_socket, ret);
+		master_socket_list.push_back(master_socket);
+	}
 	return ret;
 }
 
@@ -84,13 +112,18 @@ CBB::~CBB()
 	for(_file_list_t::iterator it=_file_list.begin();
 			it!=_file_list.end();++it)
 	{
+		int master_socket=it->second.file_meta_p->master_socket;
 		int ret=0;
 		Send(master_socket, CLOSE_FILE);
 		Send(master_socket, it->second.file_meta_p->file_no);
 		Recv(master_socket, ret);
 	}
-	Send(master_socket, CLOSE_CLIENT);
-	close(master_socket);
+	for(master_list_t::iterator it=master_socket_list.begin();
+			it != master_socket_list.end();++it)
+	{
+		Send(*it, CLOSE_CLIENT);
+		close(*it);
+	}
 	for(IOnode_fd_map_t::iterator it=IOnode_fd_map.begin();
 			it!=IOnode_fd_map.end();++it)
 	{
@@ -107,12 +140,16 @@ CBB::block_info::block_info(ssize_t node_id, off64_t start_point, size_t size):
 	size(size)
 {}
 
-CBB::file_meta::file_meta(ssize_t file_no, size_t block_size, const struct stat* file_stat):
+CBB::file_meta::file_meta(ssize_t file_no,
+		size_t block_size,
+		const struct stat* file_stat,
+		int master_socket):
 	file_no(file_no),
 	open_count(0),
 	block_size(block_size),
 	file_stat(*file_stat),
 	opened_fd(),
+	master_socket(master_socket),
 	it(NULL)
 {}
 
@@ -209,6 +246,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	CHECK_INIT();
 	file_meta* file_meta_p=NULL;
 	std::string string_path=std::string(path);
+	int master_socket=_get_master_socket_from_path(path);
 	int fid;
 	if(-1 == (fid=_get_fid()))
 	{
@@ -243,7 +281,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 			_DEBUG("open finished\n");
 			if(NULL == file_meta_p)
 			{
-				file_meta_p=_create_new_file();
+				file_meta_p=_create_new_file(master_socket);
 				_path_file_meta_map_t::iterator it=_path_file_meta_map.insert(std::make_pair(string_path, file_meta_p)).first;
 				file_meta_p->it=it;
 			}
@@ -271,7 +309,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	return fd;
 }
 
-CBB::file_meta* CBB::_create_new_file()
+CBB::file_meta* CBB::_create_new_file(int master_socket)
 {
 	ssize_t file_no;
 	size_t block_size;
@@ -279,7 +317,7 @@ CBB::file_meta* CBB::_create_new_file()
 	Recv(master_socket, file_no);
 	Recv(master_socket, block_size);
 	Recv_attr(master_socket, &file_stat);
-	file_meta* file_meta_p=new file_meta(file_no, block_size, &file_stat);
+	file_meta* file_meta_p=new file_meta(file_no, block_size, &file_stat, master_socket);
 	if(NULL != file_meta_p)
 	{
 		return file_meta_p;
@@ -430,6 +468,7 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 	int ret=0;
 	CHECK_INIT();
 	int fid=_BB_fd_to_fid(fd);
+	int master_socket=_get_master_socket_from_fd(fd);
 	if(0 == size)
 	{
 		return size;
@@ -437,7 +476,6 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 	try
 	{
 		file_info& file=_file_list.at(fid);
-
 		ssize_t file_no=file.file_meta_p->file_no;
 		_block_list_t blocks;
 		_node_pool_t node_pool;
@@ -479,6 +517,7 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 	int ret=0;
 	int fid=_BB_fd_to_fid(fd);
 	CHECK_INIT();
+	int master_socket=_get_master_socket_from_fd(fd);
 	if(0 == size)
 	{
 		return size;
@@ -571,6 +610,7 @@ int CBB::_close(int fd)
 	int ret=0;
 	int fid=_BB_fd_to_fid(fd);
 	CHECK_INIT();
+	int master_socket=_get_master_socket_from_fd(fd);
 	try
 	{
 		file_info& file=_file_list.at(fid);
@@ -605,6 +645,7 @@ int CBB::_flush(int fd)
 {
 	int ret=0;
 	int fid=_BB_fd_to_fid(fd);
+	int master_socket=_get_master_socket_from_fd(fd);
 	CHECK_INIT();
 	try
 	{
@@ -674,6 +715,7 @@ int CBB::_getattr(const char* path, struct stat* fstat)
 {
 	int ret=0;
 	CHECK_INIT();
+	int master_socket=_get_master_socket_from_path(path);
 	if(SUCCESS == _get_local_attr(path, fstat))
 	{
 		_DEBUG("use local stat\n");
@@ -707,6 +749,7 @@ int CBB::_readdir(const char * path, dir_t& dir)const
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
+	int master_socket=_get_master_socket_from_path(path);
 	Send(master_socket, READ_DIR); 
 	Sendv_flush(master_socket, path, strlen(path));
 	Recv(master_socket, ret);
@@ -737,6 +780,7 @@ int CBB::_rmdir(const char * path)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
+	int master_socket=_get_master_socket_from_path(path);
 	Send(master_socket, RM_DIR); 
 	Sendv_flush(master_socket, path, strlen(path));
 	Recv(master_socket, ret);
@@ -757,6 +801,7 @@ int CBB::_unlink(const char * path)
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
 	_close_local_opened_file(path);
+	int master_socket=_get_master_socket_from_path(path);
 	Send(master_socket, UNLINK); 
 	Sendv_flush(master_socket, path, strlen(path));
 	Recv(master_socket, ret);
@@ -803,6 +848,7 @@ int CBB::_access(const char* path, int mode)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
+	int master_socket=_get_master_socket_from_path(path);
 	Send(master_socket, ACCESS); 
 	Sendv(master_socket, path, strlen(path));
 	Send_flush(master_socket, mode);
@@ -823,6 +869,7 @@ int CBB::_stat(const char* path, struct stat* buf)
 	CHECK_INIT();
 	int ret;
 	memset(buf, 0, sizeof(struct stat));
+	int master_socket=_get_master_socket_from_path(path);
 	Send(master_socket, GET_FILE_META);
 	Sendv_flush(master_socket, path, strlen(path));
 	Recv(master_socket, ret);
@@ -842,6 +889,7 @@ int CBB::_rename(const char* old_name, const char* new_name)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
+	int master_socket=_get_master_socket_from_path(old_name);
 	Send(master_socket, RENAME); 
 	Sendv(master_socket, old_name, strlen(old_name));
 	Sendv_flush(master_socket, new_name, strlen(new_name));
@@ -862,6 +910,7 @@ int CBB::_mkdir(const char* path, mode_t mode)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
+	int master_socket=_get_master_socket_from_path(path);
 	Send(master_socket, MKDIR); 
 	Sendv(master_socket, path, strlen(path));
 	Send_flush(master_socket, mode);
@@ -994,6 +1043,7 @@ int CBB::_truncate(const char* path, off64_t size)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
+	int master_socket=_get_master_socket_from_path(path);
 	Send(master_socket, TRUNCATE); 
 	Sendv(master_socket, path, strlen(path));
 	Send_flush(master_socket, size);
@@ -1017,4 +1067,16 @@ int CBB::_ftruncate(int fd, off64_t size)
 	file.file_meta_p->file_stat.st_size=size;
 	_touch(fd);
 	return _truncate(file.file_meta_p->it->first.c_str(), size);
+}
+
+int CBB::_get_master_socket_from_path(const std::string& path)const
+{
+	static std::hash<std::string> string_hash;
+	static size_t size=master_socket_list.size();
+	return master_socket_list[string_hash(path)%size];
+}
+
+int CBB::_get_master_socket_from_fd(int fd)const
+{
+	return _file_list.at(fd).file_meta_p->master_socket;
 }
