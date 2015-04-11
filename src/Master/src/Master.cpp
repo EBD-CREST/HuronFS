@@ -1068,18 +1068,18 @@ int Master::_parse_close_file(int clientfd)
 		file_info &file=*_buffered_files.at(file_no);
 		_LOG("file no %ld\n", file_no);
 		Send_flush(clientfd, SUCCESS);
-		if(NOT_EXIST == file.file_status->exist_flag)
+		/*if(NOT_EXIST == file.file_status->exist_flag)
 		{
 			if(-1 == creat(file.file_status->get_path().c_str(), 0600))
 			{
 				perror("create");
 			}
 			file.file_status->exist_flag=EXISTING;
-		}
+		}*/
 		//if(0 == --file.open_count)
 		//{
 
-		for(node_pool_t::iterator it=file.nodes.begin();
+		/*for(node_pool_t::iterator it=file.nodes.begin();
 				it != file.nodes.end();++it)
 		{
 			_DEBUG("write back request to IOnode %ld\n", *it);
@@ -1091,7 +1091,7 @@ int Master::_parse_close_file(int clientfd)
 			//Recv(socket, ret);
 			//			int ret=0;
 			//			Recv(socket, ret);
-		}
+		}*/
 		//File_t::iterator file=_buffered_files.find(file_no);
 		//std::string &path=file->second.path;
 		//_file_no.erase(path);
