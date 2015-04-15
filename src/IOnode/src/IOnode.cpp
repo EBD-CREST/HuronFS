@@ -173,6 +173,8 @@ int IOnode::_parse_registed_request(int sockfd)
 		_IOrequest_from_master(sockfd);break;*/
 /*	case I_AM_SHUT_DOWN:
 		ans=SERVER_SHUT_DOWN;break;*/
+	case RENAME:
+		_rename(sockfd);break;
 	case FLUSH_FILE:
 		_flush_file(sockfd);break;
 	case CLOSE_FILE:
@@ -245,6 +247,22 @@ int IOnode::_open_file(int sockfd)
 	}
 	delete[] path_buffer; 
 	Recv(sockfd, count);
+	Send_flush(sockfd, SUCCESS);
+	return SUCCESS; 
+}
+
+int IOnode::_rename(int sockfd)
+{
+	ssize_t file_no; 
+	int flag=0;
+	char *new_path=NULL; 
+	int count=0;
+	Recv(sockfd, file_no);
+	Recvv(sockfd, &new_path);
+	_DEBUG("rename file_no =%ld, new_path=%s\n", file_no, new_path);
+	_file_path.erase(file_no);
+	_file_path.insert(std::make_pair(file_no, new_path));
+	delete[] new_path; 
 	Send_flush(sockfd, SUCCESS);
 	return SUCCESS; 
 }

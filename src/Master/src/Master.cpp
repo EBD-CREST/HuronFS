@@ -1122,6 +1122,22 @@ int Master::_parse_rename(int clientfd)
 		file_stat_t::iterator new_it=_file_stat.insert(std::make_pair(new_relative_path, stat)).first;
 		_file_stat.erase(old_relative_path);
 		new_it->second.it=new_it;
+		if(NULL != new_it->second.opened_file_info)
+		{
+			file_info* opened_file = new_it->second.opened_file_info;
+			opened_file->file_status=&(new_it->second);
+			for(node_pool_t::iterator it=opened_file->nodes.begin();
+					it!=opened_file->nodes.end();++it)
+			{
+				int socket=_registed_IOnodes.at(*it)->socket;
+				Send(socket, RENAME);
+				Send(socket, opened_file->file_no);
+				Sendv_flush(socket, new_relative_path.c_str(), new_relative_path.size());
+				int ret;
+				Recv(socket, ret);
+			}
+		}
+				
 		//_buffered_files.at(stat.get_fd())->get_path()=new_relative_path;
 		//Send(clientfd, SUCCESS);
 		//return SUCCESS;

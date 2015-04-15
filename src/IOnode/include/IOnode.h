@@ -72,6 +72,7 @@ private:
 	//int _read_file(int sockfd);
 	int _IOrequest_from_master(int sockfd);
 	int _flush_file(int sockfd);
+	int _rename(int sockfd);
 	int _close_file(int sockfd);
 	int _append_new_block(int sockfd);
 	int _regist_new_client(int sockfd);
