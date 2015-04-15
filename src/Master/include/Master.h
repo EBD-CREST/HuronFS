@@ -57,8 +57,7 @@ private:
 	typedef std::map<ssize_t, block_info_t> node_block_map_t;
 
 	typedef std::vector<std::string> dir_t;
-
-	class file_info
+class file_info
 	{
 	public:
 		file_info(ssize_t fileno,
@@ -128,9 +127,7 @@ private:
 	void _release_file_no(ssize_t fileno);
 	void _send_block_info(int socket, const node_id_pool_t& node_id_pool, const node_t& node_set)const;
 	void _send_IO_request(ssize_t file_no, const file_info& file, const node_t& node_set, size_t size, int mode)const;
-	void _send_append_request(ssize_t file_no, const node_block_map_t& append_node_block)const;
-	void _create_file(const char* file_path, mode_t mode)throw(std::runtime_error);
-
+	void _send_append_request(ssize_t file_no, const node_block_map_t& append_node_block)const; void _create_file(const char* file_path, mode_t mode)throw(std::runtime_error); 
 	IOnode_t::iterator _find_by_ip(const std::string& ip);
 
 	virtual int _parse_new_request(int socketfd, const struct sockaddr_in& client_addr); virtual int _parse_registed_request(int socketfd); virtual std::string _get_real_path(const char* path)const;
@@ -177,6 +174,7 @@ private:
 	//int _get_file_meta(struct file_info& file)throw (std::invalid_argument);
 	
 	int _get_client_file_meta_update(int clientfd, struct stat* file_stat);
+	//void flush_map(file_stat_t& map)const;
 
 private:
 	IOnode_t _registed_IOnodes;

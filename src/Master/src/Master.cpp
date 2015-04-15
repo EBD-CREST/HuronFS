@@ -510,6 +510,7 @@ int Master::_parse_open_file(int clientfd)
 		_open_file(file_path, flag, file_no, exist_flag); 
 		file_info *opened_file=_buffered_files.at(file_no);
 		size_t block_size=opened_file->block_size;
+		_DEBUG("file path= %s, file no=%ld\n", file_path, file_no);
 		delete file_path; 
 		Send(clientfd, SUCCESS);
 		Send(clientfd, file_no);
@@ -628,6 +629,7 @@ Master::file_stat* Master::_create_new_file_stat(const char* relative_path, int 
 	{
 		if(-1 == stat(real_path.c_str(), &file_status))
 		{
+			_DEBUG("file can not open\n");
 			throw std::invalid_argument("file can not open");
 		}
 	}
@@ -644,7 +646,11 @@ Master::file_stat* Master::_create_new_file_stat(const char* relative_path, int 
 		file_status.st_gid=getgid();
 		file_status.st_mode=S_IFREG;
 	}
+	_DEBUG("add new file states\n");
 	file_stat_t::iterator it=_file_stat.insert(std::make_pair(relative_path_string, file_stat())).first;
+	//+++++++
+	//flush_map(_file_stat);
+	//+++++++
 	file_stat* new_file_status=&(it->second);
 	new_file_status->it=it;
 	new_file_status->exist_flag=exist_flag;
@@ -957,6 +963,7 @@ int Master::_parse_write_file(int clientfd)
 	size_t size;
 	off64_t start_point;
 	Recv(clientfd, file_no);
+	_DEBUG("file no=%ld\n", file_no);
 	//Recv(clientfd, mode); 
 	try
 	{
@@ -1116,11 +1123,19 @@ int Master::_parse_rename(int clientfd)
 	_recv_real_relative_path(clientfd, old_real_path, old_relative_path);
 	_recv_real_relative_path(clientfd, new_real_path, new_relative_path); 
 	_LOG("old file path=%s, new file path=%s\n", old_real_path.c_str(), new_real_path.c_str());
-	try
+	//++++++++
+	//flush_map(_file_stat);
+	//++++++++
+	file_stat_t::iterator it;
+	_file_stat.erase(new_relative_path);
+	if((it=_file_stat.find(old_relative_path))!= _file_stat.end())
 	{
-		file_stat& stat=_file_stat.at(old_relative_path);
+		file_stat& stat=it->second;
 		file_stat_t::iterator new_it=_file_stat.insert(std::make_pair(new_relative_path, stat)).first;
-		_file_stat.erase(old_relative_path);
+		_file_stat.erase(it);
+		//++++++++
+		//flush_map(_file_stat);
+		//++++++++
 		new_it->second.it=new_it;
 		if(NULL != new_it->second.opened_file_info)
 		{
@@ -1141,9 +1156,6 @@ int Master::_parse_rename(int clientfd)
 		//_buffered_files.at(stat.get_fd())->get_path()=new_relative_path;
 		//Send(clientfd, SUCCESS);
 		//return SUCCESS;
-	}
-	catch(std::out_of_range &e)
-	{
 	}
 	int ret=rename(old_real_path.c_str(), new_real_path.c_str());
 	/*if(-1 == ret)
@@ -1234,3 +1246,20 @@ int Master::_parse_truncate_file(int clientfd)
 	}
 	return SUCCESS;
 }
+/*
+void Master::flush_map(file_stat_t& map)const
+{
+	_DEBUG("start\n");
+	for(file_stat_t::const_iterator it=map.begin();
+			it!=map.end();++it)
+	{
+		_DEBUG("key %s\n", it->first.c_str());
+		try
+		{
+			_DEBUG("file no %d\n", it->second.get_fd());
+		}
+		catch(std::out_of_range &e)
+		{}
+	}
+	_DEBUG("end\n");
+}*/
