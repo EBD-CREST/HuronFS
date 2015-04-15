@@ -890,6 +890,15 @@ int CBB::_rename(const char* old_name, const char* new_name)
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
 	int master_socket=_get_master_socket_from_path(old_name);
+
+	_path_file_meta_map_t::iterator it=_path_file_meta_map.find(old_name);
+	if(_path_file_meta_map.end() != it)
+	{
+		
+		_path_file_meta_map_t::iterator new_it=_path_file_meta_map.insert(std::make_pair(new_name, it->second)).first;
+		_path_file_meta_map.erase(it);
+		new_it->second->it=new_it;
+	}
 	Send(master_socket, RENAME); 
 	Sendv(master_socket, old_name, strlen(old_name));
 	Sendv_flush(master_socket, new_name, strlen(new_name));

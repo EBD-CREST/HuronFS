@@ -454,8 +454,8 @@ int Master::_parse_registed_request(int clientfd)
 		_parse_unlink(clientfd);break;
 	case ACCESS:
 		_parse_access(clientfd);break;
-	/*case RENAME:
-		_parse_rename(clientfd);break;*/
+	case RENAME:
+		_parse_rename(clientfd);break;
 	case MKDIR:
 		_parse_mkdir(clientfd);break;
 	case TRUNCATE:
@@ -1108,7 +1108,7 @@ int Master::_parse_close_file(int clientfd)
 }
 
 //implment later
-/*
+
 int Master::_parse_rename(int clientfd)
 {
 	_LOG("request for rename file\n");
@@ -1119,26 +1119,27 @@ int Master::_parse_rename(int clientfd)
 	try
 	{
 		file_stat& stat=_file_stat.at(old_relative_path);
-		_file_stat.insert(std::make_pair(new_relative_path, stat));
+		file_stat_t::iterator new_it=_file_stat.insert(std::make_pair(new_relative_path, stat)).first;
 		_file_stat.erase(old_relative_path);
+		new_it->second.it=new_it;
 		//_buffered_files.at(stat.get_fd())->get_path()=new_relative_path;
-		Send(clientfd, SUCCESS);
-		return SUCCESS;
+		//Send(clientfd, SUCCESS);
+		//return SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
-		int ret=rename(old_real_path.c_str(), new_real_path.c_str());
-		if(-1 == ret)
-		{
-			Send(clientfd, errno);
-		}
-		else
-		{
-			Send(clientfd, SUCCESS);
-		}
-		return SUCCESS;
 	}
-}*/
+	int ret=rename(old_real_path.c_str(), new_real_path.c_str());
+	/*if(-1 == ret)
+	{
+		Send(clientfd, errno);
+	}
+	else
+	{*/
+		Send(clientfd, SUCCESS);
+	//}
+	return SUCCESS;
+}
 
 int Master::_parse_mkdir(int clientfd)
 {

@@ -107,6 +107,7 @@ public:
 	int _stat(const char* path, struct stat* buf);
 	int _rename(const char* old_name, const char* new_name);
 	int _mkdir(const char* path, mode_t mode);
+	int _mkmod(const char* path, mode_t mode, dev_t rdev);
 	int _touch(int fd);
 	int _truncate(const char*path, off64_t size);
 	int _ftruncate(int fd, off64_t size);

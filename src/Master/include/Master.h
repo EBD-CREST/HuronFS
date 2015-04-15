@@ -155,7 +155,7 @@ private:
 	int _parse_rmdir(int clientfd);
 	int _parse_access(int clientfd)const;
 	int _parse_mkdir(int clientfd);
-	//int _parse_rename(int clientfd);
+	int _parse_rename(int clientfd);
 	int _parse_close_client(int clientfd);
 	int _parse_truncate_file(int clientfd);
 

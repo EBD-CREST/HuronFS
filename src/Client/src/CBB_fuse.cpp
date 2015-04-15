@@ -217,6 +217,15 @@ static int CBB_rename(const char* old_name, const char* new_name)
 	return ret;
 }
 
+static int CBB_mknod(const char* path, mode_t mode, dev_t rdev)
+{
+	_DEBUG("CBB mknod path=%s, mode=%d\n", path, mode);
+	lock_stream(stdout);
+	client._open_stream(path, 0600, mode);
+	unlock_stream(stdout);
+	return 0;
+}
+
 static int CBB_truncate(const char* path, off_t size)
 {
 	_DEBUG("CBB truncate path=%s\n", path);
@@ -249,7 +258,8 @@ int main(int argc, char *argv[])
 	CBB_oper.rmdir=CBB_rmdir;
 	CBB_oper.access=CBB_access;
 	CBB_oper.release=CBB_release;
-	//CBB_oper.rename=CBB_rename;
+	CBB_oper.rename=CBB_rename;
+	CBB_oper.mknod=CBB_mknod;
 	CBB_oper.mkdir=CBB_mkdir;
 	CBB_oper.truncate=CBB_truncate;
 	CBB_oper.ftruncate=CBB_ftruncate;
