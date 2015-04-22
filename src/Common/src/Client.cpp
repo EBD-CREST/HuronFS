@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "include/Client.h"
-#include "include/CBB_const.h"
-#include "include/CBB_internal.h"
+#include "Client.h"
+#include "CBB_const.h"
+#include "CBB_internal.h"
 
 Client::~Client()
 {}

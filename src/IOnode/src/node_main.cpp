@@ -20,18 +20,18 @@ void usage()
 int parse_opt(int argc, char ** argv)
 {
 	int oc;
-	int run_daemon=false;
+	int run_daemon=true;
 	while(-1 != (oc=getopt(argc, argv, optstring)))
 	{
 		switch(oc)
 		{
 			case 'd':
-				run_daemon=true;break;
+				run_daemon=false;break;
 				break;
 			case 'h':
 				usage();exit(EXIT_SUCCESS);break;
 			case '?':
-				fprintf(stderr, "unknown option %s\n", (char)optopt);
+				fprintf(stderr, "unknown option %c\n", (char)optopt);
 				usage();exit(EXIT_SUCCESS);
 		}
 
@@ -48,17 +48,17 @@ int main(int argc, char**argv)
 		return EXIT_FAILURE;
 	}
 	std::string master_ip(_ip); 
-	if(parse_opt(argc, argv))
-	{
-		if(-1 == daemon(0, 0))
-		{
-			perror("daemon error");
-			return EXIT_FAILURE;
-		}
-	}
 	try
 	{
 		IOnode node(master_ip, MASTER_PORT); 
+		if(parse_opt(argc, argv))
+		{
+			if(-1 == daemon(0, 0))
+			{
+				perror("daemon error");
+				return EXIT_FAILURE;
+			}
+		}
 		node.start_server();
 	}
 	catch(std::runtime_error& e)

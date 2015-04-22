@@ -998,7 +998,7 @@ int Master::_parse_access(int clientfd)const
 	_LOG("path=%s\n, mode=%d", real_path.c_str(), mode);
 	try
 	{
-		const file_stat& file=_file_stat.at(relative_path);
+		//const file_stat& file=_file_stat.at(relative_path);
 		Send_flush(clientfd, SUCCESS);
 		return SUCCESS;
 	}
@@ -1072,8 +1072,8 @@ int Master::_parse_close_file(int clientfd)
 	Recv(clientfd, file_no);
 	try
 	{
-		file_info &file=*_buffered_files.at(file_no);
 		_LOG("file no %ld\n", file_no);
+		//file_info &file=*_buffered_files.at(file_no);
 		Send_flush(clientfd, SUCCESS);
 		/*if(NOT_EXIST == file.file_status->exist_flag)
 		{
@@ -1157,7 +1157,7 @@ int Master::_parse_rename(int clientfd)
 		//Send(clientfd, SUCCESS);
 		//return SUCCESS;
 	}
-	int ret=rename(old_real_path.c_str(), new_real_path.c_str());
+	rename(old_real_path.c_str(), new_real_path.c_str());
 	/*if(-1 == ret)
 	{
 		Send(clientfd, errno);

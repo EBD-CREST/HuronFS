@@ -363,9 +363,9 @@ off64_t CBB_stream::_seek_stream(FILE* file_stream, off64_t offset, int whence)
 			case SEEK_CUR:new_pos=stream->_cur_file_off()+offset;break;
 			case SEEK_END:new_pos=static_cast<off64_t>(_get_file_size(stream->fd))+offset;break;
 		}
-		if( new_pos > stream->buf_file_off+stream->buffered_data_size|| new_pos < stream->buf_file_off)
+		if( new_pos > static_cast<off64_t>(stream->buf_file_off+stream->buffered_data_size)|| new_pos < stream->buf_file_off)
 		{
-			_DEBUG("flush stream, new_pos=%ld, current buffered data offset=%ld, current buffer offset =%d\n",
+			_DEBUG("flush stream, new_pos=%ld, current buffered data offset=%ld, current buffer offset =%ld\n",
 					new_pos,stream->buf_file_off+stream->buffered_data_size, stream->buf_file_off);
 			_flush_stream(file_stream);
 			stream->cur_buf_ptr=stream->buf;
@@ -475,7 +475,7 @@ int CBB_stream::_truncate_stream(FILE* file_stream, off64_t size)
 			{
 				stream->buf_file_off=size;
 			}
-			if(stream->buffered_data_size>size-stream->buf_file_off)
+			if(static_cast<off64_t>(stream->buffered_data_size)>size-stream->buf_file_off)
 			{
 				stream->buffered_data_size=size-stream->buf_file_off;
 				stream->cur_buf_ptr=stream->buf+stream->buffered_data_size;

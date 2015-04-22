@@ -1,23 +1,26 @@
-LIB = libMaster.so
-OBJ = Master 
+MAIN = Master 
 SRC_DIR = src
 HEADER_DIR = include
 INCLUDE_PATH = -I./include -I../Common/include
 LINK_PATH = -L./
 SERVER = ../Common/Server.o
 
-vpath %.cpp src/
-vpath %.h include/
+SRC = Master.cpp master_main.cpp
+OBJ = $(SRC:.cpp=.o)
+DEP = $(SRC:.cpp=.d)
 
-$(OBJ):$(SRC_DIR)/master_main.cpp $(LIB)
-	$(CC) $(FLAG) $(INCLUDE_PATH) $(LINK_PATH) -o $@ $< -lMaster
+vpath %.cpp $(SRC_DIR)
+vpath %.h $(HEADER_DIR)
 
-$(LIB):$(SRC_DIR)/Master.cpp $(HEADER_DIR)/Master.h $(SERVER)
-	$(CC) -std=c++0x $(FLAG) $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $^
+$(MAIN):$(OBJ) $(SERVER)
+	$(CC) $(FLAG) $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $^
+
+%.o:%.cpp
+	$(CC) -c $(DEP_FLAG) $(FLAG) $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $<
 
 $(SERVER):
 	cd ../Common && $(MAKE) $(notdir $@)
 
 .PHONY:clean
 clean:
-	rm -f $(LIB) $(OBJ)
+	rm -f $(DEP) $(OBJ) $(MAIN)

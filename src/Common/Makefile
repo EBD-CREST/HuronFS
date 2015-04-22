@@ -1,19 +1,16 @@
-SERVER = Server.o
-CLIENT = Client.o
-
+SRC = Server.cpp Client.cpp
+OBJ = $(SRC:.cpp=.o)
+DEP = $(SRC:.cpp=.d)
 SRC_DIR = src
 HEADER_DIR = include
-INCLUDE_PATH = -I./
+INCLUDE_PATH = -I./include
 
-vpath %.cpp src/
-vpath %.h include/
+vpath %.cpp $(SRC_DIR)
+vpath %.h $(HEADER_DIR)
 
-$(SERVER):$(SRC_DIR)/Server.cpp $(HEADER_DIR)/Server.h
-	$(CC) $(FLAG) -c $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $<
-
-$(CLIENT):$(SRC_DIR)/Client.cpp $(HEADER_DIR)/Client.h
-	$(CC) $(FLAG) -c $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $<
+%.o:%.cpp
+	$(CC) $(FLAG) -c $(DEP_FLAG) $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $<
 
 .PHONY:clean
 clean:
-	rm -f $(CLIENT) $(SERVER)
+	rm -f $(OBJ) $(DEP)

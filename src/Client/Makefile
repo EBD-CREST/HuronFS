@@ -1,49 +1,42 @@
-CBB_LIB = libCBB.so
+CBB_LIB= libCBB.so
+MAIN = cbbfs
 
-CBB = CBB.o
-CBB_STREAM = CBB_stream.o
-CBB_STDIO = CBB_stdio.o
-CBB_POSIX = CBB_posix.o
-CBB_FUSE = CBB_fuse
 CLIENT = ../Common/Client.o
-CLIENT_FUSE = CBB_fuse
 
-OBJ = $(CBB) $(CBB_STREAM) $(CBB_STDIO) $(CBB_POSIX) 
+FUSE_SRC = CBB_fuse.cpp
+LIB_SRC = CBB.cpp CBB_stream.cpp CBB_stdio.cpp CBB_posix.cpp
+SRC = $(FUSE_SRC) $(LIB_SRC)
+FUSE_OBJ = $(FUSE_SRC:.cpp=.o)
+LIB_OBJ = $(LIB_SRC:.cpp=.o)
+OBJ = $(FUSE_OBJ) $(LIB_OBJ)
+
+DEP = $(SRC:.cpp=.d)
 
 SRC_DIR = src
 HEADER_DIR = include
 INCLUDE_PATH = -I./include/ -I../Common/include
-FUSE_HEADER = $(shell pkg-config --cflags --libs fuse)
+FUSE_HEADER = $(shell pkg-config --cflags fuse)
+FUSE_LIB= $(shell pkg-config --libs fuse)
 
-vpath %.cpp src/
-vpath %.h include/
+vpath %.cpp $(SRC_DIR)
+vpath %.h $(HEADER_DIR)
 
 
 $(CBB_LIB):$(OBJ) $(CLIENT)
-	$(CC) $(PRELOAD) $(FLAG) $(LIB_FLAG) -o $@ $^ -ldl
+	$(CC) $(LIB_FLAG) -o $@ $^ -ldl
 
-$(CBB_STDIO):$(SRC_DIR)/CBB_stdio.cpp $(CBB_POSIX) $(HEADER_DIR)/CBB_stdio.h
-	$(CC) -c $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $< 
+$(MAIN):$(FUSE_OBJ) $(OBJ) $(CLIENT)
+	$(CC) -o $@ $^ -ldl $(FUSE_LIB) 
 
-$(CBB_POSIX):$(SRC_DIR)/CBB_posix.cpp $(CBB_STREAM) $(HEADER_DIR)/CBB_posix.h
-	$(CC) -c $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $<
+$(FUSE_OBJ):$(FUSE_SRC)
+	$(CC) -c $(DEP_FLAG) $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) $(FUSE_HEADER) -o $@ $< 
 
-$(CBB_STREAM):$(SRC_DIR)/CBB_stream.cpp $(CBB) $(HEADER_DIR)/CBB_stream.h
-	$(CC) -c $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $<
-
-$(CBB):$(SRC_DIR)/CBB.cpp $(HEADER_DIR)/CBB.h
-	$(CC) -c $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $<
-
-fuse:$(SRC_DIR)/CBB_fuse.cpp
-	$(CC) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) $(FUSE_PATH) -o $@ $<
+%.o:%.cpp
+	$(CC) -c $(DEP_FLAG) $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $< 
 
 $(CLIENT):
 	cd ../Common && $(MAKE) $(notdir $@)
 
-$(CLIENT_FUSE):$(SRC_DIR)/CBB_fuse.cpp $(CBB_STREAM) $(CLIENT)
-	$(CC) $(INCLUDE_PATH) $(FLAG) $(FUSE_HEADER) -o $@ $^ $(CBB)
-
-
 .PHONY:clean
 clean:
-	rm -f $(OBJ) $(CBB_LIB) $(CLIENT_FUSE)
+	rm -f $(OBJ) $(DEP)

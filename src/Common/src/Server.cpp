@@ -3,10 +3,10 @@
 #include <stdio.h>
 #include <sys/epoll.h>
 
-#include "include/Server.h"
-#include "include/CBB_const.h"
-#include "include/Communication.h"
-#include "include/CBB_internal.h"
+#include "Server.h"
+#include "CBB_const.h"
+#include "Communication.h"
+#include "CBB_internal.h"
 
 Server::Server(int port)throw(std::runtime_error):
 	_server_addr(sockaddr_in()), 

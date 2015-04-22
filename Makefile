@@ -6,18 +6,17 @@ IONODE_DIR = $(SRC)/IOnode
 CLIENT_DIR = $(SRC)/Client
 COMMON_DIR = $(SRC)/Common
 
-MASTER_LIB = $(MASTER_DIR)/libMaster.so
 MASTER = $(MASTER_DIR)/Master
 
-IONODE_LIB = $(IONODE_DIR)/libIOnode.so
 IONODE = $(IONODE_DIR)/IOnode
 
 CLIENT_LIB = $(CLIENT_DIR)/libCBB.so
-CLIENT_FUSE= $(CLIENT_DIR)/CBB_fuse
+CLIENT_FUSE= $(CLIENT_DIR)/cbbfs
 
 export CC=g++
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
+export DEP_FLAG = -MMD -MP
 export FLAG=-O0 -g -Wall -std=c++0x -DDEBUG
 #export FLAG=-O3 -g -Wall
 
@@ -32,14 +31,12 @@ run:
 .PHONY:clean clean_all Master IOnode Client all
 Master:
 	$(MAKE) -C $(MASTER_DIR)
-	mkdir -p bin lib
-	mv $(MASTER_LIB) lib
+	mkdir -p bin
 	mv $(MASTER) bin
 
 IOnode:
 	$(MAKE) -C $(IONODE_DIR)
-	mkdir -p bin lib
-	mv $(IONODE_LIB) lib
+	mkdir -p bin
 	mv $(IONODE) bin
 
 Client:
@@ -48,7 +45,7 @@ Client:
 	mv $(CLIENT_LIB) lib
 
 Client_fuse:
-	$(MAKE) -C $(CLIENT_DIR) CBB_fuse
+	$(MAKE) -C $(CLIENT_DIR) cbbfs
 	mkdir -p bin 
 	mv $(CLIENT_FUSE) bin
 

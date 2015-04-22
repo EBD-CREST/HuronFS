@@ -254,9 +254,7 @@ int IOnode::_open_file(int sockfd)
 int IOnode::_rename(int sockfd)
 {
 	ssize_t file_no; 
-	int flag=0;
 	char *new_path=NULL; 
-	int count=0;
 	Recv(sockfd, file_no);
 	Recvv(sockfd, &new_path);
 	_DEBUG("rename file_no =%ld, new_path=%s\n", file_no, new_path);
@@ -548,7 +546,7 @@ int IOnode::_flush_file(int sockfd)
 	ssize_t file_no;
 	Recv(sockfd, file_no);
 	std::string &path=_file_path.at(file_no);
-	_DEBUG("flush file file_no=%d, path=%s\n", file_no, path.c_str());
+	_DEBUG("flush file file_no=%ld, path=%s\n", file_no, path.c_str());
 	Send_flush(sockfd, SUCCESS);
 	try
 	{
@@ -635,7 +633,7 @@ int IOnode::_truncate_file(int sockfd)
 {
 	_LOG("truncate file\n");
 	off64_t start_point;
-	int fd;
+	ssize_t fd;
 	Recv(sockfd, fd);
 	Recv(sockfd, start_point);
 	_LOG("fd=%ld, start_point=%ld\n", fd, start_point);

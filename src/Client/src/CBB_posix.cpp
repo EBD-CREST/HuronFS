@@ -327,7 +327,7 @@ extern "C" int CBB_WRAP(stat)(const char* path, struct stat* buf)
 	}
 }
 
-extern "C" int CBB_WRAP(fstat)(int fd, struct stat* buf)
+/*extern "C" int CBB_WRAP(fstat)(int fd, struct stat* buf)
 {
 	CBB_FUNC_P(int, fstat, (int fd, struct stat *buf));
 	if(CBB::_interpret_fd(fd))
@@ -339,7 +339,7 @@ extern "C" int CBB_WRAP(fstat)(int fd, struct stat* buf)
 		MAP_BACK(fstat);
 		return CBB_REAL(fstat)(fd, buf);
 	}
-}
+}*/
 
 extern "C" int CBB_WRAP(lstat)(const char* path, struct stat* buf)
 {
