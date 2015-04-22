@@ -1,14 +1,17 @@
-CBB_LIB= libCBB.so
+CBB_LTLIB= libCBB.so
+CBB_SLIB= libCBB.a
 MAIN = cbbfs
 
 CLIENT = ../Common/Client.o
 
 FUSE_SRC = CBB_fuse.cpp
-LIB_SRC = CBB.cpp CBB_stream.cpp CBB_stdio.cpp CBB_posix.cpp
-SRC = $(FUSE_SRC) $(LIB_SRC)
+BASE_SRC = CBB.cpp CBB_stream.cpp
+LIB_SRC = CBB_posix.cpp CBB_stdio.cpp
+SRC = $(FUSE_SRC) $(BASE_SRC) $(LIB_SRC)
 FUSE_OBJ = $(FUSE_SRC:.cpp=.o)
+BASE_OBJ = $(BASE_SRC:.cpp=.o)
 LIB_OBJ = $(LIB_SRC:.cpp=.o)
-OBJ = $(FUSE_OBJ) $(LIB_OBJ)
+OBJ = $(FUSE_OBJ) $(BASE_OBJ) $(LIB_OBJ)
 
 DEP = $(SRC:.cpp=.d)
 
@@ -22,11 +25,14 @@ vpath %.cpp $(SRC_DIR)
 vpath %.h $(HEADER_DIR)
 
 
-$(CBB_LIB):$(OBJ) $(CLIENT)
+$(CBB_SLIB):$(LIB_OBJ) $(BASE_OBJ) $(CLIENT)
+	ar -r $@ $^
+
+$(CBB_LTLIB):$(LIB_OBJ) $(BASE_OBJ) $(CLIENT)
 	$(CC) $(LIB_FLAG) -o $@ $^ -ldl
 
-$(MAIN):$(FUSE_OBJ) $(OBJ) $(CLIENT)
-	$(CC) -o $@ $^ -ldl $(FUSE_LIB) 
+$(MAIN):$(FUSE_OBJ) $(BASE_OBJ) $(CLIENT) 
+	$(CC) -o $@ $^ -ldl $(FUSE_LIB)
 
 $(FUSE_OBJ):$(FUSE_SRC)
 	$(CC) -c $(DEP_FLAG) $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) $(FUSE_HEADER) -o $@ $< 

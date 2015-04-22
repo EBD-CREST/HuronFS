@@ -13,10 +13,10 @@ vpath %.cpp $(SRC_DIR)
 vpath %.h $(HEADER_DIR)
 
 $(MAIN):$(OBJ) $(SERVER)
-	$(CC) $(FLAG) $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $^
+	$(CC) -o $@ $^
 
 %.o:%.cpp
-	$(CC) -c $(DEP_FLAG) $(FLAG) $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $<
+	$(CC) -c $(DEP_FLAG) $(FLAG) $(INCLUDE_PATH) -o $@ $<
 
 $(SERVER):
 	cd ../Common && $(MAKE) $(notdir $@)

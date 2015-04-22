@@ -17,7 +17,7 @@ $(MAIN):$(OBJ) $(SERVER) $(CLIENT)
 	$(CC) -o $@ $^
 
 %.o:%.cpp
-	$(CC) -c $(DEP_FLAG) $(FLAG) $(LIB_FLAG) $(INCLUDE_PATH) -o $@ $<
+	$(CC) -c $(DEP_FLAG) $(FLAG) $(INCLUDE_PATH) -o $@ $<
 
 $(SERVER) $(CLIENT):
 	cd ../Common && $(MAKE) $(notdir $@)

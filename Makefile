@@ -10,7 +10,8 @@ MASTER = $(MASTER_DIR)/Master
 
 IONODE = $(IONODE_DIR)/IOnode
 
-CLIENT_LIB = $(CLIENT_DIR)/libCBB.so
+CLIENT_SLIB = $(CLIENT_DIR)/libCBB.a
+CLIENT_LTLIB = $(CLIENT_DIR)/libCBB.so
 CLIENT_FUSE= $(CLIENT_DIR)/cbbfs
 
 export CC=g++
@@ -40,16 +41,17 @@ IOnode:
 	mv $(IONODE) bin
 
 Client:
-	$(MAKE) -C $(CLIENT_DIR)
+	$(MAKE) -C $(CLIENT_DIR) libCBB.a libCBB.so
 	mkdir -p lib
-	mv $(CLIENT_LIB) lib
+	mv $(CLIENT_LTLIB) lib
+	mv $(CLIENT_SLIB) lib
 
 Client_fuse:
 	$(MAKE) -C $(CLIENT_DIR) cbbfs
 	mkdir -p bin 
 	mv $(CLIENT_FUSE) bin
 
-all:Master IOnode Client Client_fuse
+all:Master IOnode Client_fuse Client
 
 clean:
 	rm -f $(BIN)/*
