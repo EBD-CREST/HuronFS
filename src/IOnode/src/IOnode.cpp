@@ -5,7 +5,6 @@
  *      Author: xtq
  */
 
-#include <cstring>
 #include <iostream>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -13,7 +12,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/types.h>
-
 #include <linux/limits.h>
 
 #include "IOnode.h"
@@ -67,7 +65,8 @@ void IOnode::block::allocate_memory()throw(std::bad_alloc)
 	return;
 }
 
-IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtime_error):
+IOnode::IOnode(const std::string& master_ip,
+		int master_port) throw(std::runtime_error):
 	Server(IONODE_PORT), 
 	Client(), 
 	_node_id(-1),
@@ -77,7 +76,8 @@ IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtim
 	_MAX_BLOCK_NUMBER(MAX_BLOCK_NUMBER), 
 	_memory(MEMORY), 
 	_master_port(MASTER_PORT),
-	_mount_point(std::string())
+	_mount_point(std::string()),
+	_master_socket(-1)
 {
 	memset(&_master_conn_addr, 0, sizeof(_master_conn_addr));
 	memset(&_master_addr, 0, sizeof(_master_addr));
@@ -97,12 +97,26 @@ IOnode::IOnode(const std::string& master_ip,  int master_port) throw(std::runtim
 	}
 	catch(std::runtime_error& e)
 	{
-		//_unregist();
+		_unregist();
 		throw;
 	}
 }
 
-ssize_t IOnode::_regist(const std::string& master_ip, int master_port) throw(std::runtime_error)
+IOnode::~IOnode()
+{
+	_DEBUG("I am going to shut down\n");
+	_unregist();
+}
+
+int IOnode::_unregist()
+{
+	Send_flush(_master_socket, CLOSE_CLIENT);
+	close(_master_socket);
+	return SUCCESS;
+}
+
+ssize_t IOnode::_regist(const std::string& master_ip,
+		int master_port) throw(std::runtime_error)
 { 
 	_master_conn_addr.sin_family = AF_INET;
 	_master_conn_addr.sin_addr.s_addr = htons(INADDR_ANY);
@@ -116,25 +130,25 @@ ssize_t IOnode::_regist(const std::string& master_ip, int master_port) throw(std
 		perror("Server IP Address Error"); 
 		throw std::runtime_error("Server IP Address Error");
 	}
-	int master_socket;
 	try
 	{
-		master_socket=Client::_connect_to_server(_master_conn_addr, _master_addr); 
+		_master_socket=Client::_connect_to_server(_master_conn_addr, _master_addr); 
 	}
 	catch(std::runtime_error &e)
 	{
 		throw;
 	}
-	Send(master_socket, REGIST);
-	Send_flush(master_socket, _memory);
+	Send(_master_socket, REGIST);
+	Send_flush(_master_socket, _memory);
 	ssize_t id=-1;
-	Recv(master_socket, id);
-	Server::_add_socket(master_socket);
+	Recv(_master_socket, id);
+	Server::_add_socket(_master_socket);
 	_LOG("registeration finished, id=%ld\n", id);
 	return id; 
 }
 
-int IOnode::_parse_new_request(int sockfd, const struct sockaddr_in& client_addr)
+int IOnode::_parse_new_request(int sockfd,
+		const struct sockaddr_in& client_addr)
 {
 	int request, ans=SUCCESS; 
 	Recv(sockfd, request); 
@@ -167,12 +181,6 @@ int IOnode::_parse_registed_request(int sockfd)
 		_open_file(sockfd);break;
 	case APPEND_BLOCK:
 		_append_new_block(sockfd);break;
-	/*case READ_FILE:
-		//_read_file(sockfd);break;
-	case WRITE_FILE:
-		_IOrequest_from_master(sockfd);break;*/
-/*	case I_AM_SHUT_DOWN:
-		ans=SERVER_SHUT_DOWN;break;*/
 	case RENAME:
 		_rename(sockfd);break;
 	case FLUSH_FILE:
@@ -183,6 +191,8 @@ int IOnode::_parse_registed_request(int sockfd)
 		_close_client(sockfd);break;
 	case TRUNCATE:
 		_truncate_file(sockfd);break;
+	case UNLINK:
+		_unlink(sockfd);break;
 	default:
 		break; 
 	}
@@ -225,6 +235,45 @@ int IOnode::_send_data(int sockfd)
 	}
 }
 
+int IOnode::_receive_data(int clientfd)
+{
+	ssize_t file_no;
+	off64_t start_point;
+	off64_t offset;
+	size_t size;
+	Recv(clientfd, file_no);
+	Recv(clientfd, start_point);
+	Recv(clientfd, offset);
+	Recv(clientfd, size);
+	_LOG("request for receive data\n");
+	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n", file_no, start_point, offset, size);
+
+	try
+	{
+		block_info_t &blocks=_files.at(file_no);
+		block* _block=blocks.at(start_point);
+		if(INVALID == _block->valid)
+		{
+			_block->allocate_memory();
+			_block->data_size=_read_from_storage(_file_path.at(file_no), _block);
+			_block->valid = VALID;
+		}
+		Send_flush(clientfd, SUCCESS);
+		Recvv_pre_alloc(clientfd, reinterpret_cast<char*>(_block->data)+offset, size);
+		if(_block->data_size < offset+size)
+		{
+			_block->data_size = offset+size;
+		}
+		_block->dirty_flag=DIRTY;
+		return SUCCESS;
+	}
+	catch(std::out_of_range &e)
+	{
+		Send_flush(clientfd, FILE_NOT_FOUND);
+		return FAILURE;
+	}
+}
+
 int IOnode::_open_file(int sockfd)
 {
 	ssize_t file_no; 
@@ -249,6 +298,38 @@ int IOnode::_open_file(int sockfd)
 	Recv(sockfd, count);
 	Send_flush(sockfd, SUCCESS);
 	return SUCCESS; 
+}
+
+int IOnode::_close_file(int sockfd)
+{
+	ssize_t file_no;
+	Recv(sockfd, file_no);
+	Send_flush(sockfd, SUCCESS);
+	try
+	{
+		std::string &path=_file_path.at(file_no);
+		block_info_t &blocks=_files.at(file_no);
+		_DEBUG("close file, path=%s\n", path.c_str());
+		for(block_info_t::iterator it=blocks.begin();
+				it != blocks.end();++it)
+		{
+			block* _block=it->second;
+			if(DIRTY == _block->dirty_flag)
+			{
+				_write_to_storage(path, _block);
+				puts((char*)_block->data);
+			}
+			delete _block;
+		}
+		_files.erase(file_no);
+		_file_path.erase(file_no);
+		//Send(sockfd, SUCCESS);
+		return SUCCESS;
+	}
+	catch(std::out_of_range &e)
+	{
+		return FAILURE;
+	}
 }
 
 int IOnode::_rename(int sockfd)
@@ -305,48 +386,6 @@ int IOnode::_append_new_block(int sockfd)
 	return SUCCESS;
 }
 
-/*int IOnode::_IOrequest_from_master(int sockfd)
-{
-	off64_t start_point=0;
-	size_t size=0;
-	ssize_t file_no=0;
-	int count=0;
-	Recv(sockfd, file_no);
-	Recv(sockfd, size);
-	_LOG("request for read file %ld, size=%lu\n", file_no, size);
-	block_info_t &blocks=_files.at(file_no);
-	Recv(sockfd, count);
-	for(int i=0;i<count;++i)
-	{
-		Recv(sockfd, start_point);
-		try
-		{
-			block_info_t::iterator it;
-			size_t valid_size=start_point + size>BLOCK_SIZE?BLOCK_SIZE:start_point + size;
-			if(blocks.end() == (it=blocks.find(start_point)))
-			{
-				blocks.insert(std::make_pair(start_point, new block(start_point, valid_size, CLEAN, INVALID)));
-			}
-			else
-			{
-				block* block=it->second;
-				if(block->data_size < valid_size)
-				{
-					block->data_size=valid_size;
-				}
-			}
-		}
-		catch(std::out_of_range &e)
-		{
-			_LOG("file not found\n");
-			return FILE_NOT_FOUND;
-		}
-		size-=BLOCK_SIZE;
-	}
-	return SUCCESS;
-}
-*/
-
 size_t IOnode::_read_from_storage(const std::string& path, block* block_data)throw(std::runtime_error)
 {
 	off64_t start_point=block_data->start_point;
@@ -401,122 +440,8 @@ IOnode::block* IOnode::_buffer_block(off64_t start_point, size_t size)throw(std:
 	}
 }
 
-/*int IOnode::_write_file(int clientfd)
-{
-	ssize_t file_no;
-	off64_t start_point;
-	size_t size;
-	int count;
-	Recv(clientfd, file_no);
-	Recv(clientfd, size);
-	_LOG("request for read file %ld, size=%lu\n", file_no, size);
-	block_info_t &blocks=_files[file_no];
-	Recv(clientfd, count);
-	for(int i=0;i<count;++i)
-	{
-		Recv(clientfd, start_point);
-		try
-		{
-			size_t valid_size=size>BLOCK_SIZE?BLOCK_SIZE:size;
-			if(blocks.end() == blocks.find(start_point))
-			{
-				blocks.insert(std::make_pair(start_point, new block(start_point, valid_size, CLEAN, INVALID)));
-			}
-			else
-			{
-				block* requested_block=*it;
-				requested_block->data_size=valid_size;
-				requested_block->valid=INVALID;
-			}
-		}
-		catch(std::out_of_range &e)
-		{
-			return FILE_NOT_FOUND;
-		}
-		size-=BLOCK_SIZE;
-	}
-	return SUCCESS;
-}*/
-
-int IOnode::_receive_data(int clientfd)
-{
-	ssize_t file_no;
-	off64_t start_point;
-	off64_t offset;
-	size_t size;
-	Recv(clientfd, file_no);
-	Recv(clientfd, start_point);
-	Recv(clientfd, offset);
-	Recv(clientfd, size);
-	_LOG("request for receive data\n");
-	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n", file_no, start_point, offset, size);
-
-	try
-	{
-		block_info_t &blocks=_files.at(file_no);
-		block* _block=blocks.at(start_point);
-		if(INVALID == _block->valid)
-		{
-			_block->allocate_memory();
-			_block->data_size=_read_from_storage(_file_path.at(file_no), _block);
-			_block->valid = VALID;
-		}
-		Send_flush(clientfd, SUCCESS);
-		Recvv_pre_alloc(clientfd, reinterpret_cast<char*>(_block->data)+offset, size);
-		if(_block->data_size < offset+size)
-		{
-			_block->data_size = offset+size;
-		}
-		_block->dirty_flag=DIRTY;
-		return SUCCESS;
-	}
-	catch(std::out_of_range &e)
-	{
-		Send_flush(clientfd, FILE_NOT_FOUND);
-		return FAILURE;
-	}
-}
-
-/*int IOnode::_write_back_file(int clientfd)
-{
-	ssize_t file_no;
-	off64_t start_point;
-	size_t size;
-	Recv(clientfd, file_no);
-	Recv(clientfd, start_point);
-	Recv(clientfd, size);
-	try
-	{
-		block_info_t &blocks=_files.at(file_no);
-		block* _block=blocks.at(start_point);
-		Send(clientfd, SUCCESS);
-		const std::string &path=_file_path.at(file_no);
-		_write_to_storage(path, _block);
-		return SUCCESS;
-	}
-	catch(std::out_of_range &e)
-	{
-		Send(clientfd, FILE_NOT_FOUND);
-		return FAILURE;
-	}
-}*/
-
 size_t IOnode::_write_to_storage(const std::string& path, const block* block_data)throw(std::runtime_error)
 {
-
-	/*FILE *fp = fopen(path.c_str(),"a");
-	if( NULL == fp)
-	{
-		perror("Open File");
-		throw std::runtime_error("Open File Error\n");
-	}
-	if(-1 == fseek(fp, block_data->start_point, SEEK_SET))
-	{
-		perror("Seek"); 
-		throw std::runtime_error("Seek File Error"); 
-	}
-	fwrite(block_data->data, sizeof(char), block_data->size, fp);
-	fclose(fp);*/
 	std::string real_path=_get_real_path(path);
 	int fd = open64(real_path.c_str(),O_WRONLY);
 	if( -1 == fd)
@@ -534,9 +459,6 @@ size_t IOnode::_write_to_storage(const std::string& path, const block* block_dat
 	iov.iov_base=const_cast<void*>(block_data->data);
 	iov.iov_len=block_data->data_size;
 	writev(fd, &iov, 1);
-	//puts((char*)block_data->data);
-//	write(STDOUT_FILENO, (char*)block_data->data, length);
-//	printf("%s, %lu\n", block_data->data, block_data->size);
 	close(fd);
 	return block_data->data_size;
 }
@@ -570,38 +492,6 @@ int IOnode::_flush_file(int sockfd)
 	//Send(sockfd, SUCCESS);
 }
 
-int IOnode::_close_file(int sockfd)
-{
-	ssize_t file_no;
-	Recv(sockfd, file_no);
-	Send_flush(sockfd, SUCCESS);
-	try
-	{
-		std::string &path=_file_path.at(file_no);
-		block_info_t &blocks=_files.at(file_no);
-		_DEBUG("close file, path=%s\n", path.c_str());
-		for(block_info_t::iterator it=blocks.begin();
-				it != blocks.end();++it)
-		{
-			block* _block=it->second;
-			if(DIRTY == _block->dirty_flag)
-			{
-				_write_to_storage(path, _block);
-				puts((char*)_block->data);
-			}
-			delete _block;
-		}
-		_files.erase(file_no);
-		_file_path.erase(file_no);
-		//Send(sockfd, SUCCESS);
-		return SUCCESS;
-	}
-	catch(std::out_of_range &e)
-	{
-		return FAILURE;
-	}
-}
-
 int IOnode::_regist_new_client(int sockfd)
 {
 	_LOG("new client\n");
@@ -617,6 +507,18 @@ int IOnode::_close_client(int sockfd)
 	Send_flush(sockfd, SUCCESS);
 	close(sockfd);
 	return SUCCESS;
+}
+
+int IOnode::_unlink(int sockfd)
+{
+	ssize_t file_no;
+	_LOG("unlink\n");
+	Recv(sockfd, file_no);
+	_LOG("file no=%ld\n", file_no);
+	int ret=_remove_file(file_no);	
+	Send_flush(sockfd, SUCCESS);
+	return ret;
+
 }
 
 inline std::string IOnode::_get_real_path(const char* path)const
@@ -639,5 +541,18 @@ int IOnode::_truncate_file(int sockfd)
 	_LOG("fd=%ld, start_point=%ld\n", fd, start_point);
 	block_info_t& file=_files[fd];
 	delete file[start_point];
+	return SUCCESS;
+}
+
+int IOnode::_remove_file(ssize_t file_no)
+{
+	file_blocks_t::iterator it=_files.find(file_no);
+	_file_path.erase(file_no);
+	for(block_info_t::iterator block_it=it->second.begin();
+			block_it!=it->second.end();++block_it)
+	{
+		delete block_it->second;
+	}
+	_files.erase(it);
 	return SUCCESS;
 }

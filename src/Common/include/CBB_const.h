@@ -27,7 +27,7 @@ const int INIT_FD = 100000;
 const int CONNECT_WAIT_TIME=1000;
 const size_t BLOCK_SIZE = 1*MB;
 const int NO_ERROR=0;
-const size_t STREAM_BUFFER_SIZE = 64*BLOCK_SIZE;
+const size_t STREAM_BUFFER_SIZE = 8*BLOCK_SIZE;
 
 const bool CLEAN = false;
 const bool DIRTY = true;

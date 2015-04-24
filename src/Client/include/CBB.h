@@ -18,12 +18,12 @@ class CBB:Client
 private:
 	class block_info;
 	class file_meta;
-	class file_info;
+	class opened_file_info;
 	//map path, fd
 	typedef std::map<std::string, file_meta*> _path_file_meta_map_t;
 
 public:
-	typedef std::set<int> opened_fd_t;
+	typedef std::set<int> _opened_fd_t;
 private:
 
 	class  block_info
@@ -41,7 +41,7 @@ private:
 	{
 	public:
 		friend class CBB;
-		friend class file_info;
+		friend class opened_file_info;
 		file_meta(ssize_t file_no,
 				size_t block_size,
 				const struct stat* file_stat,
@@ -51,22 +51,22 @@ private:
 		int open_count;
 		size_t block_size;
 		struct stat file_stat;
-		opened_fd_t opened_fd;
+		_opened_fd_t opened_fd;
 		int master_socket;
 		_path_file_meta_map_t::iterator it;
 
 	};
 
-	class file_info
+	class opened_file_info
 	{
 	public:
 		friend class CBB;
-		file_info(int fd, int flag, file_meta* file_meta_p);
-		file_info();
-		file_info(const file_info& src);
-		~file_info();
+		opened_file_info(int fd, int flag, file_meta* file_meta_p);
+		opened_file_info();
+		opened_file_info(const opened_file_info& src);
+		~opened_file_info();
 	private:
-		const file_info& operator=(const file_info&);
+		const opened_file_info& operator=(const opened_file_info&);
 		off64_t current_point;
 		int fd;
 		int flag;
@@ -74,8 +74,8 @@ private:
 	};
 
 public:
-	//map fd file_info
-	typedef std::map<int, file_info> _file_list_t;
+	//map fd opened_file_info
+	typedef std::map<int, opened_file_info> _file_list_t;
 	typedef std::vector<bool> _file_t;
 	typedef std::vector<block_info> _block_list_t;
 	typedef std::map<ssize_t, std::string> _node_pool_t;
@@ -98,7 +98,6 @@ public:
 	int _close(int fd);
 	int _flush(int fd);
 	off64_t _lseek(int fd, off64_t offset, int whence);
-	int _fstat(int fd, struct stat* buf);
 	int _getattr(const char *path, struct stat* fstat);
 	int _readdir(const char* path, dir_t& dir)const;
 	int _unlink(const char* path);
@@ -111,32 +110,28 @@ public:
 	int _touch(int fd);
 	int _truncate(const char*path, off64_t size);
 	int _ftruncate(int fd, off64_t size);
-	
 	off64_t _tell(int fd);
 
-	//int _stat(std::string true_path, struct stat* buf);
-	
 	static bool _interpret_path(const char* path);
 	static bool _interpret_fd(int fd);
 	static void _format_path(const char* path, std::string &formatted_path);
 	static void _get_relative_path(const std::string& formatted_path, std::string &true_path);
 	size_t _get_file_size(int fd);
-	int _get_fd_from_path(const char* path);
 	int _update_file_size(int fd, size_t size);
-	int _write_update_file_size(file_info& file, size_t size);
+	int _write_update_file_size(opened_file_info& file, size_t size);
 private:
 	//private functions
-	void _getblock(int socket, off64_t start_point, size_t& size, std::vector<block_info> &block, _node_pool_t &node_pool);
-	ssize_t _read_from_IOnode(file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, char *buffer, size_t size);
-	ssize_t _write_to_IOnode(file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, const char *buffer, size_t size);
+	void _get_blocks_from_master(int socket, off64_t start_point, size_t& size, std::vector<block_info> &block, _node_pool_t &node_pool);
+	ssize_t _read_from_IOnode(opened_file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, char *buffer, size_t size);
+	ssize_t _write_to_IOnode(opened_file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, const char *buffer, size_t size);
 
 	int _get_fid();
 	int _regist_to_master();
 	int _get_IOnode_socket(int IOnodeid, const std::string& ip);
 	
-	static inline int _BB_fd_to_fid(int fd);
-	static inline int _BB_fid_to_fd(int fid);
-	int _update_fstat_to_server(file_info& file);
+	static inline int _fd_to_fid(int fd);
+	static inline int _fid_to_fd(int fid);
+	int _update_fstat_to_server(opened_file_info& file);
 	int _get_local_attr(const char*path, struct stat *file_stat);
 	file_meta* _create_new_file(int master_socket);
 	int _close_local_opened_file(const char* path);

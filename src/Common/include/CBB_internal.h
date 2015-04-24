@@ -10,7 +10,7 @@
 	#define _DEBUG(fmt, args... )
 	#define _LOG(fmt, args... ) 
 	//#define _LOG(fmt, args... ) fprintf("[%s]"fmt, __func__, ##args)
-	#define _ERROR(fmt, args... ) fprintf("[%s]" fmt, __func__, ##args)
+	#define _ERROR(fmt, args... ) fprintf(stderr, "[%s]" fmt, __func__, ##args)
 #endif
 
 
