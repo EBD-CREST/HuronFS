@@ -17,6 +17,7 @@
 
 static CBB_stream client;
 struct fuse_operations CBB_oper;
+extern char* mount_point;
 
 inline void lock_stream(FILE* stream)
 {
@@ -263,6 +264,14 @@ int main(int argc, char *argv[])
 	CBB_oper.mkdir=CBB_mkdir;
 	CBB_oper.truncate=CBB_truncate;
 	CBB_oper.ftruncate=CBB_ftruncate;
+	
+	char** fuse_argv=new char*[argc+2];
+	for(int i=0; i<argc ;++i)
+	{
+		fuse_argv[i]=argv[i];
+	}
+	fuse_argv[argc++]="-s";
+	fuse_argv[argc++]=mount_point;
 
-	return fuse_main(argc, argv, &CBB_oper, NULL);
+	return fuse_main(argc, fuse_argv, &CBB_oper, NULL);
 }

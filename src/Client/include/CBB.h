@@ -79,7 +79,7 @@ public:
 	typedef std::vector<bool> _file_t;
 	typedef std::vector<block_info> _block_list_t;
 	typedef std::map<ssize_t, std::string> _node_pool_t;
-	typedef std::vector<std::string> dir_t;
+	typedef std::set<std::string> dir_t;
 	//map IOnode id: fd
 	typedef std::map<int, int> IOnode_fd_map_t;
 	typedef std::vector<int> master_list_t;

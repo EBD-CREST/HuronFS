@@ -733,30 +733,34 @@ int CBB::_readdir(const char * path, dir_t& dir)const
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_path(path);
-	Send(master_socket, READ_DIR); 
-	Sendv_flush(master_socket, path, strlen(path));
-	Recv(master_socket, ret);
-	if(SUCCESS == ret)
+	for(master_list_t::const_iterator it=master_socket_list.begin();
+			it != master_socket_list.end(); ++it)
 	{
-		_DEBUG("success\n");
-		int count=0;
-		char *path=NULL;
-		Recv(master_socket, count);
-		for(int i=0; i<count; ++i)
+		int master_socket=*it;
+		Send(master_socket, READ_DIR); 
+		Sendv_flush(master_socket, path, strlen(path));
+		Recv(master_socket, ret);
+		if(SUCCESS == ret)
 		{
-			Recvv(master_socket, &path);
-			dir.push_back(std::string(path));
-			delete[] path;
+			_DEBUG("success\n");
+			int count=0;
+			char *path=NULL;
+			Recv(master_socket, count);
+			for(int i=0; i<count; ++i)
+			{
+				Recvv(master_socket, &path);
+				dir.insert(std::string(path));
+				delete[] path;
+			}
+			Recv(master_socket, count);
 		}
-		Recv(master_socket, count);
-		return 0;
+		else
+		{
+			errno=ret;
+			return -errno;
+		}
 	}
-	else
-	{
-		errno=ret;
-		return -errno;
-	}
+	return 0;
 }
 
 int CBB::_rmdir(const char * path)
