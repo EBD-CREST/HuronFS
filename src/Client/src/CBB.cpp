@@ -246,7 +246,8 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	CHECK_INIT();
 	file_meta* file_meta_p=NULL;
 	std::string string_path=std::string(path);
-	int master_socket=_get_master_socket_from_path(path);
+	int master_number=_get_master_number_from_path(path);
+	int master_socket=_get_master_socket_from_master_number(master_number);
 	int fid;
 	if(-1 == (fid=_get_fid()))
 	{
@@ -264,8 +265,13 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 	catch(std::out_of_range& e)
 	{
 		_DEBUG("connect to master\n");
-		Send(master_socket, OPEN_FILE); 
-		Sendv(master_socket, path, strlen(path));
+		do{
+			Send(master_socket, OPEN_FILE); 
+			Sendv_flush(master_socket, path, strlen(path));
+			Recv(master_socket, ret);
+			master_socket = _get_master_socket_from_master_number(ret);
+		}while(master_number != ret);
+
 		if(flag & O_CREAT)
 		{
 			Send(master_socket, flag); 
@@ -699,7 +705,8 @@ int CBB::_getattr(const char* path, struct stat* fstat)
 {
 	int ret=0;
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_path(path);
+	int master_number=_get_master_number_from_path(path);
+	int master_socket=_get_master_socket_from_master_number(master_number);
 	if(SUCCESS == _get_local_attr(path, fstat))
 	{
 		_DEBUG("use local stat\n");
@@ -708,8 +715,12 @@ int CBB::_getattr(const char* path, struct stat* fstat)
 	else
 	{
 		_DEBUG("connect to master\n");
-		Send(master_socket, GET_ATTR); 
-		Sendv_flush(master_socket, path, strlen(path));
+		do{
+			Send(master_socket, GET_ATTR); 
+			Sendv_flush(master_socket, path, strlen(path));
+			Recv(master_socket, ret);
+			master_socket = _get_master_socket_from_master_number(ret);
+		}while(master_number != ret);
 		Recv(master_socket, ret);
 		if(SUCCESS == ret)
 		{
@@ -836,30 +847,49 @@ int CBB::_access(const char* path, int mode)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_path(path);
-	Send(master_socket, ACCESS); 
-	Sendv(master_socket, path, strlen(path));
-	Send_flush(master_socket, mode);
-	Recv(master_socket, ret);
-	if(SUCCESS == ret)
+	std::string string_path(path);
+	try
 	{
+		file_meta* file_meta_p=_path_file_meta_map.at(string_path);
 		return 0;
 	}
-	else
+	catch(std::out_of_range& e)
 	{
-		errno=ret;
-		return -errno;
+		int master_number=_get_master_number_from_path(path);
+		int master_socket=_get_master_socket_from_master_number(master_number);
+		do{
+			Send(master_socket, ACCESS); 
+			Sendv(master_socket, path, strlen(path));
+			Send_flush(master_socket, mode);
+			Recv(master_socket, ret);
+			master_socket = _get_master_socket_from_master_number(ret);
+		}while(master_number != ret);
+		Recv(master_socket, ret);
+		if(SUCCESS == ret)
+		{
+			return 0;
+		}
+		else
+		{
+			errno=ret;
+			return -errno;
+		}
 	}
 }
 
 int CBB::_stat(const char* path, struct stat* buf)
 {
 	CHECK_INIT();
-	int ret;
+	int ret=0;
 	memset(buf, 0, sizeof(struct stat));
-	int master_socket=_get_master_socket_from_path(path);
-	Send(master_socket, GET_FILE_META);
-	Sendv_flush(master_socket, path, strlen(path));
+	int master_number=_get_master_number_from_path(path);
+	int master_socket=_get_master_socket_from_master_number(master_number);
+	do{
+		Send(master_socket, GET_FILE_META);
+		Sendv_flush(master_socket, path, strlen(path));
+		Recv(master_socket, ret);
+		master_socket = _get_master_socket_from_master_number(ret);
+	}while(master_number != ret);
 	Recv(master_socket, ret);
 	if(SUCCESS == ret)
 	{
@@ -877,7 +907,8 @@ int CBB::_rename(const char* old_name, const char* new_name)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_path(old_name);
+	int new_master_number=_get_master_number_from_path(new_name), old_master_number=_get_master_number_from_path(old_name);
+	int old_master_socket=_get_master_socket_from_master_number(old_master_number), new_master_socket=_get_master_socket_from_master_number(new_master_number);
 
 	_path_file_meta_map_t::iterator it=_path_file_meta_map.find(old_name);
 	if(_path_file_meta_map.end() != it)
@@ -887,10 +918,23 @@ int CBB::_rename(const char* old_name, const char* new_name)
 		_path_file_meta_map.erase(it);
 		new_it->second->it=new_it;
 	}
-	Send(master_socket, RENAME); 
-	Sendv(master_socket, old_name, strlen(old_name));
-	Sendv_flush(master_socket, new_name, strlen(new_name));
-	Recv(master_socket, ret);
+	Send(old_master_socket, RENAME); 
+	Sendv(old_master_socket, old_name, strlen(old_name));
+	Sendv(old_master_socket, new_name, strlen(new_name));
+	if(new_master_number == old_master_number)
+	{
+		Send_flush(old_master_socket, MYSELF);
+		Recv(old_master_socket, ret);
+	}
+	else
+	{
+		Send_flush(old_master_socket, new_master_number);
+		Recv(old_master_socket, ret);
+		Send(new_master_socket, RENAME_MIGRATING);
+		Sendv(new_master_socket, new_name, strlen(new_name));
+		Send_flush(new_master_socket, old_master_number);
+		Recv(new_master_socket, ret);
+	}
 	if(SUCCESS == ret)
 	{
 		return 0;
@@ -1003,13 +1047,18 @@ int CBB::_get_local_attr(const char* path, struct stat *file_stat)
 
 int CBB::_truncate(const char* path, off64_t size)
 {
-	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_path(path);
-	Send(master_socket, TRUNCATE); 
-	Sendv(master_socket, path, strlen(path));
-	Send_flush(master_socket, size);
+	int master_number=_get_master_number_from_path(path);
+	int master_socket=_get_master_socket_from_master_number(master_number);
+	int ret=0;
+	do{
+		Send(master_socket, TRUNCATE); 
+		Sendv(master_socket, path, strlen(path));
+		Send_flush(master_socket, size);
+		Recv(master_socket, ret);
+		master_socket = _get_master_socket_from_master_number(ret);
+	}while(master_number != ret);
 	Recv(master_socket, ret);
 	if(SUCCESS == ret)
 	{
@@ -1032,14 +1081,24 @@ int CBB::_ftruncate(int fd, off64_t size)
 	return _truncate(file.file_meta_p->it->first.c_str(), size);
 }
 
-int CBB::_get_master_socket_from_path(const std::string& path)const
+inline int CBB::_get_master_socket_from_path(const std::string& path)const
 {
-	static std::hash<std::string> string_hash;
-	static size_t size=master_socket_list.size();
-	return master_socket_list.at(string_hash(path)%size);
+	return master_socket_list.at(_get_master_number_from_path(path));
+}
+
+inline int CBB::_get_master_socket_from_master_number(int master_number)const
+{
+	return master_socket_list.at(master_number);
 }
 
 inline int CBB::_get_master_socket_from_fd(int fd)const
 {
 	return _file_list.at(fd).file_meta_p->master_socket;
+}
+
+inline int CBB::_get_master_number_from_path(const std::string& path)const
+{
+	static std::hash<std::string> string_hash;
+	static size_t size=master_socket_list.size();
+	return string_hash(path)%size;
 }

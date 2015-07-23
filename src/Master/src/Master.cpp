@@ -53,12 +53,18 @@ void Master::file_info::_set_nodes_pool()
 }
 
 Master::file_stat::file_stat(const struct stat* fstat, file_info* opened_file_info):
+	is_external(INTERNAL),
+	external_master(-1),
+	external_name(std::string()),
 	fstat(*fstat),
 	opened_file_info(opened_file_info),
 	it(NULL)
 {}
 
 Master::file_stat::file_stat():
+	is_external(INTERNAL),
+	external_master(-1),
+	external_name(std::string()),
 	fstat(),
 	opened_file_info(NULL),
 	it(NULL)
@@ -183,6 +189,8 @@ int Master::_parse_registed_request(int clientfd)
 		_parse_access(clientfd);break;
 	case RENAME:
 		_parse_rename(clientfd);break;
+	case RENAME_MIGRATING:
+		_parse_rename_migrating(clientfd);break;
 	case MKDIR:
 		_parse_mkdir(clientfd);break;
 	case TRUNCATE:
@@ -615,44 +623,52 @@ int Master::_parse_mkdir(int clientfd)
 //S: SUCCESS				errno: int
 int Master::_parse_rename(int clientfd)
 {
+	int new_master;
 	_LOG("request for rename file\n");
 	std::string old_real_path, old_relative_path, new_real_path, new_relative_path;
 	_recv_real_relative_path(clientfd, old_real_path, old_relative_path);
 	_recv_real_relative_path(clientfd, new_real_path, new_relative_path); 
 	_LOG("old file path=%s, new file path=%s\n", old_real_path.c_str(), new_real_path.c_str());
-	file_stat_t::iterator it;
-	_file_stat.erase(new_relative_path);
-	if((it=_file_stat.find(old_relative_path))!= _file_stat.end())
+	//unpaired
+	Recv(clientfd, new_master);
+	file_stat_t::iterator it=_file_stat.find(old_relative_path);
+	if( MYSELF == new_master)
 	{
-		file_stat& stat=it->second;
-		file_stat_t::iterator new_it=_file_stat.insert(std::make_pair(new_relative_path, stat)).first;
-		_file_stat.erase(it);
-		new_it->second.it=new_it;
-		if(NULL != new_it->second.opened_file_info)
+		_file_stat.erase(new_relative_path);
+		if((it != _file_stat.end()))
 		{
-			file_info* opened_file = new_it->second.opened_file_info;
-			opened_file->file_status=&(new_it->second);
-			for(node_pool_t::iterator it=opened_file->nodes.begin();
-					it!=opened_file->nodes.end();++it)
+			file_stat& stat=it->second;
+			file_stat_t::iterator new_it=_file_stat.insert(std::make_pair(new_relative_path, stat)).first;
+			_file_stat.erase(it);
+			new_it->second.it=new_it;
+			if(NULL != new_it->second.opened_file_info)
 			{
-				int socket=_registed_IOnodes.at(*it)->socket;
-				Send(socket, RENAME);
-				Send(socket, opened_file->file_no);
-				Sendv_flush(socket, new_relative_path.c_str(), new_relative_path.size());
-				int ret;
-				Recv(socket, ret);
+				file_info* opened_file = new_it->second.opened_file_info;
+				opened_file->file_status=&(new_it->second);
+				for(node_pool_t::iterator it=opened_file->nodes.begin();
+						it!=opened_file->nodes.end();++it)
+				{
+					int socket=_registed_IOnodes.at(*it)->socket;
+					Send(socket, RENAME);
+					Send(socket, opened_file->file_no);
+					Sendv_flush(socket, new_relative_path.c_str(), new_relative_path.size());
+					int ret;
+					Recv(socket, ret);
+				}
 			}
 		}
-	}
-	rename(old_real_path.c_str(), new_real_path.c_str());
-	/*if(-1 == ret)
-	{
-		Send(clientfd, errno);
+		//rename(old_real_path.c_str(), new_real_path.c_str());
 	}
 	else
-	{*/
-		Send(clientfd, SUCCESS);
-	//}
+	{
+		if( _file_stat.end() != it)
+		{
+			it->second.is_external = RENAMED;
+			it->second.external_name = new_relative_path;
+		}
+	}
+	Send(clientfd, SUCCESS);
+
 	return SUCCESS;
 }
 
@@ -716,6 +732,28 @@ int Master::_parse_truncate_file(int clientfd)
 	}
 	return SUCCESS;
 }
+
+int Master::_parse_rename_migrating(int clientfd)
+{
+	_LOG("request for truncate file\n");
+	int old_master;
+	std::string real_path, relative_path;
+	_recv_real_relative_path(clientfd, real_path, relative_path);
+	Recv(clientfd, old_master);
+	_LOG("path=%s\n", relative_path.c_str());
+	file_stat_t::iterator it=_file_stat.find(relative_path);
+	if(_file_stat.end() == it)
+	{
+		it=_file_stat.insert(std::make_pair(relative_path, file_stat())).first; 
+		it->second.it=it;
+	}
+	file_stat& stat=it->second;
+	stat.is_external=EXTERNAL;
+	stat.external_master=old_master;
+	Send(clientfd, SUCCESS);
+	return SUCCESS;
+}
+
 
 //S: count: int
 //for count:

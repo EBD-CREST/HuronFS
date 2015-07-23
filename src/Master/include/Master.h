@@ -98,6 +98,9 @@ private:
 		int get_fd()const throw(std::out_of_range);
 		int get_fd()throw(std::out_of_range);
 	private:
+		int is_external;
+		int external_master;
+		std::string external_name;
 		struct stat fstat;
 		file_info* opened_file_info;
 		int exist_flag;
@@ -147,6 +150,7 @@ private:
 	int _parse_rename(int clientfd);
 	int _parse_close_client(int clientfd);
 	int _parse_truncate_file(int clientfd);
+	int _parse_rename_migrating(int clientfd);
 
 	void _send_block_info(int socket,
 			const node_id_pool_t& node_id_pool,

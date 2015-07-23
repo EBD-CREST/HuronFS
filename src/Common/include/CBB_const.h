@@ -59,6 +59,7 @@ const int RENAME = 19;
 const int NEW_CLIENT = 20;
 const int CLOSE_CLIENT = 21;
 const int TRUNCATE = 22;
+const int RENAME_MIGRATING = 23;
 
 const int SERVER_SHUT_DOWN = 30; 
 const int I_AM_SHUT_DOWN = 31;
@@ -75,5 +76,10 @@ const int EXISTING = 1;
 const int NOT_EXIST = 0;
 
 const int OUT_OF_RANGE=100;//"out of range\n"; 
+
+const int EXTERNAL = 0;
+const int INTERNAL = -1;
+const int RENAMED = 1;
+const int MYSELF = -1;
 
 #endif

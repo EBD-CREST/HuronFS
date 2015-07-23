@@ -136,6 +136,8 @@ private:
 	file_meta* _create_new_file(int master_socket);
 	int _close_local_opened_file(const char* path);
 	int _get_master_socket_from_path(const std::string& path)const;
+	int _get_master_socket_from_master_number(int master_number)const;
+	int _get_master_number_from_path(const std::string& path)const;
 	int _get_master_socket_from_fd(int fd)const;
 private:
 	int _fid_now;

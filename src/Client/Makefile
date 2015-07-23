@@ -29,7 +29,7 @@ $(CBB_SLIB):$(LIB_OBJ) $(BASE_OBJ) $(CLIENT)
 	ar -r $@ $^
 
 $(CBB_LTLIB):$(LIB_OBJ) $(BASE_OBJ) $(CLIENT)
-	$(CC) $(LIB_FLAG) -o $@ $^ -ldl
+	$(CC) -Wl,-soname=libCBB.so.0 $(LIB_FLAG) -o $@ $^ -ldl
 
 $(MAIN):$(FUSE_OBJ) $(BASE_OBJ) $(CLIENT) 
 	$(CC) -o $@ $^ -ldl $(FUSE_LIB)
