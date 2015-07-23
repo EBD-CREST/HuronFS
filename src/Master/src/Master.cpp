@@ -232,6 +232,7 @@ int Master::_parse_new_client(int clientfd, const std::string& ip)
 	return SUCCESS;
 }
 
+//rename-open issue
 //R: file_path: char[]
 //R: flag: int
 //S: SUCCESS			errno: int
@@ -453,9 +454,19 @@ int Master::_parse_attr(int clientfd)
 	_DEBUG("file path=%s\n", real_path.c_str());
 	try
 	{
-		struct stat& file_stat=_file_stat.at(relative_path).fstat;
+		file_stat &CBB_stat=_file_stat.at(relative_path);
+		if(EXTERNAL == CBB_stat.is_external)
+		{
+			Send_flush(clientfd, CBB_stat.external_master);
+			return SUCCESS;
+		}
+		else
+		{
+			Send(clientfd, master_number);
+		}
+		struct stat& status=CBB_stat.fstat;
 		Send(clientfd, SUCCESS);
-		Send_attr(clientfd, &file_stat);
+		Send_attr(clientfd, &status);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -580,7 +591,17 @@ int Master::_parse_access(int clientfd)const
 	_LOG("path=%s\n, mode=%d", real_path.c_str(), mode);
 	try
 	{
-		//const file_stat& file=_file_stat.at(relative_path);
+		const file_stat& file=_file_stat.at(relative_path);
+		
+		if(EXTERNAL == file.is_external)
+		{
+			Send_flush(clientfd, file.external_master);
+			return SUCCESS;
+		}
+		else
+		{
+			Send(clientfd, master_number);
+		}
 		Send_flush(clientfd, SUCCESS);
 		return SUCCESS;
 	}
@@ -697,6 +718,15 @@ int Master::_parse_truncate_file(int clientfd)
 	try
 	{
 		file_stat& file_status=_file_stat.at(relative_path);
+		if(EXTERNAL == file_status.is_external)
+		{
+			Send_flush(clientfd, file_status.external_master);
+			return SUCCESS;
+		}
+		else
+		{
+			Send(clientfd, master_number);
+		}
 		ssize_t fd=file_status.get_fd();
 		file_info* file=file_status.opened_file_info;
 		if(file->get_stat().st_size > size)
