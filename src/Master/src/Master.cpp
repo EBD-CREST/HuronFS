@@ -105,12 +105,16 @@ Master::Master()throw(std::runtime_error):
 	memset(_file_no_pool, 0, MAX_FILE_NUMBER*sizeof(bool)); 
 	const char *master_mount_point=getenv(MASTER_MOUNT_POINT);
 	const char *master_number_p = getenv(MASTER_NUMBER);
-	master_number=atoi(master_number_p);
 	
 	if(NULL == master_mount_point)
 	{
 		throw std::runtime_error("please set master mount point");
 	}
+	if(NULL == master_number_p)
+	{
+		throw std::runtime_error("please set master number");
+	}
+	master_number=atoi(master_number_p);
 	_mount_point=std::string(master_mount_point);
 	try
 	{
@@ -359,7 +363,7 @@ int Master::_parse_write_file(int clientfd)
 	}
 	catch(std::out_of_range &e)
 	{
-		Send_flush(clientfd, errno);	
+		Send_flush(clientfd, -errno);	
 		return FAILURE;
 	}
 }
@@ -471,6 +475,7 @@ int Master::_parse_attr(int clientfd)
 	}
 	catch(std::out_of_range &e)
 	{
+		Send(clientfd, master_number);
 		try
 		{
 			file_stat* new_file_status=_create_new_file_stat(relative_path.c_str(), EXISTING);
@@ -480,7 +485,7 @@ int Master::_parse_attr(int clientfd)
 		}
 		catch(std::invalid_argument &e)
 		{
-			Send_flush(clientfd, errno);
+			Send_flush(clientfd, -errno);
 			return FAILURE;
 		}
 	}
@@ -522,7 +527,7 @@ int Master::_parse_readdir(int clientfd)const
 	}
 	else
 	{
-		Send_flush(clientfd, errno);
+		Send_flush(clientfd, -errno);
 		return FAILURE;
 	}
 }
@@ -553,7 +558,7 @@ int Master::_parse_unlink(int clientfd)
 		}
 		else
 		{
-			Send_flush(clientfd, errno);
+			Send_flush(clientfd, -errno);
 			return FAILURE;
 		}
 	}
@@ -573,7 +578,7 @@ int Master::_parse_rmdir(int clientfd)
 	}
 	else
 	{
-		Send_flush(clientfd, errno);
+		Send_flush(clientfd, -errno);
 		return FAILURE;
 	}
 }
@@ -607,6 +612,7 @@ int Master::_parse_access(int clientfd)const
 	}
 	catch(std::out_of_range &e)
 	{
+		Send(clientfd, master_number);
 		if(-1 != access(real_path.c_str(), mode))
 		{
 			_LOG("SUCCESS\n");
@@ -633,7 +639,7 @@ int Master::_parse_mkdir(int clientfd)
 	_LOG("path=%s\n", real_path.c_str());
 	if(-1 == mkdir(real_path.c_str(), mode))
 	{
-		Send_flush(clientfd, errno);
+		Send_flush(clientfd, -errno);
 	}
 	else
 	{
@@ -751,17 +757,18 @@ int Master::_parse_truncate_file(int clientfd)
 	}
 	catch(std::out_of_range &e)
 	{
+		Send(clientfd, master_number);
 		//ignore
 		;
 	}
 	int ret=truncate(real_path.c_str(), size); 
 	if(-1 == ret)
 	{
-		Send(clientfd, errno);
+		Send_flush(clientfd, -errno);
 	}
 	else
 	{
-		Send(clientfd, SUCCESS);
+		Send_flush(clientfd, SUCCESS);
 	}
 	return SUCCESS;
 }

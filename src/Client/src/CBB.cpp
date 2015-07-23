@@ -301,6 +301,7 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 		else
 		{
 			Recv(master_socket, errno);
+			errno=-errno;
 			return -1;
 		}
 	}
@@ -506,7 +507,7 @@ ssize_t CBB::_read(int fd, void *buffer, size_t size)
 		}
 		else
 		{
-			errno=ret;
+			errno=-ret;
 			return -1;
 		}
 
@@ -550,7 +551,7 @@ ssize_t CBB::_write(int fd, const void *buffer, size_t size)
 		}
 		else
 		{
-			errno=ret;
+			errno=-ret;
 			return -1;
 		}
 	}
@@ -636,7 +637,7 @@ int CBB::_close(int fd)
 		}
 		else
 		{
-			errno=ret;
+			errno=-ret;
 			return -1;
 		}
 	}
@@ -665,7 +666,7 @@ int CBB::_flush(int fd)
 		}
 		else
 		{
-			errno=ret;
+			errno=-ret;
 			return -1;
 		}
 	}
@@ -733,7 +734,7 @@ int CBB::_getattr(const char* path, struct stat* fstat)
 		}
 		else
 		{
-			errno=ret;
+			errno=-ret;
 			return -errno;
 		}
 	}
@@ -767,7 +768,7 @@ int CBB::_readdir(const char * path, dir_t& dir)const
 		}
 		else
 		{
-			errno=ret;
+			errno=-ret;
 			return -errno;
 		}
 	}
@@ -789,7 +790,7 @@ int CBB::_rmdir(const char * path)
 	}
 	else
 	{
-		errno=ret;
+		errno=-ret;
 		return -errno;
 	}
 }
@@ -811,7 +812,7 @@ int CBB::_unlink(const char * path)
 	}
 	else
 	{
-		errno=ret;
+		errno=-ret;
 		return -errno;
 	}
 }
@@ -871,7 +872,7 @@ int CBB::_access(const char* path, int mode)
 		}
 		else
 		{
-			errno=ret;
+			errno=-ret;
 			return -errno;
 		}
 	}
@@ -941,7 +942,7 @@ int CBB::_rename(const char* old_name, const char* new_name)
 	}
 	else
 	{
-		errno=ret;
+		errno=-ret;
 		return -errno;
 	}
 }
@@ -962,7 +963,7 @@ int CBB::_mkdir(const char* path, mode_t mode)
 	}
 	else
 	{
-		errno=ret;
+		errno=-ret;
 		return -errno;
 	}
 }
@@ -1066,7 +1067,7 @@ int CBB::_truncate(const char* path, off64_t size)
 	}
 	else
 	{
-		errno=ret;
+		errno=-ret;
 		return -errno;
 	}
 }
