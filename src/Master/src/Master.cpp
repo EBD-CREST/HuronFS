@@ -15,6 +15,7 @@
 #include "Communication.h"
 
 const char *Master::MASTER_MOUNT_POINT="CBB_MASTER_MOUNT_POINT";
+const char *Master::MASTER_NUMBER="CBB_MASTER_NUMBER";
 
 Master::file_info::file_info(ssize_t fileno,
 		size_t block_size,
@@ -103,6 +104,8 @@ Master::Master()throw(std::runtime_error):
 	memset(_node_id_pool, 0, MAX_NODE_NUMBER*sizeof(bool)); 
 	memset(_file_no_pool, 0, MAX_FILE_NUMBER*sizeof(bool)); 
 	const char *master_mount_point=getenv(MASTER_MOUNT_POINT);
+	const char *master_number_p = getenv(MASTER_NUMBER);
+	master_number=atoi(master_number_p);
 	
 	if(NULL == master_mount_point)
 	{

@@ -123,6 +123,7 @@ private:
 	}; 
 
 	static const char* MASTER_MOUNT_POINT;
+	static const char* MASTER_NUMBER;
 
 private:
 
@@ -221,6 +222,7 @@ private:
 	ssize_t _current_node_number; 
 	ssize_t _current_file_no; 
 	std::string _mount_point;
+	int master_number;
 
 	IOnode_t::iterator _current_IOnode;
 };
