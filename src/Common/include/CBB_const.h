@@ -8,6 +8,7 @@ const size_t GB=MB*1000;
 const int MASTER_PORT = 9000; 
 const int MASTER_CONN_PORT = 7001; 
 const int IONODE_PORT = 7000; 
+const int MAX_IONODE = 1000;
 //const int CLIENT_PORT = 8001;
 //const int IO_CLIENT_PORT = 8002;
 
@@ -27,7 +28,7 @@ const int INIT_FD = 100000;
 const int CONNECT_WAIT_TIME=1000;
 const size_t BLOCK_SIZE = 5*MB;
 const int NO_ERROR=0;
-const size_t STREAM_BUFFER_SIZE = 1*BLOCK_SIZE;
+const size_t STREAM_BUFFER_SIZE = 2*BLOCK_SIZE;
 
 const bool CLEAN = false;
 const bool DIRTY = true;

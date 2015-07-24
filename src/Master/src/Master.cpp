@@ -249,6 +249,17 @@ int Master::_parse_open_file(int clientfd)
 	_LOG("request for open file\n");
 	Recvv(clientfd, &file_path); 
 	int flag ,ret=SUCCESS;
+	//bad hack, fix it later
+	std::string str_file_path=std::string(file_path);
+	file_stat_t::iterator it=_file_stat.find(str_file_path);
+	if((_file_stat.end() != it) && (EXTERNAL == it->second.is_external))
+	{
+		Send_flush(clientfd, it->second.external_master);
+	}
+	else
+	{
+		Send_flush(clientfd, master_number);
+	}
 	Recv(clientfd, flag); 
 	try
 	{
@@ -1108,7 +1119,7 @@ Master::file_stat* Master::_create_new_file_stat(const char* relative_path,
 		file_status.st_size=0;
 		file_status.st_uid=getuid();
 		file_status.st_gid=getgid();
-		file_status.st_mode=S_IFREG;
+		file_status.st_mode=S_IFREG|0664;
 	}
 	_DEBUG("add new file states\n");
 	file_stat_t::iterator it=_file_stat.insert(std::make_pair(relative_path_string, file_stat())).first;
@@ -1248,7 +1259,7 @@ Master::dir_t Master::_get_buffered_files_from_dir(const std::string& dir)const
 		start_pos++;
 	}
 	file_stat_t::const_iterator it=_file_stat.lower_bound(dir), end=_file_stat.end();
-	if(it->first == dir)
+	if(end!= it && it->first == dir)
 	{
 		++it;
 	}

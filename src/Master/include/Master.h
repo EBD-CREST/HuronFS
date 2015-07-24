@@ -39,7 +39,7 @@ private:
 	typedef std::map<off64_t, ssize_t> node_t; 
 
 	typedef std::set<ssize_t> node_pool_t;
-	//map file_path: file_no
+	//map file_path: file_stat
 	typedef std::map<std::string, file_stat> file_stat_t; 
 	//map socket, node_info	need delete
 	typedef std::map<int, node_info*> IOnode_sock_t; 

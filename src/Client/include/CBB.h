@@ -45,6 +45,7 @@ private:
 		file_meta(ssize_t file_no,
 				size_t block_size,
 				const struct stat* file_stat,
+				int master_number,
 				int master_socket);
 	private:
 		ssize_t file_no;
@@ -52,6 +53,7 @@ private:
 		size_t block_size;
 		struct stat file_stat;
 		_opened_fd_t opened_fd;
+		int master_number;
 		int master_socket;
 		_path_file_meta_map_t::iterator it;
 
@@ -122,23 +124,25 @@ public:
 private:
 	//private functions
 	void _get_blocks_from_master(int socket, off64_t start_point, size_t& size, std::vector<block_info> &block, _node_pool_t &node_pool);
-	ssize_t _read_from_IOnode(opened_file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, char *buffer, size_t size);
-	ssize_t _write_to_IOnode(opened_file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, const char *buffer, size_t size);
+	ssize_t _read_from_IOnode(int master_number, opened_file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, char *buffer, size_t size);
+	ssize_t _write_to_IOnode(int master_number, opened_file_info& file, const _block_list_t& blocks, const _node_pool_t& node_pool, const char *buffer, size_t size);
 
 	int _get_fid();
 	int _regist_to_master();
-	int _get_IOnode_socket(int IOnodeid, const std::string& ip);
+	int _get_IOnode_socket(int master_number, int IOnode_id, const std::string& ip);
 	
 	static inline int _fd_to_fid(int fd);
 	static inline int _fid_to_fd(int fid);
 	int _update_fstat_to_server(opened_file_info& file);
 	int _get_local_attr(const char*path, struct stat *file_stat);
-	file_meta* _create_new_file(int master_socket);
+	file_meta* _create_new_file(int master_socket, int master_number);
 	int _close_local_opened_file(const char* path);
 	int _get_master_socket_from_path(const std::string& path)const;
 	int _get_master_socket_from_master_number(int master_number)const;
 	int _get_master_number_from_path(const std::string& path)const;
 	int _get_master_socket_from_fd(int fd)const;
+	int _get_master_number_from_fd(int fd)const;
+	int _get_IOnode_id(int master_number, int IOnode_id)const;
 private:
 	int _fid_now;
 	_file_list_t _file_list;

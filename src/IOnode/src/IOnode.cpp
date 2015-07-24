@@ -212,6 +212,7 @@ int IOnode::_send_data(int sockfd)
 	_LOG("request for send data\n");
 	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n", file_no, start_point, offset, size);
 
+	_DEBUG("file path=%s\n", _file_path[file_no].c_str());
 	try
 	{
 		const std::string& path = _file_path.at(file_no);
@@ -223,7 +224,7 @@ int IOnode::_send_data(int sockfd)
 			requested_block->valid = VALID;
 		}
 		Send_flush(sockfd, SUCCESS);
-		//_DEBUG("%si\n", (requested_block->data)+offset);
+		//fwrite((requested_block->data)+offset, sizeof(char), size, stderr);
 		Sendv_pre_alloc_flush(sockfd, reinterpret_cast<char*>(requested_block->data)+offset, size);
 		return SUCCESS;
 	}
