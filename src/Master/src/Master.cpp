@@ -249,30 +249,30 @@ int Master::_parse_open_file(int clientfd)
 	_LOG("request for open file\n");
 	Recvv(clientfd, &file_path); 
 	int flag ,ret=SUCCESS;
+	ssize_t file_no;
+	int exist_flag=EXISTING;
 	//bad hack, fix it later
 	std::string str_file_path=std::string(file_path);
 	file_stat_t::iterator it=_file_stat.find(str_file_path);
+	Recv(clientfd, flag); 
+	if(flag & O_CREAT)
+	{
+		mode_t mode;
+		Recv(clientfd, mode);
+		exist_flag=NOT_EXIST;
+		//_create_file(file_path, mode);
+		flag &= ~(O_CREAT | O_TRUNC);
+	}
 	if((_file_stat.end() != it) && (EXTERNAL == it->second.is_external))
 	{
 		Send_flush(clientfd, it->second.external_master);
 	}
 	else
 	{
-		Send_flush(clientfd, master_number);
+		Send(clientfd, master_number);
 	}
-	Recv(clientfd, flag); 
 	try
 	{
-		ssize_t file_no;
-		int exist_flag=EXISTING;
-		if(flag & O_CREAT)
-		{
-			mode_t mode;
-			Recv(clientfd, mode);
-			exist_flag=NOT_EXIST;
-			//_create_file(file_path, mode);
-			flag &= ~(O_CREAT | O_TRUNC);
-		}
 		_open_file(file_path, flag, file_no, exist_flag); 
 		file_info *opened_file=_buffered_files.at(file_no);
 		size_t block_size=opened_file->block_size;
@@ -896,6 +896,7 @@ int Master::_send_request_to_IOnodes(struct file_info& file)
 		Send(socket, OPEN_FILE);
 		Send(socket, file.file_no); 
 		Send(socket, file.flag);
+		Send(socket, file.file_status->exist_flag);
 		Sendv(socket, file.get_path().c_str(), file.get_path().size());
 		_DEBUG("%s\n", file.get_path().c_str());
 		

@@ -51,6 +51,24 @@ IOnode::block::block(const block & src):
 	valid(src.valid)
 {};
 
+IOnode::file::file(const char *path, int exist_flag, ssize_t file_no):
+	file_path(path),
+	exist_flag(exist_flag),
+	dirty_flag(CLEAN),
+	file_no(file_no),
+	blocks()
+{}
+
+IOnode::file::~file()
+{
+	block_info_t::const_iterator end=blocks.end();
+	for(block_info_t::iterator block_it=blocks.begin();
+			block_it!=end;++block_it)
+	{
+		delete block_it->second;
+	}
+}
+
 void IOnode::block::allocate_memory()throw(std::bad_alloc)
 {
 	if(NULL != data)
@@ -70,8 +88,7 @@ IOnode::IOnode(const std::string& master_ip,
 	Server(IONODE_PORT), 
 	Client(), 
 	_node_id(-1),
-	_files(file_blocks_t()),
-	_file_path(file_path_t()),
+	_files(file_t()),
 	_current_block_number(0), 
 	_MAX_BLOCK_NUMBER(MAX_BLOCK_NUMBER), 
 	_memory(MEMORY), 
@@ -212,15 +229,19 @@ int IOnode::_send_data(int sockfd)
 	_LOG("request for send data\n");
 	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n", file_no, start_point, offset, size);
 
-	_DEBUG("file path=%s\n", _file_path[file_no].c_str());
 	try
 	{
-		const std::string& path = _file_path.at(file_no);
-		block* requested_block=_files.at(file_no).at(start_point);
+		file& _file=_files.at(file_no);
+		const std::string& path = _file.file_path;
+		_DEBUG("file path=%s\n", path.c_str());
+		block* requested_block=_file.blocks.at(start_point);
 		if(INVALID == requested_block->valid)
 		{
 			requested_block->allocate_memory();
-			_read_from_storage(path, requested_block);
+			if(EXISTING == _file.exist_flag)
+			{
+				_read_from_storage(path, requested_block);
+			}
 			requested_block->valid = VALID;
 		}
 		Send_flush(sockfd, SUCCESS);
@@ -251,12 +272,16 @@ int IOnode::_receive_data(int clientfd)
 
 	try
 	{
-		block_info_t &blocks=_files.at(file_no);
+		file& _file=_files.at(file_no);
+		block_info_t &blocks=_file.blocks;
 		block* _block=blocks.at(start_point);
 		if(INVALID == _block->valid)
 		{
 			_block->allocate_memory();
-			_block->data_size=_read_from_storage(_file_path.at(file_no), _block);
+			if(EXISTING == _file.exist_flag)
+			{
+				_block->data_size=_read_from_storage(_file.file_path, _block);
+			}
 			_block->valid = VALID;
 		}
 		Send_flush(clientfd, SUCCESS);
@@ -266,6 +291,7 @@ int IOnode::_receive_data(int clientfd)
 			_block->data_size = offset+size;
 		}
 		_block->dirty_flag=DIRTY;
+		_file.dirty_flag=DIRTY;
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -281,19 +307,18 @@ int IOnode::_open_file(int sockfd)
 	int flag=0;
 	char *path_buffer=NULL; 
 	int count=0;
+	int exist_flag=0;
 	Recv(sockfd, file_no);
 	Recv(sockfd, flag);
+	Recv(sockfd, exist_flag);
 	Recvv(sockfd, &path_buffer); 
 	_DEBUG("openfile fileno=%ld, path=%s\n", file_no, path_buffer);
-	block_info_t& blocks=_files[file_no]; 
-	if(_file_path.end() == _file_path.find(file_no))
-	{
-		_file_path.insert(std::make_pair(file_no, std::string(path_buffer)));
-	}
+	
+	file& _file=_files.insert(std::make_pair(file_no, file(path_buffer, exist_flag, file_no))).first->second;
 	Recv(sockfd, count);
 	for(int i=0;i<count;++i)
 	{
-		_append_block(sockfd, blocks);
+		_append_block(sockfd, _file.blocks);
 	}
 	delete[] path_buffer; 
 	Recv(sockfd, count);
@@ -308,8 +333,9 @@ int IOnode::_close_file(int sockfd)
 	Send_flush(sockfd, SUCCESS);
 	try
 	{
-		std::string &path=_file_path.at(file_no);
-		block_info_t &blocks=_files.at(file_no);
+		file& _file=_files.at(file_no);
+		block_info_t &blocks=_file.blocks;
+		std::string &path=_file.file_path;
 		_DEBUG("close file, path=%s\n", path.c_str());
 		for(block_info_t::iterator it=blocks.begin();
 				it != blocks.end();++it)
@@ -323,7 +349,7 @@ int IOnode::_close_file(int sockfd)
 			delete _block;
 		}
 		_files.erase(file_no);
-		_file_path.erase(file_no);
+		//_file_path.erase(file_no);
 		//Send(sockfd, SUCCESS);
 		return SUCCESS;
 	}
@@ -340,10 +366,18 @@ int IOnode::_rename(int sockfd)
 	Recv(sockfd, file_no);
 	Recvv(sockfd, &new_path);
 	_DEBUG("rename file_no =%ld, new_path=%s\n", file_no, new_path);
-	_file_path.erase(file_no);
-	_file_path.insert(std::make_pair(file_no, new_path));
+	try{
+		file& _file=_files.at(file_no);
+		_file.file_path=std::string(new_path);
+		//_file_path.insert(std::make_pair(file_no, new_path));
+		Send_flush(sockfd, SUCCESS);
+	}
+	catch(std::out_of_range& e)
+	{
+		_DEBUG("file unfound");
+		Send_flush(sockfd, FAILURE);
+	}
 	delete[] new_path; 
-	Send_flush(sockfd, SUCCESS);
 	return SUCCESS; 
 }
 
@@ -370,7 +404,8 @@ int IOnode::_append_new_block(int sockfd)
 	Recv(sockfd, count);
 	try
 	{
-		block_info_t &blocks=_files.at(file_no);
+		file& _file=_files.at(file_no);
+		block_info_t &blocks=_file.blocks;
 		for(int i=0;i<count;++i)
 		{
 			Recv(sockfd, start_point);
@@ -468,12 +503,17 @@ int IOnode::_flush_file(int sockfd)
 {
 	ssize_t file_no;
 	Recv(sockfd, file_no);
-	std::string &path=_file_path.at(file_no);
-	_DEBUG("flush file file_no=%ld, path=%s\n", file_no, path.c_str());
 	Send_flush(sockfd, SUCCESS);
 	try
 	{
-		block_info_t &blocks=_files.at(file_no);
+		file& _file=_files.at(file_no);
+		std::string &path=_file.file_path;
+		_DEBUG("flush file file_no=%ld, path=%s\n", file_no, path.c_str());
+		block_info_t &blocks=_file.blocks;
+		if(CLEAN == _file.dirty_flag)
+		{
+			return SUCCESS;
+		}
 		for(block_info_t::iterator it=blocks.begin();
 				it != blocks.end();++it)
 		{
@@ -540,20 +580,28 @@ int IOnode::_truncate_file(int sockfd)
 	Recv(sockfd, fd);
 	Recv(sockfd, start_point);
 	_LOG("fd=%ld, start_point=%ld\n", fd, start_point);
-	block_info_t& file=_files[fd];
-	delete file[start_point];
-	return SUCCESS;
+	try{
+		file& _file=_files.at(fd);
+		delete _file.blocks[start_point];
+		return SUCCESS;
+	}
+	catch(std::out_of_range)
+	{
+		return FAILURE;
+	}
 }
 
 int IOnode::_remove_file(ssize_t file_no)
 {
-	file_blocks_t::iterator it=_files.find(file_no);
+	_files.erase(file_no);
+	//file& _file=_files.find(file_no);
+	/*file_blocks_t::iterator it
 	_file_path.erase(file_no);
 	for(block_info_t::iterator block_it=it->second.begin();
 			block_it!=it->second.end();++block_it)
 	{
 		delete block_it->second;
 	}
-	_files.erase(it);
+	_files.erase(it);*/
 	return SUCCESS;
 }

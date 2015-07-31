@@ -270,20 +270,20 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 		do{
 			master_number = ret;
 			Send(master_socket, OPEN_FILE); 
-			Sendv_flush(master_socket, path, strlen(path));
+			Sendv(master_socket, path, strlen(path));
+
+			if(flag & O_CREAT)
+			{
+				Send(master_socket, flag); 
+				Send_flush(master_socket, mode);
+			}
+			else
+			{
+				Send_flush(master_socket, flag);
+			}
 			Recv(master_socket, ret);
 			master_socket = _get_master_socket_from_master_number(ret);
 		}while(master_number != ret);
-
-		if(flag & O_CREAT)
-		{
-			Send(master_socket, flag); 
-			Send_flush(master_socket, mode);
-		}
-		else
-		{
-			Send_flush(master_socket, flag);
-		}
 		Recv(master_socket, ret);
 		if(SUCCESS == ret)
 		{
@@ -734,6 +734,15 @@ int CBB::_getattr(const char* path, struct stat* fstat)
 		{
 			_DEBUG("SUCCESS\n");
 			Recv_attr(master_socket, fstat);
+#ifdef DEBUG
+			struct tm *tm;
+			char buf[200];
+			/* convert time_t to broken-down time representation */
+			tm = localtime(&fstat->st_mtime);
+			/* format time days.month.year hour:minute:seconds */
+			strftime(buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", tm);
+			printf("time = %s\n", buf);
+#endif
 			//file_meta* file_meta_p=new file_meta(-1, path, 0, fstat);
 			//++file_meta_p->open_count;
 			//_path_file_meta_map.insert(std::make_pair(std::string(path), file_meta_p));

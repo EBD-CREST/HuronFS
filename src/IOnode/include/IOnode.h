@@ -48,13 +48,25 @@ private:
 		off64_t  start_point;
 		bool dirty_flag;
 		bool valid;
+		int exist_flag;
 	};
 	//map: start_point : block*
 	typedef std::map<off64_t, block*> block_info_t; 
-	//map: file_no: block_info
-	typedef std::map<ssize_t, block_info_t > file_blocks_t; 
+
+	struct file
+	{
+		file(const char *path, int exist_flag, ssize_t file_no);
+		~file();
 	
-	typedef std::map<ssize_t, std::string> file_path_t;
+		std::string file_path;
+		int exist_flag;
+		bool dirty_flag;
+		ssize_t file_no;
+		block_info_t blocks;
+	};
+		
+	//map: file_no: struct file
+	typedef std::map<ssize_t, file> file_t; 
 
 	static const char * IONODE_MOUNT_POINT;
 
@@ -104,8 +116,7 @@ private:
 	/*block_info _blocks;
 	file_info _files;*/
 
-	file_blocks_t _files;
-	file_path_t _file_path;	
+	file_t _files;
 	int _current_block_number;
 	int _MAX_BLOCK_NUMBER;
 	//remain available memory; 
