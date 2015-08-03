@@ -556,7 +556,7 @@ int Master::_parse_unlink(int clientfd)
 	{
 		ssize_t fd=_file_stat.at(relative_path).get_fd();
 		_remove_file(fd);
-		unlink(real_path.c_str());
+		//unlink(real_path.c_str());
 		Send_flush(clientfd, SUCCESS);
 		return SUCCESS;
 	}
@@ -1244,6 +1244,7 @@ int Master::_remove_file(ssize_t file_no)
 		Send_flush(socket, file_no);
 		Recv(socket, ret);
 	}
+	_release_file_no(file_no);
 	_file_stat.erase(file.file_status->it);
 	_buffered_files.erase(file_no);
 	delete &file;

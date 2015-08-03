@@ -13,8 +13,8 @@ const int MAX_IONODE = 1000;
 //const int IO_CLIENT_PORT = 8002;
 
 const int MEMORY = 10000; 
-const int MAX_BLOCK_NUMBER = 10; 
-const int MAX_FILE_NUMBER = 1000; 
+const int MAX_BLOCK_NUMBER = 1000; 
+const int MAX_FILE_NUMBER = 1000000; 
 const int MAX_QUEUE = 100; 
 //const int BLOCK_SIZE = 1000; 
 const int MAX_NODE_NUMBER = 10; 

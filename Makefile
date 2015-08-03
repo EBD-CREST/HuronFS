@@ -18,8 +18,7 @@ export CC=g++
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
 export DEP_FLAG = -MMD -MP
-export FLAG=-O0 -g -Wall -std=c++0x -DDEBUG
-#export FLAG=-O3 -g -Wall
+export FLAG=-O3 -g -Wall -std=c++0x
 
 run:
 	@echo 'run'
@@ -51,7 +50,34 @@ Client_fuse:
 	mkdir -p bin 
 	mv $(CLIENT_FUSE) bin
 
+Master_gdb:
+	export FLAG_GDB=-O0 -g -Wall -std=c++0x -DDEBUG
+	$(MAKE) -C $(MASTER_DIR)
+	mkdir -p bin
+	mv $(MASTER) bin
+
+IOnode_gdb:
+	export FLAG_GDB=-O0 -g -Wall -std=c++0x -DDEBUG
+	$(MAKE) -C $(IONODE_DIR)
+	mkdir -p bin
+	mv $(IONODE) bin
+
+Client_gdb:
+	export FLAG_GDB=-O0 -g -Wall -std=c++0x -DDEBUG
+	$(MAKE) -C $(CLIENT_DIR) libCBB.a libCBB.so
+	mkdir -p lib
+	mv $(CLIENT_LTLIB) lib
+	mv $(CLIENT_SLIB) lib
+
+Client_fuse_gdb:
+	export FLAG_GDB=-O0 -g -Wall -std=c++0x -DDEBUG
+	$(MAKE) -C $(CLIENT_DIR)
+	mkdir -p bin 
+	mv $(CLIENT_FUSE) bin
+
 all:Master IOnode Client_fuse Client
+
+all_gdb:Master_gdb IOnode_gdb Client_fuse_gdb Client_gdb
 
 clean:
 	rm -f $(BIN)/*

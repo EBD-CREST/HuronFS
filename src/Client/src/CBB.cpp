@@ -303,8 +303,8 @@ int CBB::_open(const char * path, int flag, mode_t mode)
 		}
 		else
 		{
-			Recv(master_socket, errno);
-			errno=-errno;
+			//Recv(master_socket, errno);
+			errno=-ret;
 			return -1;
 		}
 	}
