@@ -52,7 +52,8 @@ void Server::_init_server()throw(std::runtime_error)
 	}
 	struct epoll_event event;
 	event.data.fd=_server_socket;
-	event.events=EPOLLIN|EPOLLET;
+	event.events=EPOLLIN;
+	//event.events=EPOLLIN|EPOLLET;
 	epoll_ctl(_epollfd, EPOLL_CTL_ADD, _server_socket, &event);
 	return; 
 }
