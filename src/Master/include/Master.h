@@ -8,291 +8,217 @@
 #ifndef MASTER_H_
 #define MASTER_H_
 
-#include <map>
-#include <set>
 #include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdexcept>
 #include <stdlib.h>
-#include <vector>
+#include <pthread.h>
+#include <dirent.h>
 
 #include "CBB_const.h"
 #include "Server.h"
+#include "CBB_map.h"
+#include "CBB_set.h"
+#include "Master_basic.h"
 
-
-class Master:public Server
+namespace CBB
 {
-	//API
-public:
-	Master()throw(std::runtime_error);
-	~Master();
-private:
-	//map file_no, vector<start_point>
-	class file_info; 
-	class node_info; 
-	class file_stat;
-	//set file_no
-	typedef std::set<ssize_t> file_t;
-	//map file start_point:node_id
-	typedef std::map<off64_t, ssize_t> node_t; 
-
-	typedef std::set<ssize_t> node_pool_t;
-	//map file_path: file_stat
-	typedef std::map<std::string, file_stat> file_stat_t; 
-	//map socket, node_info	need delete
-	typedef std::map<int, node_info*> IOnode_sock_t; 
-	
-	//map node_id:node_info need delete
-	typedef std::map<ssize_t, node_info*> IOnode_t; 
-	//map file_no:file_info need delete
-	typedef std::map<ssize_t, file_info*> File_t; 
-	//map file_no: ip
-	typedef std::set<ssize_t> node_id_pool_t;
-
-	//map start_point, data_size
-	typedef std::map<off64_t, size_t> block_info_t;
-	//map node_id, block_info
-	typedef std::map<ssize_t, block_info_t> node_block_map_t;
-
-	typedef std::set<std::string> dir_t;
-
-	class file_info
+	namespace Master
 	{
-	public:
-		friend class Master;
-		file_info(ssize_t fileno,
-				size_t block_size,
-				const node_t& IOnodes,
-				int flag,
-				file_stat* file_stat); 
-		file_info(ssize_t fileno,
-				int flag,
-				file_stat* file_stat);
-		void _set_nodes_pool();
-		const std::string& get_path()const;
-		struct stat& get_stat();
-		const struct stat& get_stat()const;
-	private:
 
-		ssize_t file_no;
-		node_t p_node;
-		node_pool_t nodes;
-		size_t block_size;
-		int open_count;
-		//open file
-		int flag; 
-		file_stat* file_status;
-	}; 
+		class Master:public CBB::Common::Server
+		{
+			//API
+			public:
+				Master()throw(std::runtime_error);
+				virtual ~Master();
+				int start_server();
+			private:
+				//map file_no, vector<start_point>
+				//unthread-safe
+				//map file_no:file_info need delete
+				typedef CBB::Common::CBB_map<ssize_t, open_file_info*> File_t; 
+				//map file_path: file_stat
+				//typedef CBB_map<std::string, file_stat> file_stat_t; 
+				//map socket, node_info	need delete
+				typedef CBB::Common::CBB_map<int, node_info*> IOnode_sock_t; 
 
-	class file_stat
-	{
-	public:
-		friend class Master;
-		friend class file_info;
-		file_stat(const struct stat* file_stat,
-				file_info* opened_file_info);
-		file_stat();
-		const std::string& get_path()const;
-		int get_fd()const throw(std::out_of_range);
-		int get_fd()throw(std::out_of_range);
-	private:
-		int is_external;
-		int external_master;
-		std::string external_name;
-		struct stat fstat;
-		file_info* opened_file_info;
-		int exist_flag;
-		file_stat_t::iterator it;
-	};
+				//map node_id:node_info need delete
+				typedef CBB::Common::CBB_map<ssize_t, node_info*> IOnode_t; 
+				//map file_no: ip
+				typedef CBB::Common::CBB_set<ssize_t> node_id_pool_t;
 
-	class node_info
-	{
-	public:
-		node_info(ssize_t id,
-				const std::string& ip,
-				std::size_t total_memory,
-				int socket); 
-		ssize_t node_id;
-		std::string ip; 
-		file_t stored_files; 
-		std::size_t avaliable_memory; 
-		std::size_t total_memory;
-		int socket; 
-	}; 
+				//map start_point, data_size
+				typedef CBB::Common::CBB_map<off64_t, size_t> block_info_t;
+				//map node_id, block_info
+				typedef CBB::Common::CBB_map<ssize_t, block_info_t> node_block_map_t;
 
-	static const char* MASTER_MOUNT_POINT;
-	static const char* MASTER_NUMBER;
+				//unthread-safe
+				typedef std::set<std::string> dir_t;
 
-private:
+				static const char* MASTER_MOUNT_POINT;
+				static const char* MASTER_NUMBER;
+				static const char* MASTER_TOTAL_NUMBER;
 
-	virtual int _parse_new_request(int socketfd,
-			const struct sockaddr_in& client_addr);
-	virtual int _parse_registed_request(int socketfd);
+			private:
 
-	//request from new client
-	int _parse_regist_IOnode(int clientfd, const std::string& ip);
-	int _parse_new_client(int clientfd, const std::string& ip);
+				//virtual int _parse_new_request(int socketfd,
+				//			const struct sockaddr_in& client_addr);
+				virtual int _parse_request(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
 
-	//request from registed client
-	int _parse_open_file(int clientfd); 
-	int _parse_read_file(int clientfd);
-	int _parse_write_file(int clientfd);
-	int _parse_flush_file(int clientfd);
-	int _parse_close_file(int clientfd);
-	//int _parse_node_info(int clientfd)const;
-	int _parse_attr(int clientfd);
-	int _parse_readdir(int clientfd)const;
-	int _parse_unlink(int clientfd);
-	int _parse_rmdir(int clientfd);
-	int _parse_access(int clientfd)const;
-	int _parse_mkdir(int clientfd);
-	int _parse_rename(int clientfd);
-	int _parse_close_client(int clientfd);
-	int _parse_truncate_file(int clientfd);
-	int _parse_rename_migrating(int clientfd);
+				//request from new client
+				int _parse_regist_IOnode(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_new_client(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
 
-	void _send_block_info(int socket,
-			const node_id_pool_t& node_id_pool,
-			const node_t& node_set)const;
-	void _send_append_request(ssize_t file_no,
-			const node_block_map_t& append_node_block)const;
-	int _send_request_to_IOnodes(struct file_info& file);
+				//request from registed client
+				int _parse_open_file(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue); 
+				int _parse_read_file(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_write_file(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_flush_file(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_close_file(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				//int _parse_node_info(int clientfd)const;
+				int _parse_attr(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_readdir(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_unlink(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_rmdir(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_access(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_mkdir(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_rename(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_close_client(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_truncate_file(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_rename_migrating(CBB::Common::IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
 
-	//file operation
-	//void _send_node_info(int socket)const;
-	//void _send_file_info(int socket)const; 
-	//int _send_file_meta(int socket)const; 
-	ssize_t _add_IO_node(const std::string& node_ip,
-			std::size_t avaliable_memory,
-			int socket);
-	ssize_t _delete_IO_node(int socket);
-	const node_t& _open_file(const char* file_path,
-			int flag,
-			ssize_t& file_no,
-			int exist_flag)throw(std::runtime_error, std::invalid_argument, std::bad_alloc);
-	ssize_t _get_node_id(); 
-	ssize_t _get_file_no(); 
-	void _release_file_no(ssize_t fileno);
+				int _buffer_all_meta_data_from_remote(const char* mount_point)throw(std::runtime_error);
+				int _dfs_items_in_remote(DIR* current_remote_directory,
+						char* file_path,
+						const char* file_relative_path,
+						size_t offset)throw(std::runtime_error);
 
-	IOnode_t::iterator _find_by_ip(const std::string& ip);
-	void _create_file(const char* file_path,
-			mode_t mode)throw(std::runtime_error); 
-	file_info* _create_new_file_info(ssize_t file_no,
-			int flag,
-			file_stat* file_status)throw(std::invalid_argument);
-	file_stat* _create_new_file_stat(const char* relative_path,
-			int exist_flag)throw(std::invalid_argument);
-	node_t _select_IOnode(off64_t start_point,
-			size_t file_size,
-			size_t block_size,
-			node_block_map_t& node_block_map); 
+				void _send_block_info(CBB::Common::IO_task* new_task,
+						const node_id_pool_t& node_id_pool,
+						const node_t& node_set)const;
+				//void _send_append_request(ssize_t file_no,
+				//		const node_block_map_t& append_node_block,
+				//		CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _send_open_request_to_IOnodes(struct open_file_info& file, CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
 
-	size_t _get_block_size(size_t length);
-	off64_t _get_block_start_point(off64_t start_point, size_t& size)const;
+				//file operation
+				//void _send_node_info(int socket)const;
+				//void _send_file_info(int socket)const; 
+				//int _send_file_meta(int socket)const; 
 
-	node_t& _get_IOnodes_for_IO(off64_t start_point,
-			size_t& size,
-			struct file_info& file,
-			node_t& node_set,
-			node_id_pool_t& node_id_pool)throw(std::bad_alloc);
-	int _allocate_one_block(const struct file_info &file)throw(std::bad_alloc);
-	void _append_block(struct file_info& file,
-			int node_id,
-			off64_t start_point);
-	int _remove_file(ssize_t fd);
-	
-	virtual std::string _get_real_path(const char* path)const;
-	virtual std::string _get_real_path(const std::string& path)const;
+				ssize_t _add_IO_node(const std::string& node_ip,
+						std::size_t avaliable_memory,
+						int socket);
+				ssize_t _delete_IO_node(int socket);
+				const node_t& _open_file(const char* file_path,
+						int flag,
+						ssize_t& file_no,
+						int exist_flag,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue)
+					throw(std::runtime_error, std::invalid_argument, std::bad_alloc);
+				ssize_t _get_node_id(); 
+				ssize_t _get_file_no(); 
+				void _release_file_no(ssize_t fileno);
 
-	dir_t _get_buffered_files_from_dir(const std::string& path)const;
+				IOnode_t::iterator _find_by_ip(const std::string& ip);
+				void _create_file(const char* file_path,
+						mode_t mode)throw(std::runtime_error); 
+				open_file_info* _create_new_open_file_info(ssize_t file_no,
+						int flag,
+						Master_file_stat* file_status,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue)throw(std::invalid_argument);
+				Master_file_stat* _create_new_file_stat(const char* relative_path,
+						int exist_flag)throw(std::invalid_argument);
+				node_t _select_IOnode(off64_t start_point,
+						size_t file_size,
+						size_t block_size,
+						node_block_map_t& node_block_map); 
 
-	void flush_map(file_stat_t& map)const;
-private:
-	IOnode_t _registed_IOnodes;
-	file_stat_t _file_stat;  
-	File_t _buffered_files; 
-	IOnode_sock_t _IOnode_socket; 
+				size_t _get_block_size(size_t length);
+				off64_t _get_block_start_point(off64_t start_point, size_t& size)const;
 
-	ssize_t _node_number;
-	ssize_t _file_number; 
-	bool *_node_id_pool; 
-	bool *_file_no_pool; 
-	ssize_t _current_node_number; 
-	ssize_t _current_file_no; 
-	std::string _mount_point;
-	int master_number;
+				node_t& _get_IOnodes_for_IO(off64_t start_point,
+						size_t& size,
+						struct open_file_info& file,
+						node_t& node_set,
+						node_id_pool_t& node_id_pool)throw(std::bad_alloc);
+				int _allocate_one_block(const struct open_file_info &file)throw(std::bad_alloc);
+				void _append_block(open_file_info& file,
+						int node_id,
+						off64_t start_point);
+				int _remove_file(ssize_t fd, CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
 
-	IOnode_t::iterator _current_IOnode;
-};
+				virtual std::string _get_real_path(const char* path)const;
+				virtual std::string _get_real_path(const std::string& path)const;
 
-inline const std::string& Master::file_info::get_path()const
-{
-	return file_status->get_path();
-}
+				dir_t _get_file_stat_from_dir(const std::string& path);
 
-inline struct stat& Master::file_info::get_stat()
-{
-	return file_status->fstat;
-}
+				//void flush_map(file_stat_t& map)const;
+			private:
+				IOnode_t _registed_IOnodes;
+				//file_stat_t _file_stat;  
+				file_stat_pool_t _file_stat_pool;
 
-inline const struct stat& Master::file_info::get_stat()const
-{
-	return file_status->fstat;
-}
+				File_t _buffered_files; 
+				IOnode_sock_t _IOnode_socket; 
 
-inline const std::string& Master::file_stat::get_path()const
-{
-	return it->first;
-}
+				ssize_t _node_number;
+				ssize_t _file_number; 
+				bool *_node_id_pool; 
+				bool *_file_no_pool; 
+				ssize_t _current_node_number; 
+				ssize_t _current_file_no; 
+				std::string _mount_point;
+				int master_number;
+				int master_total_size;
 
-inline int Master::file_stat::get_fd()throw(std::out_of_range)
-{
-	if(NULL != opened_file_info)
-	{
-		return opened_file_info->file_no;
+				IOnode_t::iterator _current_IOnode;
+		};
+
+		inline std::string Master::_get_real_path(const char* path)const
+		{
+			return _mount_point+std::string(path);
+		}
+
+		inline std::string Master::_get_real_path(const std::string& path)const
+		{
+			return _mount_point+path;
+		}
+
+		inline size_t Master::_get_block_size(size_t size)
+		{
+			return BLOCK_SIZE;
+			//return (size+_node_number-1)/_node_number;
+		}
+		inline off64_t Master::_get_block_start_point(off64_t start_point,
+				size_t& size)const
+		{
+			off64_t block_start_point=(start_point/BLOCK_SIZE)*BLOCK_SIZE;
+			size=start_point-block_start_point+size;
+			return block_start_point;
+		}
 	}
-	else
-	{
-		throw std::out_of_range("");
-	}
-}
-
-inline int Master::file_stat::get_fd()const throw(std::out_of_range)
-{
-	if(NULL != opened_file_info)
-	{
-		return opened_file_info->file_no;
-	}
-	else
-	{
-		throw std::out_of_range("");
-	}
-}
-
-inline std::string Master::_get_real_path(const char* path)const
-{
-	return _mount_point+std::string(path);
-}
-
-inline std::string Master::_get_real_path(const std::string& path)const
-{
-	return _mount_point+path;
-}
-
-inline size_t Master::_get_block_size(size_t size)
-{
-	return BLOCK_SIZE;
-	//return (size+_node_number-1)/_node_number;
-}
-
-inline off64_t Master::_get_block_start_point(off64_t start_point,
-		size_t& size)const
-{
-	off64_t block_start_point=(start_point/BLOCK_SIZE)*BLOCK_SIZE;
-	size=start_point-block_start_point+size;
-	return block_start_point;
 }
 
 #endif

@@ -1,0 +1,176 @@
+#include "Master_basic.h"
+
+using namespace CBB::Master;
+using namespace CBB::Common;
+
+open_file_info::open_file_info(ssize_t fileno,
+		size_t block_size,
+		const node_t& IOnodes,
+		int flag,
+		_basic_item* file_stat):
+	CBB_rwlocker(),
+	file_no(fileno),
+	p_node(IOnodes), 
+	nodes(node_pool_t()),
+	block_size(block_size),
+	open_count(1),
+	flag(flag),
+	file_status(file_stat)
+{}
+
+open_file_info::open_file_info(ssize_t fileno,
+		int flag,
+		_basic_item* file_stat):
+	CBB_rwlocker(),
+	file_no(fileno),
+	p_node(), 
+	nodes(node_pool_t()),
+	block_size(0),
+	open_count(1),
+	flag(flag),
+	file_status(file_stat)
+{}
+
+void open_file_info::_set_nodes_pool()
+{
+	for(node_t::const_iterator it=p_node.begin();
+			it != p_node.end();++it)
+	{
+		nodes.insert(it->second);
+	}
+	return;
+}
+
+Master_extended_file_stat::Master_extended_file_stat(const struct stat& file_stat,
+		const std::string& filename,
+		int exist_flag):
+	_basic_item(file_stat, filename),
+	external_flag(INTERNAL),
+	external_master(-1),
+	external_name(std::string()),
+	exist_flag(exist_flag)
+{}
+
+Master_extended_file_stat::Master_extended_file_stat():
+	_basic_item(),
+	external_flag(INTERNAL),
+	external_master(-1),
+	external_name(std::string()),
+	exist_flag(NOT_EXIST)
+{}
+
+Master_file::Master_file(const struct stat& file_stat, 
+		const std::string& filename,
+		int exist_flag):
+	Master_extended_file_stat(file_stat, filename, exist_flag),
+	opened_file_info(NULL)
+{}
+
+Master_file::Master_file(const struct stat& file_stat, 
+		const std::string& filename,
+		open_file_info* opened_file_info,
+		int exist_flag):
+	Master_extended_file_stat(file_stat, filename, exist_flag),
+	opened_file_info(opened_file_info)
+{}
+
+Master_file::Master_file(open_file_info* opened_file_info):
+	Master_extended_file_stat(),
+	opened_file_info(opened_file_info)
+{}
+
+Master_dir::Master_dir(const struct stat& file_stat,
+		const std::string& filename,
+		int exist_flag):
+	Master_extended_file_stat(file_stat, filename, exist_flag),
+	items()
+{}
+
+Master_dir::~Master_dir()
+{
+	for(items_set_t::iterator it=items.begin();
+			it!=items.end();++it)
+	{
+		delete *it;
+	}
+}
+
+items_set_t::iterator Master_dir::add_item(Master_extended_file_stat* item)
+{
+	CBB_rwlocker::wr_lock();
+	items_set_t::iterator it=items.insert(item).first;
+	CBB_rwlocker::unlock();
+	return it;
+}
+
+void Master_dir::remove_item(Master_extended_file_stat* item)
+{
+	CBB_rwlocker::wr_lock();
+	delete item;
+	items.erase(item);
+	CBB_rwlocker::unlock();
+	return;
+
+}
+
+void Master_dir::remove_item(const std::string& file_name)
+{
+	CBB_rwlocker::rd_lock();
+	for(items_set_t::iterator it=items.begin();
+			it!=items.end();++it)
+	{
+		if(0 == file_name.compare((*it)->get_filename()))
+		{
+			CBB_rwlocker::unlock();
+			remove_item(it);
+			return;
+		}
+	}
+	CBB_rwlocker::unlock();
+	return;
+}
+
+void Master_dir::remove_item(const items_set_t::iterator& it)
+{
+	CBB_rwlocker::wr_lock();
+	delete *it;
+	items.erase(it);
+	CBB_rwlocker::unlock();
+	return;
+}
+
+Master_extended_file_stat* find_by_name(const std::string filename, Master_extended_file_stat* current_directory)
+{
+	//find
+	if(0 == filename.compare(current_directory->get_filename()))
+	{
+		return current_directory;
+	}
+
+	if(S_ISDIR(current_directory->item_type()))
+	{
+		Master_dir* directory_p=dynamic_cast<Master_dir*>(current_directory);
+		items_set_t& files=directory_p->get_files();
+		Master_extended_file_stat* ret=NULL;
+		for(items_set_t::iterator it=files.begin(); it != files.end(); ++it)
+		{
+			if(NULL != (ret=CBB::Master::find_by_name(filename, *it)))
+			{
+				return ret;
+			}
+		}
+	}
+	return NULL;
+}
+
+node_info::node_info(ssize_t id,
+		const std::string& ip,
+		size_t total_memory,
+		int socket):
+	node_id(id),
+	ip(ip), 
+	stored_files(file_no_pool_t()), 
+	avaliable_memory(total_memory), 
+	total_memory(total_memory),
+	socket(socket)
+{}

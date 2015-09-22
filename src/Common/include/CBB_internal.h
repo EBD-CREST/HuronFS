@@ -54,6 +54,7 @@
 		extern ret __real_ ##name args;
 #endif
 
+
 #define CHECK_INIT()                                                      \
 	do                                                                \
 	{                                                                 \
@@ -69,7 +70,18 @@
 #define MAX(a,b) ((a)<(b)?(b):(a))
 
 #include <arpa/inet.h>
+#include <string>
+#include <stdio.h>
+#include <functional>
 #include <string.h>
+
+#include "CBB_const.h"
+
+inline int file_path_hash(const std::string& file_path, int number)
+{
+	static std::hash<std::string> string_hash;
+	return string_hash(file_path)%number;
+}
 
 inline void set_server_addr(const std::string& ip, struct sockaddr_in& addr)
 {
@@ -82,4 +94,5 @@ inline void set_server_addr(const std::string& ip, struct sockaddr_in& addr)
 	}
 	return;
 }
+
 #endif

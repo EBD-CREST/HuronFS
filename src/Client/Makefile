@@ -2,10 +2,10 @@ CBB_LTLIB= libCBB.so
 CBB_SLIB= libCBB.a
 MAIN = cbbfs
 
-CLIENT = ../Common/Client.o
+COMMON = ../Common/Client.o ../Common/CBB_rwlocker.o ../Common/CBB_communication_thread.o ../Common/CBB_task_parallel.o ../Common/CBB_connector.o
 
 FUSE_SRC = CBB_fuse.cpp
-BASE_SRC = CBB.cpp CBB_stream.cpp
+BASE_SRC = CBB_client.cpp CBB_stream.cpp
 LIB_SRC = CBB_posix.cpp CBB_stdio.cpp
 SRC = $(FUSE_SRC) $(BASE_SRC) $(LIB_SRC)
 FUSE_OBJ = $(FUSE_SRC:.cpp=.o)
@@ -25,13 +25,13 @@ vpath %.cpp $(SRC_DIR)
 vpath %.h $(HEADER_DIR)
 
 
-$(CBB_SLIB):$(LIB_OBJ) $(BASE_OBJ) $(CLIENT)
+$(CBB_SLIB):$(LIB_OBJ) $(BASE_OBJ) $(COMMON)
 	ar -r $@ $^
 
-$(CBB_LTLIB):$(LIB_OBJ) $(BASE_OBJ) $(CLIENT)
+$(CBB_LTLIB):$(LIB_OBJ) $(BASE_OBJ) $(COMMON)
 	$(CC) -Wl,-soname=libCBB.so.0 $(LIB_FLAG) -o $@ $^ -ldl
 
-$(MAIN):$(FUSE_OBJ) $(BASE_OBJ) $(CLIENT) 
+$(MAIN):$(FUSE_OBJ) $(BASE_OBJ) $(COMMON) 
 	$(CC) -o $@ $^ -ldl $(FUSE_LIB)
 
 $(FUSE_OBJ):$(FUSE_SRC)
@@ -40,7 +40,7 @@ $(FUSE_OBJ):$(FUSE_SRC)
 %.o:%.cpp
 	$(CC) -c $(DEP_FLAG) $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $< 
 
-$(CLIENT):
+$(COMMON):
 	cd ../Common && $(MAKE) $(notdir $@)
 
 .PHONY:clean

@@ -4,6 +4,7 @@
 
 #include "Master.h"
 const char optstring[]="dh";
+using namespace CBB::Master;
 
 void usage()
 {

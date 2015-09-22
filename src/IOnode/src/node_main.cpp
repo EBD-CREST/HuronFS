@@ -7,6 +7,8 @@
 #include "IOnode.h"
 #include "CBB_const.h"
 
+using namespace CBB::Common;
+using namespace CBB::IOnode;
 const char optstring[]="dh";
 
 void usage()
@@ -59,7 +61,7 @@ int main(int argc, char**argv)
 				return EXIT_FAILURE;
 			}
 		}
-		node.start_server();
+		node.IOnode::start_server();
 	}
 	catch(std::runtime_error& e)
 	{

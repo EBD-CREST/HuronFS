@@ -15,6 +15,9 @@
 #include "CBB_stream.h"
 #include "CBB_internal.h"
 
+using namespace CBB::Common;
+using namespace CBB::Client;
+
 static CBB_stream client;
 struct fuse_operations CBB_oper;
 extern char* mount_point;
@@ -141,11 +144,11 @@ static int CBB_getattr(const char* path, struct stat* stbuf)
 
 static int CBB_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi)
 {
-	CBB::dir_t dir;
+	CBB_client::dir_t dir;
 	lock_stream(stdout);
 	client._readdir(path,dir);
 	unlock_stream(stdout);
-	for(CBB::dir_t::const_iterator it=dir.begin();
+	for(CBB_client::dir_t::const_iterator it=dir.begin();
 			it!=dir.end();++it)
 	{
 		if(1 == filler(buf, it->c_str(), NULL, 0))
@@ -266,11 +269,12 @@ int main(int argc, char *argv[])
 	CBB_oper.ftruncate=CBB_ftruncate;
 	
 	char** fuse_argv=new char*[argc+2];
+	char* single_thread_string="-s";
 	for(int i=0; i<argc ;++i)
 	{
 		fuse_argv[i]=argv[i];
 	}
-	fuse_argv[argc++]="-s";
+	fuse_argv[argc++]=single_thread_string;
 	fuse_argv[argc++]=mount_point;
 
 	return fuse_main(argc, fuse_argv, &CBB_oper, NULL);

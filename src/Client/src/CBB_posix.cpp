@@ -11,6 +11,8 @@
 //#include "CBB_posix.h"
 #include "CBB_internal.h"
 
+using namespace CBB::Common;
+using namespace CBB::Client;
 CBB_stream client;
 
 /*CBB_FUNC_P(int, fsync, (int fd));
@@ -53,10 +55,10 @@ extern "C" int CBB_WRAP(open64)(const char* path, int flag, ...)
 	}
 	//some problem with path
 	//currently path must start with mount point
-	CBB::_format_path(path, formatted_path);
-	if(CBB::_interpret_path(formatted_path.c_str()))
+	CBB_client::_format_path(path, formatted_path);
+	if(CBB_client::_interpret_path(formatted_path.c_str()))
 	{
-		CBB::_get_relative_path(formatted_path, relative_path);
+		CBB_client::_get_relative_path(formatted_path, relative_path);
 		_DEBUG("open with CBB\n");
 		return client._open(relative_path.c_str(), flag, mode);
 	}
@@ -77,7 +79,7 @@ extern "C" int CBB_WRAP(open64)(const char* path, int flag, ...)
 extern "C" ssize_t CBB_WRAP(read)(int fd, void *buffer, size_t size)
 {
 	CBB_FUNC_P(ssize_t, read, (int fd, void *buffer, size_t size));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("read from CBB, fd=%d, size=%lu\n", fd, size);
 		return client._read(fd, buffer, size);
@@ -92,7 +94,7 @@ extern "C" ssize_t CBB_WRAP(read)(int fd, void *buffer, size_t size)
 extern "C" ssize_t CBB_WRAP(readv)(int fd, const struct iovec *iov, int iovcnt)
 {
 	CBB_FUNC_P(ssize_t, readv, (int fd, const struct iovec *iov, int iovcnt));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		ssize_t ans=0;
 		for(int i=0;i<iovcnt;++i)
@@ -120,7 +122,7 @@ extern "C" ssize_t CBB_WRAP(readv)(int fd, const struct iovec *iov, int iovcnt)
 extern "C" ssize_t CBB_WRAP(write)(int fd, const void *buffer, size_t size)
 {
 	CBB_FUNC_P(ssize_t, write,(int fd, const void*buffer, size_t size));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("write to CBB, fd=%d, size=%lu\n", fd, size);
 		return client._write(fd, buffer, size);
@@ -135,7 +137,7 @@ extern "C" ssize_t CBB_WRAP(write)(int fd, const void *buffer, size_t size)
 extern "C" ssize_t CBB_WRAP(writev)(int fd, const struct iovec *iov, int iovcnt)
 {
 	CBB_FUNC_P(ssize_t, writev, (int fd, const struct iovec *iov, int iovcnt));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		ssize_t ans=0;
 		for(int i=0;i<iovcnt;++i)
@@ -163,7 +165,7 @@ extern "C" ssize_t CBB_WRAP(writev)(int fd, const struct iovec *iov, int iovcnt)
 extern "C" int CBB_WRAP(close)(int fd)
 {
 	CBB_FUNC_P(int, close, (int fd));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("CBB close file fd=%d\n", fd);
 		return client._close(fd);
@@ -179,7 +181,7 @@ extern "C" int CBB_WRAP(close)(int fd)
 extern "C" int CBB_WRAP(flush)(int fd)
 {
 	CBB_FUNC_P(int, flush, (int fd));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("CBB flush file fd=%d\n", fd);
 		return client._flush(fd);
@@ -199,7 +201,7 @@ extern "C" off_t CBB_WRAP(lseek)(int fd, off_t offset, int whence)
 extern "C" off64_t CBB_WRAP(lseek64)(int fd, off64_t offset, int whence)
 {
 	CBB_FUNC_P(off64_t, lseek64, (int fd, off64_t offset, int whence));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("CBB lseek file fd=%d, offset=%lu\n", fd, offset);
 		return client._lseek(fd, offset, whence);
@@ -221,10 +223,10 @@ extern "C" int CBB_WRAP(creat64)(const char * path, mode_t mode)
 	CBB_FUNC_P(int, creat64, (const char *path, mode_t mode));
 	std::string formatted_path;
 	std::string relative_path;
-	CBB::_format_path(path, formatted_path);
-	if(CBB::_interpret_path(formatted_path.c_str()))
+	CBB_client::_format_path(path, formatted_path);
+	if(CBB_client::_interpret_path(formatted_path.c_str()))
 	{
-		CBB::_get_relative_path(formatted_path, relative_path);
+		CBB_client::_get_relative_path(formatted_path, relative_path);
 		_DEBUG("CBB create file path=%s\n", path);
 		return client._open(relative_path.c_str(), O_CREAT, mode);
 	}
@@ -243,7 +245,7 @@ extern "C" ssize_t CBB_WRAP(pread)(int fd, void *buffer, size_t count, off_t off
 extern "C" ssize_t CBB_WRAP(pread64)(int fd, void *buffer, size_t count, off64_t offset)
 {
 	CBB_FUNC_P(ssize_t, pread64, (int fd, void *buffer, size_t count, off64_t offset));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		if(-1 == client._lseek(fd, offset, SEEK_SET))
 		{
@@ -266,7 +268,7 @@ extern "C" ssize_t CBB_WRAP(pwrite)(int fd, const void *buffer, size_t count, of
 extern "C" ssize_t CBB_WRAP(pwrite64)(int fd, const void *buffer, size_t count, off64_t offset)
 {
 	CBB_FUNC_P(ssize_t, pwrite64, (int fd, const void *buffer, size_t count, off64_t offset));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		if(-1 == client._lseek(fd, offset, SEEK_SET))
 		{
@@ -284,7 +286,7 @@ extern "C" ssize_t CBB_WRAP(pwrite64)(int fd, const void *buffer, size_t count, 
 extern "C" int CBB_WRAP(posix_fadvise)(int fd, off_t offset, off_t len, int advice)
 {
 	CBB_FUNC_P(int, posix_fadvise, (int fd, off_t offset, off_t len, int advice));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("do not support yet\n");
 		return -1;
@@ -298,7 +300,7 @@ extern "C" int CBB_WRAP(posix_fadvise)(int fd, off_t offset, off_t len, int advi
 extern "C" int CBB_WRAP(ftruncate)(int fd, off_t length)throw()
 {
 	CBB_FUNC_P(int, ftruncate, (int fd, off_t length));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		return client._lseek(fd, length, SEEK_SET);
 	}
@@ -314,8 +316,8 @@ extern "C" int CBB_WRAP(stat)(const char* path, struct stat* buf)
 	CBB_FUNC_P(int, stat, (const char* path, struct stat* buf));
 	std::string formatted_path;
 	std::string relative_path;
-	CBB::_format_path(path, formatted_path);
-	if(CBB::_interpret_path(formatted_path.c_str()))
+	CBB_client::_format_path(path, formatted_path);
+	if(CBB_client::_interpret_path(formatted_path.c_str()))
 	{
 		_DEBUG("CBB stat path=%s\n", path);
 		return client._stat(path, buf);
@@ -330,7 +332,7 @@ extern "C" int CBB_WRAP(stat)(const char* path, struct stat* buf)
 /*extern "C" int CBB_WRAP(fstat)(int fd, struct stat* buf)
 {
 	CBB_FUNC_P(int, fstat, (int fd, struct stat *buf));
-	if(CBB::_interpret_fd(fd))
+	if(CBB_client::_interpret_fd(fd))
 	{
 		return client._fstat(fd, buf);
 	}
@@ -346,8 +348,8 @@ extern "C" int CBB_WRAP(lstat)(const char* path, struct stat* buf)
 	CBB_FUNC_P(int, lstat, (const char* path, struct stat *buf));
 	std::string formatted_path;
 	std::string true_path;
-	CBB::_format_path(path, formatted_path);
-	if(CBB::_interpret_path(formatted_path.c_str()))
+	CBB_client::_format_path(path, formatted_path);
+	if(CBB_client::_interpret_path(formatted_path.c_str()))
 	{
 		_DEBUG("do not support yet\n");
 		return -1;

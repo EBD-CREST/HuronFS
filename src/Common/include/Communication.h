@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "CBB_internal.h"
+#include "CBB_const.h"
 
 //API declearation
 template<class T> inline size_t Recv(int sockfd, T& buffer);
@@ -86,7 +87,7 @@ template<class T> inline size_t Send_flush(int sockfd, const T& buffer)
 
 template<class T> inline size_t Sendv_flush(int sockfd, const T* buffer, size_t count)
 {
-	Send(sockfd, count);
+	//Send(sockfd, count);
 	return Do_send<T>(sockfd, buffer, count, MSG_DONTWAIT|MSG_NOSIGNAL);
 }
 
@@ -139,29 +140,5 @@ template<class T> size_t Do_send(int sockfd, const T* buffer, size_t count, int 
 		length -= ret;
 	}
 	return count*sizeof(T)-length;
-}
-
-inline int Send_attr(int socket, const struct stat* file_stat)
-{
-	Send(socket, file_stat->st_mode);    /* protection */
-	Send(socket, file_stat->st_uid);     /* user ID of owner */
-	Send(socket, file_stat->st_gid);     /* group ID of owner */
-	Send(socket, file_stat->st_size);    /* total size, in bytes */
-	Send(socket, file_stat->st_atime);   /* time of last access */
-	Send(socket, file_stat->st_mtime);   /* time of last modification */
-	Send_flush(socket, file_stat->st_ctime);   /* time of last status change */
-	return SUCCESS;
-}
-
-inline int Recv_attr(int socket, struct stat* file_stat)
-{
-	Recv(socket, file_stat->st_mode);    /* protection */
-	Recv(socket, file_stat->st_uid);     /* user ID of owner */
-	Recv(socket, file_stat->st_gid);     /* group ID of owner */
-	Recv(socket, file_stat->st_size);    /* total size, in bytes */
-	Recv(socket, file_stat->st_atime);   /* time of last access */
-	Recv(socket, file_stat->st_mtime);   /* time of last modification */
-	Recv(socket, file_stat->st_ctime);   /* time of last status change */
-	return SUCCESS;
 }
 #endif

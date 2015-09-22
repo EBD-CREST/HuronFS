@@ -2,41 +2,65 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "Client.h"
 #include "CBB_const.h"
 #include "CBB_internal.h"
 
-Client::~Client()
-{}
+using namespace CBB::Common;
 
-int Client::_connect_to_server(const struct sockaddr_in& client_addr, const struct sockaddr_in& server_addr)const throw(std::runtime_error)
+Client::Client():
+	CBB_communication_thread(),
+	CBB_connector(),
+	_communication_input_queue(),
+	_communication_output_queue()
 {
-	int client_socket = socket(PF_INET,   SOCK_STREAM,  0);  
-	if( 0 > client_socket)
-	{
-		perror("Create Socket Failed");  
-		throw std::runtime_error("Create Socket Failed");  
-	}
-	int on = 1; 
-	setsockopt( client_socket,  SOL_SOCKET,  SO_REUSEADDR,  &on,  sizeof(on) ); 
-	if(bind(client_socket,  reinterpret_cast<struct sockaddr*>(const_cast<struct sockaddr_in*>(&client_addr)),  sizeof(client_addr)))
-	{
-		perror("client bind port failed\n"); 
-		throw std::runtime_error("client bind port failed\n"); 
-	}
-	int count=0; 
-	while( MAX_CONNECT_TIME > ++count  &&  0 !=  connect(client_socket, reinterpret_cast<struct sockaddr*>(const_cast<struct sockaddr_in*>(&server_addr)), sizeof(server_addr)))
-	{
-		usleep(CONNECT_WAIT_TIME);
-		_DEBUG("connect failed %d\n", count+1);
-	}
-	if(MAX_CONNECT_TIME  ==  count)
-	{
-		close(client_socket); 
-		perror("Can not Connect to Server");  
-		throw std::runtime_error("Can not Connect to Server"); 
-	}
-	return client_socket; 
+	CBB_communication_thread::set_queue(&_communication_output_queue, &_communication_input_queue);
 }
 
+Client::~Client()
+{
+	stop_client();
+}
+
+int Client::input_from_socket(int socket,
+		task_parallel_queue<IO_task>* output_queue)
+{
+	IO_task* new_task=output_queue->allocate_tmp_node();
+	receive_basic_message(socket, new_task);
+	output_queue->task_enqueue_signal_notification();
+	return SUCCESS;
+}
+
+int Client::input_from_producer(task_parallel_queue<IO_task>* input_queue)
+{
+	IO_task* new_task=input_queue->get_task();
+	_DEBUG("request from producer\n");
+	if(SEND == new_task->get_mode())
+	{
+		_DEBUG("send request\n");
+		send(new_task);
+	}
+	else
+	{
+		_DEBUG("receive request\n");
+		if(0 != new_task->get_extended_message_size())
+		{
+			receive_extended_message(new_task);
+		}
+		send_basic_message(new_task);
+	}
+	input_queue->task_dequeue();
+	return SUCCESS;
+}
+
+void Client::stop_client()
+{
+	CBB_communication_thread::stop_communication_server();
+}
+
+int Client::start_client()
+{
+	return CBB_communication_thread::start_communication_server();
+}

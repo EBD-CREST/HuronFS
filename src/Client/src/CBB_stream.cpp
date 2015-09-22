@@ -7,6 +7,8 @@
 #include "CBB_stream.h"
 #include "CBB_internal.h"
 
+using namespace CBB::Common;
+using namespace CBB::Client;
 CBB_stream::stream_info::stream_info(bool dirty_flag,
 		bool buffer_flag,
 		int fd,
@@ -40,7 +42,7 @@ CBB_stream::stream_info::~stream_info()
 }
 
 CBB_stream::CBB_stream():
-	CBB(),
+	CBB_client(),
 	_stream_pool()
 {}
 
@@ -282,7 +284,7 @@ size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 int CBB_stream::_update_underlying_file_size(FILE* file_stream)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
-	CBB::_update_file_size(stream->fd, stream->file_size);
+	CBB_client::_update_file_size(stream->fd, stream->file_size);
 	return SUCCESS;
 }
 

@@ -2,8 +2,8 @@ MAIN = IOnode
 SRC_DIR = src
 HEADER_DIR = include
 INCLUDE_PATH = -I./include -I../Common/include
-SERVER = ../Common/Server.o
-CLIENT = ../Common/Client.o
+COMMON = ../Common/Server.o ../Common/CBB_connector.o ../Common/CBB_task_parallel.o ../Common/CBB_communication_thread.o ../Common/CBB_request_handler.o ../Common/CBB_rwlocker.o
+//CLIENT = ../Common/Client.o
 LINK_PATH = -L./
 
 SRC = IOnode.cpp node_main.cpp
@@ -13,13 +13,13 @@ DEP = $(SRC:.cpp=.d)
 vpath %.cpp $(SRC_DIR)
 vpath %.h $(HEADER_DIR)
 
-$(MAIN):$(OBJ) $(SERVER) $(CLIENT)
-	$(CC) -o $@ $^
+$(MAIN):$(OBJ) $(COMMON)
+	$(CC) -o $@ $^ -lpthread
 
 %.o:%.cpp
 	$(CC) -c $(DEP_FLAG) $(FLAG) $(INCLUDE_PATH) -o $@ $<
 
-$(SERVER) $(CLIENT):
+$(COMMON):
 	cd ../Common && $(MAKE) $(notdir $@)
 
 .PHONY:clean

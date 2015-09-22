@@ -8,22 +8,24 @@
 #include <error.h>
 #include <limits.h>
 
-#include "CBB.h"
+#include "CBB_client.h"
 //#include "CBB_stdio.h"
 #include "CBB_internal.h"
 #include "CBB_stream.h"
 
+using namespace CBB::Common;
+using namespace CBB::Client;
 extern CBB_stream client;
 
 extern "C" FILE *CBB_WRAP(fopen)(const char* path, const char* mode)
 {
 	CBB_FUNC_P(FILE*, fopen, (const char* path, const char *mode));
 	std::string formatted_path;
-	CBB::_format_path(path, formatted_path);
-	if(CBB::_interpret_path(formatted_path.c_str()))
+	CBB_client::_format_path(path, formatted_path);
+	if(CBB_client::_interpret_path(formatted_path.c_str()))
 	{
 		std::string relative_path;
-		CBB::_get_relative_path(formatted_path, relative_path);
+		CBB_client::_get_relative_path(formatted_path, relative_path);
 		_LOG("CBB open path=%s,mode=%s\n", formatted_path.c_str(), mode);
 		return client._open_stream(relative_path.c_str(), mode);
 	}

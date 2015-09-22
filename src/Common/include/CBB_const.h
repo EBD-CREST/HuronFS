@@ -9,6 +9,7 @@ const int MASTER_PORT = 9000;
 const int MASTER_CONN_PORT = 7001; 
 const int IONODE_PORT = 7000; 
 const int MAX_IONODE = 1000;
+const int MAX_BASIC_MESSAGE_SIZE = 1000;
 //const int CLIENT_PORT = 8001;
 //const int IO_CLIENT_PORT = 8002;
 
@@ -18,7 +19,7 @@ const int MAX_FILE_NUMBER = 1000000;
 const int MAX_QUEUE = 100; 
 //const int BLOCK_SIZE = 1000; 
 const int MAX_NODE_NUMBER = 10; 
-const int LENGTH_OF_LISTEN_QUEUE = 10; 
+const int LENGTH_OF_LISTEN_QUEUE = 1; 
 const int MAX_SERVER_BUFFER = 1000; 
 const int MAX_COMMAND_SIZE = 1000; 
 const int MAX_CONNECT_TIME = 10;
@@ -82,5 +83,14 @@ const int EXTERNAL = 0;
 const int INTERNAL = -1;
 const int RENAMED = 1;
 const int MYSELF = -1;
+
+const int KEEP_ALIVE = 0;
+const int NOT_KEEP_ALIVE =1;
+
+const int SEND = 0;
+const int RECV_EXTENDED_MESSAGE = 1;
+
+const bool STARTED = true;
+const bool UNSTARTED = false;
 
 #endif
