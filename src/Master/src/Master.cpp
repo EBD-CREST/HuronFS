@@ -1327,6 +1327,7 @@ int Master::_buffer_all_meta_data_from_remote(const char* mount_point)throw(std:
 	}
 	strcpy(file_path, mount_point);
 
+	_LOG("start to buffer file status from remote\n");
 	struct stat file_status;
 	lstat(file_path, &file_status);
 	file_stat_pool_t::iterator it=_file_stat_pool.insert(std::make_pair("/", Master_file_stat(file_status, "/", EXISTING))).first;
@@ -1338,6 +1339,7 @@ int Master::_buffer_all_meta_data_from_remote(const char* mount_point)throw(std:
 	}
 	int ret=_dfs_items_in_remote(dir, file_path, file_path+len-1, len);
 	closedir(dir);
+	_LOG("buffering file status finished\n");
 	return ret;
 }
 
