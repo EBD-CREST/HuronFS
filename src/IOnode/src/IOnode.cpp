@@ -102,6 +102,15 @@ IOnode::IOnode(const std::string& master_ip,
 {
 	memset(&_master_conn_addr, 0, sizeof(_master_conn_addr));
 	memset(&_master_addr, 0, sizeof(_master_addr));
+	try
+	{
+		Server::_init_server();
+	}
+	catch(std::runtime_error& e)
+	{
+		_unregist();
+		throw;
+	}
 	if(-1  ==  (_node_id=_regist(master_ip,  master_port)))
 	{
 		throw std::runtime_error("Get Node Id Error"); 
@@ -112,15 +121,6 @@ IOnode::IOnode(const std::string& master_ip,
 		throw std::runtime_error("please set IONODE_MOUNT_POINT environment value");
 	}
 	_mount_point=std::string(IOnode_mount_point);
-	try
-	{
-		Server::_init_server();
-	}
-	catch(std::runtime_error& e)
-	{
-		_unregist();
-		throw;
-	}
 }
 
 IOnode::~IOnode()
