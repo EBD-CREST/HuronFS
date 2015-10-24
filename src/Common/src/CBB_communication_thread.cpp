@@ -177,23 +177,35 @@ void* CBB_communication_thread::thread_function(void* args)
 size_t CBB_communication_thread::send(IO_task* new_task)
 {
 	size_t ret=0;
+	_DEBUG("send message to %d\n", new_task->get_socket());
 	if(0 != new_task->get_extended_message_size())
 	{
 		_DEBUG("send message size=%ld\n", new_task->get_message_size());
-		Send(new_task->get_socket(), new_task->get_message_size());
-		//fwrite(new_task->get_message(), new_task->get_message_size(), sizeof(char), stderr);
-		putchar('\n');
+		if(0 == Send(new_task->get_socket(), new_task->get_message_size()))
+		{
+			//TODO unregisted 
+			close(new_task->get_socket());
+			return 0;
+		}
 		_DEBUG("send extended message size=%ld\n", new_task->get_extended_message_size());
-		Send(new_task->get_socket(), new_task->get_extended_message_size());
+		if( 0 == Send(new_task->get_socket(), new_task->get_extended_message_size()))
+		{
+			//TODO unregisted 
+			close(new_task->get_socket());
+			return 0;
+		}
 		ret+=Sendv_flush(new_task->get_socket(), new_task->get_extended_message(), new_task->get_extended_message_size());
 	}
 	else
 	{
 		_DEBUG("send message size=%ld\n", new_task->get_message_size());
-		Send(new_task->get_socket(), new_task->get_message_size());
+		if(0 == Send(new_task->get_socket(), new_task->get_message_size()))
+		{
+			//TODO unregisted 
+			close(new_task->get_socket());
+			return 0;
+		}
 		ret+=Sendv_flush(new_task->get_socket(), new_task->get_message(), new_task->get_message_size());
-		//fwrite(new_task->get_message(), new_task->get_message_size(), sizeof(char), stderr);
-		putchar('\n');
 	}
 	return ret;
 }

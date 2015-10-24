@@ -74,7 +74,11 @@ namespace CBB
 		{
 			size_t size=0;
 			int ret=0;
-			Recv(socket, size);
+			if(0 == Recv(socket, size))
+			{
+				close(socket);
+				return 0;
+			}
 			_DEBUG("receive basic message size=%ld\n", size);
 			new_task->set_socket(socket);
 			new_task->set_message_size(size);
@@ -86,7 +90,11 @@ namespace CBB
 		inline size_t CBB_communication_thread::receive_extended_message(IO_task* new_task)
 		{
 			size_t size;
-			Recv(new_task->get_socket(), size);
+			if(0 == Recv(new_task->get_socket(), size))
+			{
+				close(new_task->get_socket());
+				return 0;
+			}
 			new_task->set_extended_message_size(size);
 			return Recvv_pre_alloc(new_task->get_socket(), new_task->get_extended_message(), new_task->get_extended_message_size());
 		}

@@ -82,8 +82,8 @@ namespace CBB
 				task_type* allocate_tmp_node();
 				int task_enqueue_signal_notification();
 				int task_enqueue();
-				task_type* get_task();
 				void task_dequeue();
+				task_type* get_task();
 				bool is_empty();
 				bool task_wait();
 				void set_queue_event_fd(int queue_event_fd);
@@ -264,11 +264,12 @@ namespace CBB
 
 		template<class task_type> inline bool task_parallel_queue<task_type>::is_empty()
 		{
-			return queue_tail->get_next() != queue_head;
+			return queue_tail->get_next() == queue_head;
 		}
 
 		template<class task_type> inline void task_parallel_queue<task_type>::task_dequeue()
 		{
+			_DEBUG("task dequeue\n");
 			queue_tmp_tail=queue_tmp_tail->get_next();
 		}
 		
@@ -371,6 +372,7 @@ namespace CBB
 			static uint64_t notification=1;
 			if(queue_tail->get_next() == original_head)
 			{
+				_DEBUG("task enqueue\n");
 				if(-1 == write(queue_event_fd, &notification, sizeof(uint64_t)))
 				{
 					perror("write");

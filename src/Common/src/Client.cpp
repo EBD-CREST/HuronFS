@@ -35,23 +35,25 @@ int Client::input_from_socket(int socket,
 
 int Client::input_from_producer(task_parallel_queue<IO_task>* input_queue)
 {
-	IO_task* new_task=input_queue->get_task();
-	_DEBUG("request from producer\n");
-	if(SEND == new_task->get_mode())
+	while(!input_queue->is_empty())
 	{
-		_DEBUG("send request\n");
-		send(new_task);
-	}
-	else
-	{
-		_DEBUG("receive request\n");
-		if(0 != new_task->get_extended_message_size())
+		IO_task* new_task=input_queue->get_task();
+		_DEBUG("request from producer\n");
+		if(SEND == new_task->get_mode())
 		{
-			receive_extended_message(new_task);
+			_DEBUG("send request\n");
+			send(new_task);
 		}
-		send_basic_message(new_task);
+		else
+		{
+			_DEBUG("receive request\n");
+			if(0 != new_task->get_extended_message_size())
+			{
+				receive_extended_message(new_task);
+			}
+		}
+		input_queue->task_dequeue();
 	}
-	input_queue->task_dequeue();
 	return SUCCESS;
 }
 

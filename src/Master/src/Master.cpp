@@ -257,13 +257,6 @@ int Master::_parse_open_file(IO_task* new_task, task_parallel_queue<IO_task>* ou
 		output->push_back(file_no);
 		output->push_back(block_size);
 		Send_attr(output, &opened_file->get_stat());
-		/*Send(clientfd, static_cast<int>(nodes.size()));
-		for(node_t::const_iterator it=nodes.begin(); it!=nodes.end(); ++it)
-		{
-			Send(clientfd, it->first);
-			std::string ip=_registed_IOnodes.at(it->second).ip;
-			Sendv(clientfd, ip.c_str(),ip.size());
-		}*/
 	}
 	catch(std::runtime_error &e)
 	{
@@ -285,6 +278,7 @@ int Master::_parse_open_file(IO_task* new_task, task_parallel_queue<IO_task>* ou
 		output->push_back(TOO_MANY_FILES);
 		ret=FAILURE;
 	}
+	_DEBUG("here\n");
 	output_queue->task_enqueue();
 	return ret;
 }
@@ -311,7 +305,7 @@ int Master::_parse_read_file(IO_task* new_task, task_parallel_queue<IO_task>* ou
 		new_task->pop(size);
 		node_t nodes;
 		node_id_pool_t node_pool;
-		_get_IOnodes_for_IO(start_point, size, *file, nodes, node_pool);
+		_get_IOnodes_for_IO(start_point, size, *file, nodes, node_pool, output_queue);
 		_send_block_info(output, node_pool, nodes);
 		ret=SUCCESS;
 	}
@@ -352,7 +346,7 @@ int Master::_parse_write_file(IO_task* new_task, task_parallel_queue<IO_task>* o
 
 		node_t nodes;
 		node_id_pool_t node_pool;
-		_get_IOnodes_for_IO(start_point, size, file, nodes, node_pool);
+		_get_IOnodes_for_IO(start_point, size, file, nodes, node_pool, output_queue);
 		output=init_response_task(new_task, output_queue);
 		_send_block_info(output, node_pool, nodes);
 		ret=SUCCESS;
@@ -875,7 +869,8 @@ void Master::_send_block_info(IO_task* output,
 	//S: data size: size_t
 	//S: SUCCESS: int
 	//R: ret
-/*void Master::_send_append_request(ssize_t file_no,
+/*
+void Master::_send_append_request(ssize_t file_no,
 		const node_block_map_t& append_blocks,
 		task_parallel_queue<IO_task>* output_queue)
 {
@@ -915,7 +910,7 @@ int Master::_send_open_request_to_IOnodes(struct open_file_info& file, task_para
 			node_block_map.end()!=it; ++it)
 	{
 		//send read request to each IOnode
-		//buffer requset, file_no, file_path, start_point, block_size
+		//buffer requset, file_no, open_flag, exist_flag, file_path, start_point, block_size
 		IO_task* output=output_queue->allocate_tmp_node();
 		output->set_socket(_registed_IOnodes.at(it->first)->socket);
 		output->push_back(OPEN_FILE);
@@ -932,9 +927,7 @@ int Master::_send_open_request_to_IOnodes(struct open_file_info& file, task_para
 			output->push_back(blocks_it->first);
 			output->push_back(blocks_it->second);
 		}
-		//Send_flush(socket, SUCCESS);
-		//int ret;
-		//Recv(socket, ret);
+		output_queue->task_enqueue();
 	}
 	return SUCCESS; 
 }
@@ -1104,12 +1097,10 @@ open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 	try
 	{
 		open_file_info *new_file=new open_file_info(file_no, flag, stat); 
-		//_get_file_meta(*new_file);
-		_buffered_files.insert(std::make_pair(file_no, new_file)).first;
+		_buffered_files.insert(std::make_pair(file_no, new_file));
 		new_file->block_size=_get_block_size(stat->get_status().st_size); 
 		stat->opened_file_info=new_file;
 		_send_open_request_to_IOnodes(*new_file, output_queue);
-		//_file_stat_pool.insert(std::make_pair(file_path, file_no)); 
 		return new_file;
 	}
 	catch(std::invalid_argument &e)
@@ -1199,7 +1190,8 @@ node_t& Master::_get_IOnodes_for_IO(off64_t start_point,
 		size_t &size,
 		struct open_file_info& file,
 		node_t& node_set,
-		node_id_pool_t& node_id_pool)throw(std::bad_alloc)
+		node_id_pool_t& node_id_pool,
+		task_parallel_queue<IO_task>* output_queue)throw(std::bad_alloc)
 {
 	off64_t current_point=_get_block_start_point(start_point, size);
 	ssize_t remaining_size=size;
@@ -1220,7 +1212,7 @@ node_t& Master::_get_IOnodes_for_IO(off64_t start_point,
 				_append_block(file, node_id, current_point);
 				node_set.insert(std::make_pair(current_point, node_id));
 				node_id_pool.insert(node_id);
-				//size_t IO_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));
+				size_t IO_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));
 				//node_append_block[node_id].insert(std::make_pair(current_point, IO_size));
 			}
 			catch(std::bad_alloc& e)

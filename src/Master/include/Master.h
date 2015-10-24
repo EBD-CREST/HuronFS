@@ -117,9 +117,9 @@ namespace CBB
 				void _send_block_info(CBB::Common::IO_task* new_task,
 						const node_id_pool_t& node_id_pool,
 						const node_t& node_set)const;
-				//void _send_append_request(ssize_t file_no,
-				//		const node_block_map_t& append_node_block,
-				//		CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				void _send_append_request(ssize_t file_no,
+						const node_block_map_t& append_node_block,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
 				int _send_open_request_to_IOnodes(struct open_file_info& file, CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
 
 				//file operation
@@ -162,7 +162,8 @@ namespace CBB
 						size_t& size,
 						struct open_file_info& file,
 						node_t& node_set,
-						node_id_pool_t& node_id_pool)throw(std::bad_alloc);
+						node_id_pool_t& node_id_pool,
+						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue)throw(std::bad_alloc);
 				int _allocate_one_block(const struct open_file_info &file)throw(std::bad_alloc);
 				void _append_block(open_file_info& file,
 						int node_id,

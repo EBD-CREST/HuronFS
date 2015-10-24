@@ -495,9 +495,14 @@ int CBB_client::_get_IOnode_socket(int master_number, int IOnode_id, const std::
 		struct sockaddr_in IOnode_addr;
 		set_server_addr(ip, IOnode_addr);
 		int IOnode_socket=Client::_connect_to_server(_client_addr, IOnode_addr);
-		int ret;
-		Send_flush(IOnode_socket, NEW_CLIENT);
-		Recv(IOnode_socket, ret);
+		int ret=FAILURE;
+		IO_task* query=allocate_new_query(IOnode_socket);
+		query->push_back(NEW_CLIENT);
+		send_query(query);
+		CBB_communication_thread::_add_socket(IOnode_socket);
+		IO_task* response=get_query_response(query);
+		response->pop(ret);
+		response_dequeue(response);
 		if(SUCCESS == ret)
 		{
 			IOnode_fd_map.insert(std::make_pair(master_IOnode_id, IOnode_socket));
@@ -505,6 +510,7 @@ int CBB_client::_get_IOnode_socket(int master_number, int IOnode_id, const std::
 		}
 		else
 		{
+			CBB_communication_thread::_delete_socket(IOnode_socket);
 			close(IOnode_socket);
 			return -1;
 		}
@@ -527,6 +533,17 @@ ssize_t CBB_client::_read(int fd, void *buffer, size_t size)
 		_block_list_t blocks;
 		_node_pool_t node_pool;
 
+		if(size+file.current_point > (size_t)file.file_meta_p->file_stat.st_size)
+		{
+			if(file.file_meta_p->file_stat.st_size>file.current_point)
+			{
+				size=file.file_meta_p->file_stat.st_size-file.current_point;
+			}
+			else
+			{
+				size=0;
+			}
+		}
 		int master_socket=_get_master_socket_from_fd(fid);
 		int master_number=_get_master_number_from_fd(fid);
 		IO_task* query=allocate_new_query(master_socket);
@@ -540,17 +557,6 @@ ssize_t CBB_client::_read(int fd, void *buffer, size_t size)
 		response->pop(ret);
 		if(SUCCESS == ret)
 		{
-			if(size+file.current_point > (size_t)file.file_meta_p->file_stat.st_size)
-			{
-				if(file.file_meta_p->file_stat.st_size>file.current_point)
-				{
-					size=file.file_meta_p->file_stat.st_size-file.current_point;
-				}
-				else
-				{
-					size=0;
-				}
-			}
 			_get_blocks_from_master(response, file.current_point, size, blocks, node_pool);
 			response_dequeue(response);
 			ret=_read_from_IOnode(master_number, file, blocks, node_pool, static_cast<char *>(buffer), size);

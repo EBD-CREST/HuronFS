@@ -573,6 +573,9 @@ int IOnode::_regist_new_client(CBB::Common::IO_task* new_task,
 	_LOG("new client\n");
 	Server::_add_socket(new_task->get_socket());
 	//Send_flush(sockfd, SUCCESS);
+	IO_task* output=init_response_task(new_task, output_queue);
+	output->push_back(SUCCESS);
+	output_queue->task_enqueue();
 	return SUCCESS;
 }
 

@@ -52,11 +52,6 @@ void Server::_init_server()throw(std::runtime_error)
 		perror("Server Listen PORT ERROR");  
 		throw std::runtime_error("Server Listen PORT ERROR");   
 	}
-	//struct epoll_event event;
-	//event.data.fd=_server_socket;
-	//event.events=EPOLLIN;
-	//event.events=EPOLLIN|EPOLLET;
-	//epoll_ctl(epollfd, EPOLL_CTL_ADD, _server_socket, &event);
 	CBB_communication_thread::_add_socket(_server_socket);
 	CBB_communication_thread::set_queue(&_communication_input_queue, &_communication_output_queue);
 	CBB_request_handler::set_queue(&_communication_output_queue, &_communication_input_queue);
@@ -122,19 +117,22 @@ int Server::input_from_socket(int socket, task_parallel_queue<IO_task>* output_q
 
 int Server::input_from_producer(task_parallel_queue<IO_task>* input_queue)
 {
-	IO_task* new_task=input_queue->get_task();
-	if(SEND == new_task->get_mode())
+	while(!input_queue->is_empty())
 	{
-		send(new_task);
-	}
-	else
-	{
-		if(0 != new_task->get_extended_message_size())
+		IO_task* new_task=input_queue->get_task();
+		if(SEND == new_task->get_mode())
 		{
-			receive_extended_message(new_task);
+			send(new_task);
 		}
-		send_basic_message(new_task);
+		else
+		{
+			if(0 != new_task->get_extended_message_size())
+			{
+				receive_extended_message(new_task);
+			}
+			send_basic_message(new_task);
+		}
+		input_queue->task_dequeue();
 	}
-	input_queue->task_dequeue();
 	return SUCCESS;
 }
