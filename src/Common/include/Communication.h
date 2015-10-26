@@ -52,7 +52,7 @@ template<class T> inline size_t Send(int sockfd, const T& buffer)
 template<class T> inline size_t Recvv(int sockfd, T** buffer)
 {
 	size_t length;
-	Recv(sockfd, length);
+	//Recv(sockfd, length);
 	if(NULL == (*buffer=new char[length+1]))
 	{
 		perror("new");
@@ -67,7 +67,7 @@ template<class T> inline size_t Recvv(int sockfd, T** buffer)
 
 template<class T> inline size_t Sendv(int sockfd, const T* buffer, size_t count)
 {
-	Send(sockfd, count);
+	//Send(sockfd, count);
 	return Do_send<T>(sockfd, buffer, count, MSG_MORE|MSG_NOSIGNAL);
 }
 
@@ -102,6 +102,10 @@ template<class T> size_t Do_recv(int sockfd, T* buffer, size_t count, int flag)
 	ssize_t ret = 0;
 	char *buffer_tmp = reinterpret_cast<char *>(buffer);
 
+	if(0 == length)
+	{
+		return 0;
+	}
 	while(0 != length && 0 != (ret=recv(sockfd, buffer_tmp, length, flag)))
 	{
 		if(-1 == ret)
@@ -116,6 +120,11 @@ template<class T> size_t Do_recv(int sockfd, T* buffer, size_t count, int flag)
 		buffer_tmp += ret;
 		length -= ret;
 	}
+	if(0 == ret)
+	{
+		close(sockfd);
+		return 0;
+	}
 	return count*sizeof(T)-length;
 }
 
@@ -125,6 +134,10 @@ template<class T> size_t Do_send(int sockfd, const T* buffer, size_t count, int 
 	ssize_t ret = 0;
 	const char *buffer_tmp = reinterpret_cast<const char *>(buffer);
 
+	if(0 == length)
+	{
+		return 0;
+	}
 	while(0 != length && 0 != (ret=send(sockfd, buffer_tmp, length, flag)))
 	{
 		if(-1 == ret)
@@ -138,6 +151,11 @@ template<class T> size_t Do_send(int sockfd, const T* buffer, size_t count, int 
 		}
 		buffer_tmp += ret;
 		length -= ret;
+	}
+	if(0 == ret)
+	{
+		close(sockfd);
+		return 0;
 	}
 	return count*sizeof(T)-length;
 }

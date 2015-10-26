@@ -82,35 +82,35 @@ namespace CBB
 				//unregist IOnode from master
 				int _unregist();
 				//regist IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
-				ssize_t _regist(const std::string& master,
-						int master_port) throw(std::runtime_error);
+				ssize_t _regist(CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* input_queue) throw(std::runtime_error);
 				//virtual int _parse_new_request(int sockfd,
 				//		const struct sockaddr_in& client_addr); 
-				virtual int _parse_request(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue); 
+				virtual int _parse_request(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue); 
 
-				int _send_data(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _receive_data(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _open_file(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _close_file(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _flush_file(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _rename(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _truncate_file(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _append_new_block(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _regist_new_client(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _close_client(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _unlink(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _send_data(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _receive_data(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _open_file(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _close_file(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _flush_file(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _rename(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _truncate_file(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _append_new_block(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _regist_new_client(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _close_client(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _unlink(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
 				block *_buffer_block(off64_t start_point,
 						size_t size)throw(std::runtime_error);
 
@@ -118,7 +118,7 @@ namespace CBB
 						const block* block_data)throw(std::runtime_error); 
 				size_t _read_from_storage(const std::string& path,
 						block* block_data)throw(std::runtime_error);
-				void _append_block(CBB::Common::IO_task* new_task,
+				void _append_block(CBB::Common::extended_IO_task* new_task,
 						block_info_t& blocks);
 				virtual std::string _get_real_path(const char* path)const;
 				std::string _get_real_path(const std::string& path)const;

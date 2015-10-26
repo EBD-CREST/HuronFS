@@ -25,33 +25,21 @@ Client::~Client()
 }
 
 int Client::input_from_socket(int socket,
-		task_parallel_queue<IO_task>* output_queue)
+		task_parallel_queue<extended_IO_task>* output_queue)
 {
-	IO_task* new_task=output_queue->allocate_tmp_node();
-	receive_basic_message(socket, new_task);
+	extended_IO_task* new_task=output_queue->allocate_tmp_node();
+	receive_message(socket, new_task);
 	output_queue->task_enqueue_signal_notification();
 	return SUCCESS;
 }
 
-int Client::input_from_producer(task_parallel_queue<IO_task>* input_queue)
+int Client::input_from_producer(task_parallel_queue<extended_IO_task>* input_queue)
 {
 	while(!input_queue->is_empty())
 	{
-		IO_task* new_task=input_queue->get_task();
+		extended_IO_task* new_task=input_queue->get_task();
 		_DEBUG("request from producer\n");
-		if(SEND == new_task->get_mode())
-		{
-			_DEBUG("send request\n");
-			send(new_task);
-		}
-		else
-		{
-			_DEBUG("receive request\n");
-			if(0 != new_task->get_extended_message_size())
-			{
-				receive_extended_message(new_task);
-			}
-		}
+		send(new_task);
 		input_queue->task_dequeue();
 	}
 	return SUCCESS;

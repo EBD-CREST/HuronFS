@@ -25,11 +25,23 @@ namespace CBB
 			*const_cast<T volatile*>(addr)=v;
 		}
 
-		class IO_task 
+		class basic_task
 		{
 			public:
-				IO_task();
-				//~task();
+				basic_task();
+				virtual ~basic_task();
+				basic_task* get_next();
+				virtual void reset()=0;
+				void set_next(basic_task* next);
+			private:
+				basic_task* next;
+		};
+
+		class basic_IO_task:public basic_task
+		{
+			public:
+				basic_IO_task();
+				virtual ~basic_IO_task();
 				template<typename T> size_t push_back(const T& value);
 				template<typename T> size_t push_backv(const T& value, size_t num);
 				size_t push_back_string(const unsigned char* string);
@@ -43,34 +55,37 @@ namespace CBB
 				size_t do_push(const void* value, size_t num);
 				size_t pop_string(unsigned char** var);
 				size_t pop_string(char** var);
-				//void reset_for_read();
-				//void reset_for_write();
-				void reset();
+				virtual void reset();
 				int get_socket();
 				void set_socket(int socket);
-				int get_mode();
-				void set_mode(int mode);
 				unsigned char* get_message();
 				void set_message_size(size_t message_size);
 				size_t get_message_size();
-				IO_task* get_next();
-				void set_next(IO_task* next);
-				unsigned char* get_extended_message();
-				size_t get_extended_message_size();
-				void free_extended_message();
-				void set_extended_message_size(size_t size);
-				int set_extended_message(void* external_message, size_t size);
 
 			private:
-				//send or receive
-				int mode;
 				int socket;
 				size_t message_size;
 				unsigned char basic_message[MAX_BASIC_MESSAGE_SIZE];
-				size_t extended_message_size;
-				unsigned char* extended_message;
-				IO_task* next;
 				size_t current_point;
+		};
+
+		class extended_IO_task:public basic_IO_task
+		{
+			public:
+				extended_IO_task();
+				virtual ~extended_IO_task();
+
+				size_t get_received_data(void* buffer);
+				void set_extended_data_size(size_t size);
+				size_t get_extended_data_size();
+				void set_send_buffer(const void* buffer, size_t size);
+				virtual void reset();
+				const unsigned char* get_send_buffer();
+				unsigned char* get_receive_buffer(size_t size);
+			private:
+				size_t extended_size;
+				const unsigned char* send_buffer;
+				unsigned char* receive_buffer;
 		};
 
 		template<class task_type> class task_parallel_queue
@@ -103,46 +118,58 @@ namespace CBB
 				int queue_event_fd;
 		};
 
-		IO_task* init_response_task(IO_task* input_task, task_parallel_queue<IO_task>* output_queue);
+		basic_IO_task* init_response_task(basic_IO_task* input_task, task_parallel_queue<basic_IO_task>* output_queue);
 
-		template<typename T> size_t IO_task::push_back(const T& value)
+		inline basic_task* basic_task::get_next()
+		{
+			return next;
+		}
+
+		inline void basic_task::set_next(basic_task* next_pointer)
+		{
+			next=next_pointer;
+		}
+
+		template<typename T> size_t basic_IO_task::push_back(const T& value)
 		{
 			return push_backv(value, 1);
 		}
 
-		template<typename T> inline size_t IO_task::push_backv(const T& value, size_t num)
+		template<typename T> inline size_t basic_IO_task::push_backv(const T& value, size_t num)
 		{
 			return do_push(&value, num*sizeof(T));
 		}
 
-		inline size_t IO_task::do_push(const void* value, size_t num)
+		inline size_t basic_IO_task::do_push(const void* value, size_t num)
 		{
 			memcpy(basic_message + message_size, value, num);
 			message_size += num;
 			return num;
 		}
 
-		template<typename T> inline size_t IO_task::pop_uncopy(T** var)
+		template<typename T> inline size_t basic_IO_task::pop_uncopy(T** var)
 		{
 			return popv_uncopy(var, 1);
 		}
 
-		template<typename T> inline size_t IO_task::popv_uncopy(T** var, size_t num)
+		template<typename T> inline size_t basic_IO_task::popv_uncopy(T** var, size_t num)
 		{
 			return do_pop(var, num*sizeof(T));
 		}
 
-		template<typename T> inline size_t IO_task::do_pop(T** var, size_t num)
+		template<typename T> inline size_t basic_IO_task::do_pop(T** var, size_t num)
 		{
 			*var=reinterpret_cast<T*>(basic_message + current_point);
 			current_point += num;
 			return num;
 		}
 
-		template<typename T> inline size_t IO_task::pop(T& var)
+		template<typename T> inline size_t basic_IO_task::pop(T& var)
 		{
-			return popv(&var, 1); } 
-		template<typename T> inline size_t IO_task::popv(T* var, size_t num)
+			return popv(&var, 1); 
+		} 
+
+		template<typename T> inline size_t basic_IO_task::popv(T* var, size_t num)
 		{
 			T* tmp=NULL;
 			size_t ret=popv_uncopy(&tmp, num);
@@ -150,12 +177,12 @@ namespace CBB
 			return ret;
 		}
 
-		inline size_t IO_task::push_back_string(const unsigned char* string)
+		inline size_t basic_IO_task::push_back_string(const unsigned char* string)
 		{
 			return push_back_string(reinterpret_cast<const char*>(string));
 		}
 
-		inline size_t IO_task::push_back_string(const char* string)
+		inline size_t basic_IO_task::push_back_string(const char* string)
 		{
 			size_t len=strlen(string)+1;
 			push_back(len);
@@ -163,14 +190,14 @@ namespace CBB
 			return len;
 		}
 
-		inline size_t IO_task::push_back_string(const char* string, size_t size)
+		inline size_t basic_IO_task::push_back_string(const char* string, size_t size)
 		{
 			push_back(size+1);
 			do_push(string, (size+1)*sizeof(unsigned char));
 			return size+1;
 		}
 
-		inline size_t IO_task::pop_string(unsigned char** var)
+		inline size_t basic_IO_task::pop_string(unsigned char** var)
 		{
 			size_t len;
 			pop(len);
@@ -178,101 +205,90 @@ namespace CBB
 			return len;
 		}
 
-		inline size_t IO_task::pop_string(char** var)
+		inline size_t basic_IO_task::pop_string(char** var)
 		{
 			return pop_string(reinterpret_cast<unsigned char**>(var));
 		}
 
-		inline unsigned char* IO_task::get_message()
+		inline unsigned char* basic_IO_task::get_message()
 		{
 			return basic_message;
 		}
 
-		inline int IO_task::get_socket()
+		inline int basic_IO_task::get_socket()
 		{
 			return socket;
 		}
 
-		//inline void IO_task::reset_for_read()
-		//{
-		//	current_point=0;
-		//}
-
-		inline void IO_task::reset()
+		inline void basic_IO_task::reset()
 		{
 			message_size=0;
-			extended_message_size=0;
 			current_point=0;
-			mode=SEND;
 		}
 
-		inline void IO_task::set_socket(int socket)
+		inline void basic_IO_task::set_socket(int socket)
 		{
 			this->socket=socket;
 		}
 
-		inline int IO_task::get_mode()
-		{
-			return this->mode;
-		}
-
-		inline void IO_task::set_mode(int mode)
-		{
-			this->mode=mode;
-		}
-
-		inline size_t IO_task::get_message_size()
+		inline size_t basic_IO_task::get_message_size()
 		{
 			return this->message_size;
 		}
 
-		inline void IO_task::set_message_size(size_t message_size)
+		inline void basic_IO_task::set_message_size(size_t message_size)
 		{
 			this->message_size=message_size;
 		}
 
-		inline unsigned char* IO_task::get_extended_message()
+		inline size_t extended_IO_task::get_received_data(void* buffer)
 		{
-			return extended_message;
+			memcpy(buffer, receive_buffer, extended_size);
+			return extended_size;
 		}
 
-		inline IO_task* IO_task::get_next()
+		inline void extended_IO_task::reset()
 		{
-			return next;
+			basic_IO_task::reset();
+			extended_size = 0;
+			send_buffer = NULL;
 		}
 
-		inline void IO_task::set_next(IO_task* next_pointer)
+		inline size_t extended_IO_task::get_extended_data_size()
 		{
-			next=next_pointer;
+			return extended_size;
 		}
 
-		inline size_t IO_task::get_extended_message_size()
+		inline void extended_IO_task::set_extended_data_size(size_t size)
 		{
-			return extended_message_size;
+			extended_size = size;
 		}
 
-		inline void IO_task::set_extended_message_size(size_t size)
+		inline void extended_IO_task::set_send_buffer(const void*buffer, size_t size)
 		{
-			extended_message_size=size;
+			send_buffer = static_cast<const unsigned char*>(buffer);
+			extended_size = size;
 		}
 
-		inline void IO_task::free_extended_message()
+		inline const unsigned char* extended_IO_task::get_send_buffer()
 		{
-			extended_message = NULL;
-			extended_message_size = 0;
+			return send_buffer;
 		}
 
-		template<class task_type> inline bool task_parallel_queue<task_type>::is_empty()
+		inline unsigned char* extended_IO_task::get_receive_buffer(size_t size)
 		{
-			return queue_tail->get_next() == queue_head;
+			if(NULL == receive_buffer)
+			{
+				receive_buffer = new unsigned char[size];
+			}
+			return receive_buffer;
 		}
 
-		template<class task_type> inline void task_parallel_queue<task_type>::task_dequeue()
+		template<class task_type> inline void task_parallel_queue<task_type>::set_queue_event_fd(int queue_event_fd)
 		{
-			_DEBUG("task dequeue\n");
-			queue_tmp_tail=queue_tmp_tail->get_next();
+			this->queue_event_fd=queue_event_fd;
 		}
-		
+
 		template<class task_type> task_parallel_queue<task_type>::task_parallel_queue():
 			queue_head(new task_type()),
 			queue_tail(queue_head),
@@ -310,6 +326,17 @@ namespace CBB
 		template<class task_type> task_parallel_queue<task_type>::~task_parallel_queue()
 		{}
 
+		template<class task_type> inline bool task_parallel_queue<task_type>::is_empty()
+		{
+			return queue_tail->get_next() == queue_head;
+		}
+
+		template<class task_type> inline void task_parallel_queue<task_type>::task_dequeue()
+		{
+			//_DEBUG("task dequeue\n");
+			queue_tmp_tail=static_cast<task_type*>(queue_tmp_tail->get_next());
+		}
+
 		template<class task_type> bool task_parallel_queue<task_type>::task_wait()
 		{
 			static task_type* previous_head=NULL;
@@ -327,8 +354,8 @@ namespace CBB
 			{
 				pthread_cond_wait(&queue_empty, &locker);
 			}
-			task_type* new_task=queue_tail->get_next();
-			atomic_set(&queue_tail, queue_tail->get_next());
+			task_type* new_task=static_cast<task_type*>(queue_tail->get_next());
+			atomic_set(&queue_tail, static_cast<task_type*>(queue_tail->get_next()));
 			return new_task;
 		}
 
@@ -346,11 +373,9 @@ namespace CBB
 			else
 			{
 				ret=queue_head;
-				queue_tmp_head=queue_head->get_next();
-				//atomic_set(&queue_head, queue_head->get_next());
+				queue_tmp_head=static_cast<task_type*>(queue_head->get_next());
 			}
 			ret->reset();
-
 			return ret;
 		}
 
@@ -372,7 +397,7 @@ namespace CBB
 			static uint64_t notification=1;
 			if(queue_tail->get_next() == original_head)
 			{
-				_DEBUG("task enqueue\n");
+				//_DEBUG("task enqueue\n");
 				if(-1 == write(queue_event_fd, &notification, sizeof(uint64_t)))
 				{
 					perror("write");
@@ -382,23 +407,11 @@ namespace CBB
 			return SUCCESS;
 		}
 
-		template<class task_type> void task_parallel_queue<task_type>::set_queue_event_fd(int queue_event_fd)
+		inline extended_IO_task* init_response_task(extended_IO_task* input_task, task_parallel_queue<extended_IO_task>* output_queue)
 		{
-			this->queue_event_fd=queue_event_fd;
-		}
-
-		inline IO_task* init_response_task(IO_task* input_task, task_parallel_queue<IO_task>* output_queue)
-		{
-			IO_task* output=output_queue->allocate_tmp_node();
+			extended_IO_task* output=output_queue->allocate_tmp_node();
 			output->set_socket(input_task->get_socket());
 			return output;
-		}
-
-		inline int IO_task::set_extended_message(void* extended_message_p, size_t size)
-		{
-			extended_message = static_cast<unsigned char*>(extended_message_p);
-			extended_message_size = size;
-			return SUCCESS;
 		}
 	}
 }

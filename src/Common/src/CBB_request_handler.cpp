@@ -2,7 +2,7 @@
 
 using namespace CBB::Common;
 
-CBB_request_handler::CBB_request_handler(task_parallel_queue<IO_task>* input_queue, task_parallel_queue<IO_task>* output_queue):
+CBB_request_handler::CBB_request_handler(task_parallel_queue<extended_IO_task>* input_queue, task_parallel_queue<extended_IO_task>* output_queue):
 	thread_started(UNSTARTED),
 	handler_thread(),
 	//init_barrier(),
@@ -57,7 +57,7 @@ void* CBB_request_handler::handle_routine(void* args)
 
 	while(KEEP_ALIVE == this_obj->keepAlive)
 	{
-		IO_task* new_task=this_obj->input_queue->get_task();
+		extended_IO_task* new_task=this_obj->input_queue->get_task();
 		this_obj->_parse_request(new_task, this_obj->output_queue);
 		this_obj->input_queue->task_dequeue();
 	}
@@ -65,7 +65,7 @@ void* CBB_request_handler::handle_routine(void* args)
 	return NULL;
 }
 
-void CBB_request_handler::set_queue(task_parallel_queue<IO_task>* input_queue, task_parallel_queue<IO_task>* output_queue)
+void CBB_request_handler::set_queue(task_parallel_queue<extended_IO_task>* input_queue, task_parallel_queue<extended_IO_task>* output_queue)
 {
 	this->input_queue=input_queue;
 	this->output_queue=output_queue;

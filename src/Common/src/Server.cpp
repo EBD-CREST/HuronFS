@@ -73,7 +73,7 @@ void Server::stop_server()
 	return;
 }
 
-int Server::_recv_real_path(IO_task* new_task, std::string& real_path)
+int Server::_recv_real_path(extended_IO_task* new_task, std::string& real_path)
 {
 	char *path=NULL;
 	new_task->pop_string(&path);
@@ -81,7 +81,7 @@ int Server::_recv_real_path(IO_task* new_task, std::string& real_path)
 	return SUCCESS;
 }
 
-int Server::_recv_real_relative_path(IO_task* new_task, std::string& real_path, std::string& relative_path)
+int Server::_recv_real_relative_path(extended_IO_task* new_task, std::string& real_path, std::string& relative_path)
 {
 	char* path=NULL;
 	//Recvv(clientfd, &path);
@@ -91,9 +91,9 @@ int Server::_recv_real_relative_path(IO_task* new_task, std::string& real_path, 
 	return SUCCESS;
 }
 
-int Server::input_from_socket(int socket, task_parallel_queue<IO_task>* output_queue)
+int Server::input_from_socket(int socket, task_parallel_queue<extended_IO_task>* output_queue)
 {
-	IO_task* new_task=output_queue->allocate_tmp_node();
+	extended_IO_task* new_task=output_queue->allocate_tmp_node();
 	//new socket
 	if(socket  == _server_socket)
 	{
@@ -110,28 +110,17 @@ int Server::input_from_socket(int socket, task_parallel_queue<IO_task>* output_q
 		//ret=_parse_new_request(new_client,  client_addr);
 
 	}
-	CBB_communication_thread::receive_basic_message(socket, new_task);
+	CBB_communication_thread::receive_message(socket, new_task);
 	output_queue->task_enqueue_signal_notification();
 	return SUCCESS; 
 }
 
-int Server::input_from_producer(task_parallel_queue<IO_task>* input_queue)
+int Server::input_from_producer(task_parallel_queue<extended_IO_task>* input_queue)
 {
 	while(!input_queue->is_empty())
 	{
-		IO_task* new_task=input_queue->get_task();
-		if(SEND == new_task->get_mode())
-		{
-			send(new_task);
-		}
-		else
-		{
-			if(0 != new_task->get_extended_message_size())
-			{
-				receive_extended_message(new_task);
-			}
-			send_basic_message(new_task);
-		}
+		extended_IO_task* new_task=input_queue->get_task();
+		send(new_task);
 		input_queue->task_dequeue();
 	}
 	return SUCCESS;

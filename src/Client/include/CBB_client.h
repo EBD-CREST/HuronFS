@@ -127,7 +127,7 @@ namespace CBB
 				int _write_update_file_size(opened_file_info& file, size_t size);
 			private:
 				//private functions
-				void _get_blocks_from_master(Common::IO_task* response,
+				void _get_blocks_from_master(Common::extended_IO_task* response,
 						off64_t start_point,
 						size_t& size,
 						std::vector<block_info> &block,
@@ -155,7 +155,7 @@ namespace CBB
 				static inline int _fid_to_fd(int fid);
 				int _update_fstat_to_server(opened_file_info& file);
 				int _get_local_attr(const char*path, struct stat *file_stat);
-				file_meta* _create_new_file(Common::IO_task* new_task, int master_number);
+				file_meta* _create_new_file(Common::extended_IO_task* new_task, int master_number);
 				int _close_local_opened_file(const char* path);
 				int _get_master_socket_from_path(const std::string& path)const;
 				int _get_master_socket_from_master_number(int master_number)const;

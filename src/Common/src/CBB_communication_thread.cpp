@@ -30,17 +30,6 @@ CBB_communication_thread::CBB_communication_thread()throw(std::runtime_error):
 	}
 }
 
-/*thread_args::thread_args(int (*function)(void*),
-		void *args):
-	function(function),
-	args(args)
-{}
-
-thread_args::thread_args():
-	function(NULL),
-	args(NULL)
-{}*/
-
 CBB_communication_thread::~CBB_communication_thread()
 {
 	stop_communication_server();
@@ -97,7 +86,6 @@ int CBB_communication_thread::_add_socket(int socketfd)
 {
 	struct epoll_event event; 
 	event.data.fd=socketfd; 
-	//event.events=EPOLLIN|EPOLLET; 
 	event.events=EPOLLIN; 
 	_socket_pool.insert(socketfd); 
 	return epoll_ctl(epollfd, EPOLL_CTL_ADD, socketfd, &event); 
@@ -107,7 +95,6 @@ int CBB_communication_thread::_add_socket(int socketfd, int op)
 {
 	struct epoll_event event; 
 	event.data.fd=socketfd; 
-	//event.events=EPOLLIN|EPOLLET; 
 	event.events=EPOLLIN|op; 
 	_socket_pool.insert(socketfd); 
 	return epoll_ctl(epollfd, EPOLL_CTL_ADD, socketfd, &event); 
@@ -117,34 +104,10 @@ int CBB_communication_thread::_delete_socket(int socketfd)
 {
 	struct epoll_event event; 
 	event.data.fd=socketfd; 
-	//event.events=EPOLLIN|EPOLLET;
 	event.events=EPOLLIN;
 	_socket_pool.erase(socketfd); 
 	return epoll_ctl(epollfd, EPOLL_CTL_DEL, socketfd, &event); 
 }
-
-/*void* CBB_communication_thread::thread_function(void* args)
-{
-	thread_args* arg_p=static_cast<thread_args*>(args);
-	//pthread_barrier_wait(arg_p->barrier);
-	arg_p->function(arg_p->args);
-	_DEBUG("communication thread end\n");
-	return NULL;
-}*/
-
-/*void* CBB_communication_thread::queue_wait_function(void* args)
-{
-	CBB_communication_thread* this_obj=static_cast<CBB_communication_thread*>(args);
-	uint64_t notification=1;
-	while(KEEP_ALIVE == this_obj->keepAlive)
-	{
-		this_obj->input_queue->task_wait();
-		//send notification
-		write(this_obj->queue_event_fd, &notification, sizeof(uint64_t));
-		_DEBUG("input queue task enqueue\n");
-	}
-	return NULL;
-}*/
 
 void* CBB_communication_thread::thread_function(void* args)
 {
@@ -174,49 +137,52 @@ void* CBB_communication_thread::thread_function(void* args)
 	return NULL;
 }
 
-size_t CBB_communication_thread::send(IO_task* new_task)
+size_t CBB_communication_thread::send(extended_IO_task* new_task)
 {
 	size_t ret=0;
-	_DEBUG("send message to %d\n", new_task->get_socket());
-	if(0 != new_task->get_extended_message_size())
+	int socket=new_task->get_socket();
+	_DEBUG("send message socket=%d, size=%ld\n", socket, new_task->get_message_size());
+	Send(socket, new_task->get_message_size());
+	Send(socket, new_task->get_extended_data_size());
+	if(0 != new_task->get_extended_data_size())
 	{
-		_DEBUG("send message size=%ld\n", new_task->get_message_size());
-		if(0 == Send(new_task->get_socket(), new_task->get_message_size()))
-		{
-			//TODO unregisted 
-			close(new_task->get_socket());
-			return 0;
-		}
-		_DEBUG("send extended message size=%ld\n", new_task->get_extended_message_size());
-		if( 0 == Send(new_task->get_socket(), new_task->get_extended_message_size()))
-		{
-			//TODO unregisted 
-			close(new_task->get_socket());
-			return 0;
-		}
-		ret+=Sendv_flush(new_task->get_socket(), new_task->get_extended_message(), new_task->get_extended_message_size());
+		ret+=Sendv(socket, new_task->get_message(), new_task->get_message_size());
+		_DEBUG("send extended message size=%ld\n", new_task->get_extended_data_size());
+		ret+=Sendv_flush(socket, new_task->get_send_buffer(), new_task->get_extended_data_size());
 	}
 	else
 	{
-		_DEBUG("send message size=%ld\n", new_task->get_message_size());
-		if(0 == Send(new_task->get_socket(), new_task->get_message_size()))
-		{
-			//TODO unregisted 
-			close(new_task->get_socket());
-			return 0;
-		}
-		ret+=Sendv_flush(new_task->get_socket(), new_task->get_message(), new_task->get_message_size());
+		ret+=Sendv_flush(socket, new_task->get_message(), new_task->get_message_size());
 	}
 	return ret;
 }
 
-void CBB_communication_thread::set_queue(task_parallel_queue<IO_task>* input_queue, task_parallel_queue<IO_task>* output_queue)
+size_t CBB_communication_thread::receive_message(int socket, extended_IO_task* new_task)
+{
+	size_t basic_size=0, extended_size=0;
+	int ret=0;
+	Recv(socket, basic_size);
+	Recv(socket, extended_size);
+	_DEBUG("receive basic message size=%ld\n", basic_size);
+	new_task->set_socket(socket);
+	new_task->set_message_size(basic_size);
+	new_task->set_extended_data_size(extended_size);
+	ret=Recvv_pre_alloc(socket, new_task->get_message(), basic_size); 
+	if(0 != extended_size)
+	{
+		_DEBUG("receive extended message size=%ld\n", extended_size);
+		ret+=Recvv_pre_alloc(socket, new_task->get_receive_buffer(BLOCK_SIZE), extended_size);
+	}
+	return ret;
+}
+
+void CBB_communication_thread::set_queue(task_parallel_queue<extended_IO_task>* input_queue, task_parallel_queue<extended_IO_task>* output_queue)
 {
 	this->input_queue=input_queue;
 	this->output_queue=output_queue;
 }
 
-int CBB::Common::Send_attr(IO_task* output_task, const struct stat* file_stat)
+int CBB::Common::Send_attr(extended_IO_task* output_task, const struct stat* file_stat)
 {
 	output_task->push_back(file_stat->st_mode);    /* protection */
 	output_task->push_back(file_stat->st_uid);     /* user ID of owner */
@@ -228,7 +194,7 @@ int CBB::Common::Send_attr(IO_task* output_task, const struct stat* file_stat)
 	return SUCCESS;
 }
 
-int CBB::Common::Recv_attr(IO_task* new_task, struct stat* file_stat)
+int CBB::Common::Recv_attr(extended_IO_task* new_task, struct stat* file_stat)
 {
 	new_task->pop(file_stat->st_mode);    /* protection */
 	new_task->pop(file_stat->st_uid);     /* user ID of owner */

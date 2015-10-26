@@ -12,14 +12,14 @@ namespace CBB
 		class CBB_request_handler
 		{
 			public:
-				CBB_request_handler(task_parallel_queue<IO_task>* input_queue, task_parallel_queue<IO_task>* output_queue);
+				CBB_request_handler(task_parallel_queue<extended_IO_task>* input_queue, task_parallel_queue<extended_IO_task>* output_queue);
 				CBB_request_handler();
 				virtual ~CBB_request_handler();
-				virtual int _parse_request(IO_task* new_task, task_parallel_queue<IO_task>* output_queue)=0; 
+				virtual int _parse_request(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)=0; 
 				int start_handler();
 				int stop_handler();
 				static void* handle_routine(void *arg);
-				void set_queue(task_parallel_queue<IO_task>* input_queue, task_parallel_queue<IO_task>* output_queue);
+				void set_queue(task_parallel_queue<extended_IO_task>* input_queue, task_parallel_queue<extended_IO_task>* output_queue);
 				//void set_init_barrier(pthread_barrier_t* init_barrier);
 
 			private:
@@ -27,8 +27,8 @@ namespace CBB
 				pthread_t handler_thread;
 				//pthread_barrier_t* init_barrier;
 				int keepAlive;
-				task_parallel_queue<IO_task>* input_queue;
-				task_parallel_queue<IO_task>* output_queue;
+				task_parallel_queue<extended_IO_task>* input_queue;
+				task_parallel_queue<extended_IO_task>* output_queue;
 
 		};
 

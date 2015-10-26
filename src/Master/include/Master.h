@@ -66,47 +66,47 @@ namespace CBB
 
 				//virtual int _parse_new_request(int socketfd,
 				//			const struct sockaddr_in& client_addr);
-				virtual int _parse_request(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				virtual int _parse_request(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
 
 				//request from new client
-				int _parse_regist_IOnode(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_new_client(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_regist_IOnode(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_new_client(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
 
 				//request from registed client
-				int _parse_open_file(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue); 
-				int _parse_read_file(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_write_file(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_flush_file(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_close_file(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_open_file(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue); 
+				int _parse_read_file(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_write_file(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_flush_file(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_close_file(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
 				//int _parse_node_info(int clientfd)const;
-				int _parse_attr(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_readdir(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_unlink(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_rmdir(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_access(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_mkdir(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_rename(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_close_client(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_truncate_file(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _parse_rename_migrating(CBB::Common::IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _parse_attr(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_readdir(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_unlink(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_rmdir(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_access(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_mkdir(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_rename(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_close_client(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_truncate_file(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _parse_rename_migrating(CBB::Common::extended_IO_task* new_task,
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
 
 				int _buffer_all_meta_data_from_remote(const char* mount_point)throw(std::runtime_error);
 				int _dfs_items_in_remote(DIR* current_remote_directory,
@@ -114,13 +114,13 @@ namespace CBB
 						const char* file_relative_path,
 						size_t offset)throw(std::runtime_error);
 
-				void _send_block_info(CBB::Common::IO_task* new_task,
+				void _send_block_info(CBB::Common::extended_IO_task* new_task,
 						const node_id_pool_t& node_id_pool,
 						const node_t& node_set)const;
 				void _send_append_request(ssize_t file_no,
 						const node_block_map_t& append_node_block,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
-				int _send_open_request_to_IOnodes(struct open_file_info& file, CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _send_open_request_to_IOnodes(struct open_file_info& file, CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
 
 				//file operation
 				//void _send_node_info(int socket)const;
@@ -135,7 +135,7 @@ namespace CBB
 						int flag,
 						ssize_t& file_no,
 						int exist_flag,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue)
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue)
 					throw(std::runtime_error, std::invalid_argument, std::bad_alloc);
 				ssize_t _get_node_id(); 
 				ssize_t _get_file_no(); 
@@ -147,7 +147,7 @@ namespace CBB
 				open_file_info* _create_new_open_file_info(ssize_t file_no,
 						int flag,
 						Master_file_stat* file_status,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue)throw(std::invalid_argument);
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue)throw(std::invalid_argument);
 				Master_file_stat* _create_new_file_stat(const char* relative_path,
 						int exist_flag)throw(std::invalid_argument);
 				node_t _select_IOnode(off64_t start_point,
@@ -163,12 +163,12 @@ namespace CBB
 						struct open_file_info& file,
 						node_t& node_set,
 						node_id_pool_t& node_id_pool,
-						CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue)throw(std::bad_alloc);
+						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue)throw(std::bad_alloc);
 				int _allocate_one_block(const struct open_file_info &file)throw(std::bad_alloc);
 				void _append_block(open_file_info& file,
 						int node_id,
 						off64_t start_point);
-				int _remove_file(ssize_t fd, CBB::Common::task_parallel_queue<CBB::Common::IO_task>* output_queue);
+				int _remove_file(ssize_t fd, CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
 
 				virtual std::string _get_real_path(const char* path)const;
 				virtual std::string _get_real_path(const std::string& path)const;
