@@ -120,8 +120,9 @@ template<class T> size_t Do_recv(int sockfd, T* buffer, size_t count, int flag)
 		buffer_tmp += ret;
 		length -= ret;
 	}
-	if(0 == ret)
+	if(0 == count*sizeof(T)-length)
 	{
+		_DEBUG("close socket %d\n", sockfd);
 		close(sockfd);
 		return 0;
 	}
@@ -152,8 +153,9 @@ template<class T> size_t Do_send(int sockfd, const T* buffer, size_t count, int 
 		buffer_tmp += ret;
 		length -= ret;
 	}
-	if(0 == ret)
+	if(0 == count*sizeof(T)-length)
 	{
+		_DEBUG("close socket %d\n", sockfd);
 		close(sockfd);
 		return 0;
 	}

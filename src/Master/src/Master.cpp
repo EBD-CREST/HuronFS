@@ -245,7 +245,7 @@ int Master::_parse_open_file(extended_IO_task* new_task, task_parallel_queue<ext
 			return SUCCESS;
 		}
 	}
-	new_task->pop(master_number);
+	//new_task->pop(master_number);
 	try
 	{
 		_open_file(file_path, flag, file_no, exist_flag, output_queue); 
