@@ -3,6 +3,7 @@
 
 #include <pthread.h>
 #include "CBB_task_parallel.h"
+#include "CBB_communication_thread.h"
 
 namespace CBB
 {

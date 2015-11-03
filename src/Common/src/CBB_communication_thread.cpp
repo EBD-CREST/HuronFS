@@ -7,6 +7,28 @@
 
 using namespace CBB::Common;
 
+
+basic_IO_task::basic_IO_task():
+	basic_task(),
+	socket(-1),
+	message_size(0),
+	basic_message(),
+	current_point(0)
+{}
+
+basic_IO_task::~basic_IO_task()
+{}
+
+extended_IO_task::extended_IO_task():
+	basic_IO_task(),
+	extended_size(0),
+	send_buffer(NULL),
+	receive_buffer(NULL)
+{}
+
+extended_IO_task::~extended_IO_task()
+{}
+
 CBB_communication_thread::CBB_communication_thread()throw(std::runtime_error):
 	keepAlive(KEEP_ALIVE),
 	epollfd(epoll_create(LENGTH_OF_LISTEN_QUEUE+1)),
@@ -15,18 +37,18 @@ CBB_communication_thread::CBB_communication_thread()throw(std::runtime_error):
 	input_queue(),
 	output_queue(),
 	communication_thread(),
-	queue_event_fd(eventfd(0, 0))
+	queue_event_fd(eventfd(0,0))
 {
-	if(-1  ==  epollfd)
-	{
-		perror("epoll_creation"); 
-		throw std::runtime_error("epoll_creation"); 
-	}
-
 	if(-1 == queue_event_fd)
 	{
 		perror("eventfd");
-		throw std::runtime_error("eventfd"); 
+		throw std::runtime_error("CBB_communication_thread"); 
+	}
+
+	if(-1  ==  epollfd)
+	{
+		perror("epoll_creation"); 
+		throw std::runtime_error("CBB_communication_thread"); 
 	}
 }
 
@@ -43,11 +65,13 @@ CBB_communication_thread::~CBB_communication_thread()
 		//close socket
 		close(*it); 
 	}
+	close(queue_event_fd);
 }
 
 int CBB_communication_thread::start_communication_server()
 {
 	int ret=SUCCESS;
+
 	if(NULL == input_queue || NULL == output_queue)
 	{
 		return FAILURE;
@@ -65,6 +89,10 @@ int CBB_communication_thread::start_communication_server()
 	if(0 == (ret=pthread_create(&communication_thread, NULL, thread_function, this)))
 	{
 		thread_started=STARTED;
+	}
+	else
+	{
+		perror("pthread_create");
 	}
 	return ret;
 }

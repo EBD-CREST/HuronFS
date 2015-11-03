@@ -172,6 +172,7 @@ namespace CBB
 
 				virtual std::string _get_real_path(const char* path)const;
 				virtual std::string _get_real_path(const std::string& path)const;
+				virtual int remote_task_handler(CBB::Common::remote_task* new_task);
 
 				dir_t _get_file_stat_from_dir(const std::string& path);
 

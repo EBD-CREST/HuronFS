@@ -93,4 +93,6 @@ const int RECV_EXTENDED_MESSAGE = 1;
 const bool STARTED = true;
 const bool UNSTARTED = false;
 
+const int CBB_REMOTE_WRITE_BACK = 0;
+
 #endif

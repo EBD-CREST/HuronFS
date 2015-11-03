@@ -24,12 +24,17 @@ using namespace CBB::Common;
 
 const char *IOnode::IONODE_MOUNT_POINT="CBB_IONODE_MOUNT_POINT";
 
-IOnode::block::block(off64_t start_point, size_t data_size, bool dirty_flag, bool valid) throw(std::bad_alloc):
+IOnode::block::block(off64_t start_point,
+		size_t data_size,
+		bool dirty_flag,
+		bool valid,
+		file* file_stat) throw(std::bad_alloc):
 	data_size(data_size),
 	data(NULL),
 	start_point(start_point),
 	dirty_flag(dirty_flag),
-	valid(INVALID)
+	valid(INVALID),
+	file_stat(file_stat)
 {
 	if(INVALID != valid)
 	{
@@ -52,7 +57,8 @@ IOnode::block::block(const block & src):
 	data(src.data), 
 	start_point(src.start_point),
 	dirty_flag(src.dirty_flag),
-	valid(src.valid)
+	valid(src.valid),
+	file_stat(NULL)
 {};
 
 IOnode::file::file(const char *path, int exist_flag, ssize_t file_no):
@@ -275,6 +281,7 @@ int IOnode::_send_data(CBB::Common::extended_IO_task* new_task,
 		const std::string& path = _file.file_path;
 		_DEBUG("file path=%s\n", path.c_str());
 		block* requested_block=_file.blocks[start_point];
+		requested_block->file_stat=&_file;
 		if(INVALID == requested_block->valid)
 		{
 			requested_block->allocate_memory();
@@ -366,7 +373,7 @@ int IOnode::_open_file(CBB::Common::extended_IO_task* new_task,
 	new_task->pop(count);
 	for(int i=0;i<count;++i)
 	{
-		_append_block(new_task, _file.blocks);
+		_append_block(new_task, _file);
 	}
 	return SUCCESS; 
 }
@@ -388,8 +395,8 @@ int IOnode::_close_file(CBB::Common::extended_IO_task* new_task,
 			block* _block=it->second;
 			if(DIRTY == _block->dirty_flag)
 			{
-				_write_to_storage(path, _block);
-				puts((char*)_block->data);
+				//_write_to_storage(path, _block);
+				CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
 			}
 			delete _block;
 		}
@@ -426,7 +433,8 @@ int IOnode::_rename(CBB::Common::extended_IO_task* new_task,
 	return SUCCESS; 
 }
 
-void IOnode::_append_block(extended_IO_task* new_task, block_info_t& blocks)
+void IOnode::_append_block(extended_IO_task* new_task,
+		file& file_stat)
 {
 	off64_t start_point=0;
 	size_t data_size=0;
@@ -434,7 +442,7 @@ void IOnode::_append_block(extended_IO_task* new_task, block_info_t& blocks)
 	new_task->pop(data_size); 
 	_DEBUG("append request from Master\n");
 	_DEBUG("start_point=%lu, data_size=%lu\n", start_point, data_size);
-	blocks.insert(std::make_pair(start_point, new block(start_point, data_size, CLEAN, INVALID)));
+	file_stat.blocks.insert(std::make_pair(start_point, new block(start_point, data_size, CLEAN, INVALID, &file_stat)));
 	return ;
 }
 
@@ -456,7 +464,7 @@ int IOnode::_append_new_block(CBB::Common::extended_IO_task* new_task,
 		{
 			new_task->pop(start_point);
 			new_task->pop(data_size);
-			blocks.insert(std::make_pair(start_point, new block(start_point, data_size, CLEAN, INVALID)));
+			blocks.insert(std::make_pair(start_point, new block(start_point, data_size, CLEAN, INVALID, &_file)));
 		}
 		return SUCCESS;
 	}
@@ -507,7 +515,7 @@ size_t IOnode::_read_from_storage(const std::string& path, block* block_data)thr
 	return block_data->data_size-size;
 }
 
-IOnode::block* IOnode::_buffer_block(off64_t start_point, size_t size)throw(std::runtime_error)
+/*IOnode::block* IOnode::_buffer_block(off64_t start_point, size_t size)throw(std::runtime_error)
 {
 	try
 	{
@@ -518,11 +526,11 @@ IOnode::block* IOnode::_buffer_block(off64_t start_point, size_t size)throw(std:
 	{
 		throw std::runtime_error("Memory Alloc Error"); 
 	}
-}
+}*/
 
-size_t IOnode::_write_to_storage(const std::string& path, const block* block_data)throw(std::runtime_error)
+size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 {
-	std::string real_path=_get_real_path(path);
+	std::string real_path=_get_real_path(block_data->file_stat->file_path);
 	int fd = open64(real_path.c_str(),O_WRONLY);
 	if( -1 == fd)
 	{
@@ -535,11 +543,9 @@ size_t IOnode::_write_to_storage(const std::string& path, const block* block_dat
 		perror("Seek"); 
 		throw std::runtime_error("Seek File Error"); 
 	}
-	struct iovec iov;
-	iov.iov_base=const_cast<void*>(block_data->data);
-	iov.iov_len=block_data->data_size;
-	writev(fd, &iov, 1);
 	close(fd);
+
+	block_data->dirty_flag=CLEAN;
 	return block_data->data_size;
 }
 
@@ -565,8 +571,8 @@ int IOnode::_flush_file(CBB::Common::extended_IO_task* new_task,
 			block* _block=it->second;
 			if(DIRTY == _block->dirty_flag)
 			{
-				_write_to_storage(path, _block);
-				_block->dirty_flag=CLEAN;
+				//_write_to_storage(path, _block);
+				CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
 			}
 		}
 		return SUCCESS;
@@ -655,5 +661,16 @@ int IOnode::_remove_file(ssize_t file_no)
 		delete block_it->second;
 	}
 	_files.erase(it);*/
+	return SUCCESS;
+}
+
+int IOnode::remote_task_handler(remote_task* new_task)
+{
+	block* IO_block=static_cast<block*>(new_task->get_file_stat());
+	switch(new_task->get_mode())
+	{
+		case CBB_REMOTE_WRITE_BACK:
+			_write_to_storage(IO_block);break;
+	}
 	return SUCCESS;
 }

@@ -111,6 +111,11 @@ int Master::start_server()
 	return SUCCESS;
 }
 
+int Master::remote_task_handler(remote_task* new_task)
+{
+	
+}
+
 int Master::_parse_request(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
 {
 	int request=0, ans=SUCCESS; 

@@ -2,7 +2,7 @@ MAIN = IOnode
 SRC_DIR = src
 HEADER_DIR = include
 INCLUDE_PATH = -I./include -I../Common/include
-COMMON = ../Common/Server.o ../Common/CBB_connector.o ../Common/CBB_task_parallel.o ../Common/CBB_communication_thread.o ../Common/CBB_request_handler.o ../Common/CBB_rwlocker.o
+COMMON = ../Common/Server.o ../Common/CBB_connector.o ../Common/CBB_task_parallel.o ../Common/CBB_communication_thread.o ../Common/CBB_request_handler.o ../Common/CBB_rwlocker.o ../Common/CBB_remote_task.o
 //CLIENT = ../Common/Client.o
 LINK_PATH = -L./
 

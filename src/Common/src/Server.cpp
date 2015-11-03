@@ -13,9 +13,9 @@ using namespace CBB::Common;
 Server::Server(int port)throw(std::runtime_error):
 	CBB_communication_thread(),
 	CBB_request_handler(),
+	CBB_remote_task(),
 	_communication_input_queue(),
 	_communication_output_queue(),
-	//keepAlive(KEEP_ALIVE),
 	_server_addr(sockaddr_in()), 
 	_port(port), 
 	_server_socket(0)
@@ -26,6 +26,8 @@ Server::Server(int port)throw(std::runtime_error):
 Server::~Server()
 {
 	stop_server(); 
+	_communication_output_queue.destory_queue();
+	_communication_input_queue.destory_queue();
 }
 
 void Server::_init_server()throw(std::runtime_error)
@@ -61,6 +63,7 @@ void Server::_init_server()throw(std::runtime_error)
 int Server::start_server()
 {
 	CBB_communication_thread::start_communication_server();
+	CBB_remote_task::start_listening();
 	return CBB_request_handler::start_handler();
 }
 
@@ -68,8 +71,8 @@ void Server::stop_server()
 {
 	CBB_communication_thread::stop_communication_server();
 	CBB_request_handler::stop_handler();
+	CBB_remote_task::stop_listening();
 	close(_server_socket);  
-	//close(_epollfd); 
 	return;
 }
 

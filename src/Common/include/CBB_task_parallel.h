@@ -31,61 +31,10 @@ namespace CBB
 				basic_task();
 				virtual ~basic_task();
 				basic_task* get_next();
-				virtual void reset()=0;
+				virtual void reset();
 				void set_next(basic_task* next);
 			private:
 				basic_task* next;
-		};
-
-		class basic_IO_task:public basic_task
-		{
-			public:
-				basic_IO_task();
-				virtual ~basic_IO_task();
-				template<typename T> size_t push_back(const T& value);
-				template<typename T> size_t push_backv(const T& value, size_t num);
-				size_t push_back_string(const unsigned char* string);
-				size_t push_back_string(const char* string);
-				size_t push_back_string(const char* string, size_t size);
-				template<typename T> size_t pop(T& var);
-				template<typename T> size_t popv(T* var, size_t num);
-				template<typename T> size_t pop_uncopy(T** var);
-				template<typename T> size_t popv_uncopy(T** var, size_t num);
-				template<typename T> size_t do_pop(T** value, size_t num);
-				size_t do_push(const void* value, size_t num);
-				size_t pop_string(unsigned char** var);
-				size_t pop_string(char** var);
-				virtual void reset();
-				int get_socket();
-				void set_socket(int socket);
-				unsigned char* get_message();
-				void set_message_size(size_t message_size);
-				size_t get_message_size();
-
-			private:
-				int socket;
-				size_t message_size;
-				unsigned char basic_message[MAX_BASIC_MESSAGE_SIZE];
-				size_t current_point;
-		};
-
-		class extended_IO_task:public basic_IO_task
-		{
-			public:
-				extended_IO_task();
-				virtual ~extended_IO_task();
-
-				size_t get_received_data(void* buffer);
-				void set_extended_data_size(size_t size);
-				size_t get_extended_data_size();
-				void set_send_buffer(const void* buffer, size_t size);
-				virtual void reset();
-				const unsigned char* get_send_buffer();
-				unsigned char* get_receive_buffer(size_t size);
-			private:
-				size_t extended_size;
-				const unsigned char* send_buffer;
-				unsigned char* receive_buffer;
 		};
 
 		template<class task_type> class task_parallel_queue
@@ -102,6 +51,7 @@ namespace CBB
 				bool is_empty();
 				bool task_wait();
 				void set_queue_event_fd(int queue_event_fd);
+				void destory_queue();
 
 			private:
 				task_type* queue_head; 
@@ -118,8 +68,6 @@ namespace CBB
 				int queue_event_fd;
 		};
 
-		basic_IO_task* init_response_task(basic_IO_task* input_task, task_parallel_queue<basic_IO_task>* output_queue);
-
 		inline basic_task* basic_task::get_next()
 		{
 			return next;
@@ -130,159 +78,8 @@ namespace CBB
 			next=next_pointer;
 		}
 
-		template<typename T> size_t basic_IO_task::push_back(const T& value)
-		{
-			return push_backv(value, 1);
-		}
-
-		template<typename T> inline size_t basic_IO_task::push_backv(const T& value, size_t num)
-		{
-			return do_push(&value, num*sizeof(T));
-		}
-
-		inline size_t basic_IO_task::do_push(const void* value, size_t num)
-		{
-			memcpy(basic_message + message_size, value, num);
-			message_size += num;
-			return num;
-		}
-
-		template<typename T> inline size_t basic_IO_task::pop_uncopy(T** var)
-		{
-			return popv_uncopy(var, 1);
-		}
-
-		template<typename T> inline size_t basic_IO_task::popv_uncopy(T** var, size_t num)
-		{
-			return do_pop(var, num*sizeof(T));
-		}
-
-		template<typename T> inline size_t basic_IO_task::do_pop(T** var, size_t num)
-		{
-			*var=reinterpret_cast<T*>(basic_message + current_point);
-			current_point += num;
-			return num;
-		}
-
-		template<typename T> inline size_t basic_IO_task::pop(T& var)
-		{
-			return popv(&var, 1); 
-		} 
-
-		template<typename T> inline size_t basic_IO_task::popv(T* var, size_t num)
-		{
-			T* tmp=NULL;
-			size_t ret=popv_uncopy(&tmp, num);
-			memcpy(var, tmp, ret);
-			return ret;
-		}
-
-		inline size_t basic_IO_task::push_back_string(const unsigned char* string)
-		{
-			return push_back_string(reinterpret_cast<const char*>(string));
-		}
-
-		inline size_t basic_IO_task::push_back_string(const char* string)
-		{
-			size_t len=strlen(string)+1;
-			push_back(len);
-			do_push(string, len*sizeof(unsigned char));
-			return len;
-		}
-
-		inline size_t basic_IO_task::push_back_string(const char* string, size_t size)
-		{
-			push_back(size+1);
-			do_push(string, (size+1)*sizeof(unsigned char));
-			return size+1;
-		}
-
-		inline size_t basic_IO_task::pop_string(unsigned char** var)
-		{
-			size_t len;
-			pop(len);
-			do_pop(var, len*sizeof(unsigned char));
-			return len;
-		}
-
-		inline size_t basic_IO_task::pop_string(char** var)
-		{
-			return pop_string(reinterpret_cast<unsigned char**>(var));
-		}
-
-		inline unsigned char* basic_IO_task::get_message()
-		{
-			return basic_message;
-		}
-
-		inline int basic_IO_task::get_socket()
-		{
-			return socket;
-		}
-
-		inline void basic_IO_task::reset()
-		{
-			message_size=0;
-			current_point=0;
-		}
-
-		inline void basic_IO_task::set_socket(int socket)
-		{
-			this->socket=socket;
-		}
-
-		inline size_t basic_IO_task::get_message_size()
-		{
-			return this->message_size;
-		}
-
-		inline void basic_IO_task::set_message_size(size_t message_size)
-		{
-			this->message_size=message_size;
-		}
-
-		inline size_t extended_IO_task::get_received_data(void* buffer)
-		{
-			memcpy(buffer, receive_buffer, extended_size);
-			return extended_size;
-		}
-
-		inline void extended_IO_task::reset()
-		{
-			basic_IO_task::reset();
-			extended_size = 0;
-			send_buffer = NULL;
-		}
-
-		inline size_t extended_IO_task::get_extended_data_size()
-		{
-			return extended_size;
-		}
-
-		inline void extended_IO_task::set_extended_data_size(size_t size)
-		{
-			extended_size = size;
-		}
-
-		inline void extended_IO_task::set_send_buffer(const void*buffer, size_t size)
-		{
-			send_buffer = static_cast<const unsigned char*>(buffer);
-			extended_size = size;
-		}
-
-		inline const unsigned char* extended_IO_task::get_send_buffer()
-		{
-			return send_buffer;
-		}
-
-		inline unsigned char* extended_IO_task::get_receive_buffer(size_t size)
-		{
-			if(NULL == receive_buffer)
-			{
-				receive_buffer = new unsigned char[size];
-			}
-			return receive_buffer;
-		}
+		inline void basic_task::reset()
+		{}
 
 		template<class task_type> inline void task_parallel_queue<task_type>::set_queue_event_fd(int queue_event_fd)
 		{
@@ -407,11 +204,16 @@ namespace CBB
 			return SUCCESS;
 		}
 
-		inline extended_IO_task* init_response_task(extended_IO_task* input_task, task_parallel_queue<extended_IO_task>* output_queue)
+		template<class task_type> void task_parallel_queue<task_type>::destory_queue()
 		{
-			extended_IO_task* output=output_queue->allocate_tmp_node();
-			output->set_socket(input_task->get_socket());
-			return output;
+			basic_task* tmp=NULL, *next=queue_head;
+			while(queue_tail != next)
+			{
+				tmp=next;
+				next=next->get_next();
+				delete tmp;
+			}
+			return;
 		}
 	}
 }

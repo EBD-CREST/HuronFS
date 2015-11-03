@@ -26,7 +26,8 @@ namespace CBB
 {
 	namespace IOnode
 	{
-		class IOnode:public CBB::Common::Server, CBB::Common::CBB_connector
+		class IOnode:public CBB::Common::Server,
+		CBB::Common::CBB_connector
 		{
 			//API
 			public:
@@ -38,22 +39,26 @@ namespace CBB
 				//nested class
 			private:
 
+				struct file;
 				struct block
 				{
 					block(off64_t start_point,
 							size_t size,
 							bool dirty_flag,
-							bool valid) throw(std::bad_alloc);
+							bool valid,
+							file* file_stat) throw(std::bad_alloc);
 					~block();
 					block(const block&);
 
 					void allocate_memory()throw(std::bad_alloc);
+					
 					size_t data_size;
 					void* data;
 					off64_t  start_point;
 					bool dirty_flag;
 					bool valid;
 					int exist_flag;
+					file* file_stat;
 				};
 				//map: start_point : block*
 				typedef CBB::Common::CBB_map<off64_t, block*> block_info_t; 
@@ -89,6 +94,8 @@ namespace CBB
 				virtual int _parse_request(CBB::Common::extended_IO_task* new_task,
 						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue); 
 
+				virtual int remote_task_handler(CBB::Common::remote_task* new_task);
+
 				int _send_data(CBB::Common::extended_IO_task* new_task,
 						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
 				int _receive_data(CBB::Common::extended_IO_task* new_task,
@@ -114,13 +121,14 @@ namespace CBB
 				block *_buffer_block(off64_t start_point,
 						size_t size)throw(std::runtime_error);
 
-				size_t _write_to_storage(const std::string& path,
-						const block* block_data)throw(std::runtime_error); 
+				size_t _write_to_storage(block* block_data)throw(std::runtime_error); 
+
 				size_t _read_from_storage(const std::string& path,
 						block* block_data)throw(std::runtime_error);
 				void _append_block(CBB::Common::extended_IO_task* new_task,
-						block_info_t& blocks);
+						file& file_stat);
 				virtual std::string _get_real_path(const char* path)const;
+
 				std::string _get_real_path(const std::string& path)const;
 
 				int _remove_file(ssize_t file_no);
