@@ -228,7 +228,6 @@ void CBB_client::_get_blocks_from_master(extended_IO_task* response,
 		response->pop(node_id);
 		block.push_back(block_info(node_id, start_point, BLOCK_SIZE));
 	}
-	response_dequeue(response);
 	return;
 }
 	
@@ -321,6 +320,7 @@ int CBB_client::_open(const char * path, int flag, mode_t mode)
 			response_dequeue(response);
 			return -1;
 		}
+		response_dequeue(response);
 	}
 	int fd=_fid_to_fd(fid);
 	opened_file_info& file=_file_list.insert(std::make_pair(fid, opened_file_info(fd, flag, file_meta_p))).first->second;
@@ -330,7 +330,6 @@ int CBB_client::_open(const char * path, int flag, mode_t mode)
 		file.current_point=file_meta_p->file_stat.st_size;
 	}
 	_DEBUG("file no =%ld, fid = %d\n", file_meta_p->file_no, _fid_to_fd(fid));
-	response_dequeue(response);
 	return fd;
 }
 
@@ -824,16 +823,13 @@ int CBB_client::_getattr(const char* path, struct stat* fstat)
 			strftime(buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", tm);
 			printf("time = %s\n", buf);
 #endif
-			//file_meta* file_meta_p=new file_meta(-1, path, 0, fstat);
-			//++file_meta_p->open_count;
-			//_path_file_meta_map.insert(std::make_pair(std::string(path), file_meta_p));
-			return 0;
 		}
 		else
 		{
 			errno=-ret;
-			return -errno;
 		}
+		response_dequeue(response);
+		return ret;
 	}
 }
 
@@ -984,6 +980,7 @@ int CBB_client::_access(const char* path, int mode)
 			master_socket = _get_master_socket_from_master_number(ret);
 		}while(master_number != ret && response_dequeue(response));
 		response->pop(ret);
+		response_dequeue(response);
 		if(SUCCESS == ret)
 		{
 			return 0;
@@ -1016,6 +1013,7 @@ int CBB_client::_stat(const char* path, struct stat* buf)
 		master_socket = _get_master_socket_from_master_number(ret);
 	}while(master_number != ret && response_dequeue(response));
 	response->pop(ret);
+	response_dequeue(response);
 	if(SUCCESS == ret)
 	{
 		Recv_attr(response, buf);
@@ -1060,6 +1058,7 @@ int CBB_client::_rename(const char* old_name, const char* new_name)
 		query->push_back(new_master_number);
 		response=get_query_response(query);
 		response->pop(ret);
+		response_dequeue(response);
 
 		extended_IO_task* query=allocate_new_query(new_master_socket);
 		query->push_back(RENAME_MIGRATING);

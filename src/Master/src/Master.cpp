@@ -518,17 +518,18 @@ int Master::_parse_unlink(extended_IO_task* new_task, task_parallel_queue<extend
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
 	extended_IO_task* output=init_response_task(new_task, output_queue);
 	_LOG("path=%s\n", real_path.c_str());
-	try
+	file_stat_pool_t::iterator it=_file_stat_pool.find(relative_path);
+	if(_file_stat_pool.end() != it)
 	{
-		Master_file_stat& file_stat=_file_stat_pool.at(relative_path);
+		Master_file_stat& file_stat=it->second;
 		ssize_t fd=file_stat.get_fd();
 		_remove_file(fd, output_queue);
-		//unlink(real_path.c_str());
+		_file_stat_pool.erase(it);
 		output->push_back(SUCCESS);
 
 		ret=SUCCESS;
 	}
-	catch(std::out_of_range& e)
+	else
 	{
 		output->push_back(-ENOENT);
 		ret=FAILURE;
@@ -1197,23 +1198,26 @@ void Master::_append_block(struct open_file_info& file, int node_id, off64_t sta
 
 int Master::_remove_file(ssize_t file_no, task_parallel_queue<extended_IO_task>* output_queue)
 {
-	open_file_info &file=*_buffered_files.at(file_no);
-	for(node_pool_t::iterator it=file.nodes.begin();
-			it != file.nodes.end();++it)
+	File_t::iterator it=_buffered_files.find(file_no);
+	if(_buffered_files.end() != it)
 	{
-		//int ret;
-		extended_IO_task* output=output_queue->allocate_tmp_node();
-		output->set_socket(_registed_IOnodes.at(*it)->socket);
-		output->push_back(UNLINK);
-		_DEBUG("unlink file no=%ld\n", file_no);
-		output->push_back(file_no);
-		output_queue->task_enqueue();
-		//Recv(socket, ret);
+		open_file_info &file=*(it->second);
+		for(node_pool_t::iterator it=file.nodes.begin();
+				it != file.nodes.end();++it)
+		{
+			//int ret;
+			extended_IO_task* output=output_queue->allocate_tmp_node();
+			output->set_socket(_registed_IOnodes.at(*it)->socket);
+			output->push_back(UNLINK);
+			_DEBUG("unlink file no=%ld\n", file_no);
+			output->push_back(file_no);
+			output_queue->task_enqueue();
+			//Recv(socket, ret);
+		}
+		_buffered_files.erase(file_no);
+		delete &file;
+		_release_file_no(file_no);
 	}
-	_release_file_no(file_no);
-	_file_stat_pool.erase(file.file_status->full_path);
-	_buffered_files.erase(file_no);
-	delete &file;
 	return SUCCESS;
 }
 

@@ -81,10 +81,6 @@ int CBB_communication_thread::start_communication_server()
 	event.data.fd=queue_event_fd; 
 	event.events=EPOLLIN|EPOLLPRI; 
 	epoll_ctl(epollfd, EPOLL_CTL_ADD, queue_event_fd, &event); 
-	/*if(0 == (ret=pthread_create(&communication_thread, NULL, queue_wait_function, this)))
-	{
-		thread_started=STARTED;
-	}*/
 
 	if(0 == (ret=pthread_create(&communication_thread, NULL, thread_function, this)))
 	{
@@ -169,13 +165,13 @@ size_t CBB_communication_thread::send(extended_IO_task* new_task)
 {
 	size_t ret=0;
 	int socket=new_task->get_socket();
-	_DEBUG("send message socket=%d, size=%ld\n", socket, new_task->get_message_size());
+	//_DEBUG("send message socket=%d, size=%ld\n", socket, new_task->get_message_size());
 	Send(socket, new_task->get_message_size());
 	Send(socket, new_task->get_extended_data_size());
 	if(0 != new_task->get_extended_data_size())
 	{
 		ret+=Sendv(socket, new_task->get_message(), new_task->get_message_size());
-		_DEBUG("send extended message size=%ld\n", new_task->get_extended_data_size());
+		//_DEBUG("send extended message size=%ld\n", new_task->get_extended_data_size());
 		ret+=Sendv_flush(socket, new_task->get_send_buffer(), new_task->get_extended_data_size());
 	}
 	else
@@ -191,14 +187,14 @@ size_t CBB_communication_thread::receive_message(int socket, extended_IO_task* n
 	int ret=0;
 	Recv(socket, basic_size);
 	Recv(socket, extended_size);
-	_DEBUG("receive basic message size=%ld\n", basic_size);
+	//_DEBUG("receive basic message size=%ld\n", basic_size);
 	new_task->set_socket(socket);
 	new_task->set_message_size(basic_size);
 	new_task->set_extended_data_size(extended_size);
 	ret=Recvv_pre_alloc(socket, new_task->get_message(), basic_size); 
 	if(0 != extended_size)
 	{
-		_DEBUG("receive extended message size=%ld\n", extended_size);
+		//_DEBUG("receive extended message size=%ld\n", extended_size);
 		ret+=Recvv_pre_alloc(socket, new_task->get_receive_buffer(BLOCK_SIZE), extended_size);
 	}
 	return ret;

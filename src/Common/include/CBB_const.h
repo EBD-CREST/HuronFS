@@ -9,7 +9,7 @@ const int MASTER_PORT = 9000;
 const int MASTER_CONN_PORT = 7001; 
 const int IONODE_PORT = 7000; 
 const int MAX_IONODE = 1000;
-const int MAX_BASIC_MESSAGE_SIZE = 1000000;
+const int MAX_BASIC_MESSAGE_SIZE = 100*KB;
 //const int CLIENT_PORT = 8001;
 //const int IO_CLIENT_PORT = 8002;
 

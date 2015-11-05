@@ -85,14 +85,11 @@ namespace CBB
 				virtual int input_from_socket(int socket, task_parallel_queue<extended_IO_task>* output_queue)=0;
 				virtual int input_from_producer(task_parallel_queue<extended_IO_task>* input_queue)=0;
 				size_t send(extended_IO_task* new_task);
-				//size_t send_basic_message(extended_IO_task* new_task);
-				//size_t receive_basic_message(int socket, extended_IO_task* new_task);
 				size_t receive_message(int socket, extended_IO_task* new_task);
 				static void* thread_function(void*);
 				//thread wait on queue event;
 				static void* queue_wait_function(void*);
 				void set_queue(task_parallel_queue<extended_IO_task>* input_queue, task_parallel_queue<extended_IO_task>* output_queue);
-				//void set_init_barrier(pthread_barrier_t* init_barrier);
 			private:
 				//map: socketfd
 				typedef std::set<int> socket_pool_t; 
@@ -106,7 +103,6 @@ namespace CBB
 				task_parallel_queue<extended_IO_task>* input_queue;
 				task_parallel_queue<extended_IO_task>* output_queue;
 				pthread_t communication_thread;
-				//pthread_t queue_event_wait_thread;
 				int queue_event_fd;
 		};
 
@@ -226,6 +222,8 @@ namespace CBB
 		inline size_t extended_IO_task::get_received_data(void* buffer)
 		{
 			memcpy(buffer, receive_buffer, extended_size);
+			//delete receive_buffer;
+			//receive_buffer=NULL;
 			return extended_size;
 		}
 

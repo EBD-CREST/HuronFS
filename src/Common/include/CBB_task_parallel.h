@@ -61,6 +61,8 @@ namespace CBB
 				//used to allocate temp
 				//and make item available later
 				task_type* queue_tmp_head;
+
+				size_t length_of_queue;
 				
 				pthread_mutex_t locker;
 				pthread_cond_t queue_empty;
@@ -91,6 +93,7 @@ namespace CBB
 			queue_tail(queue_head),
 			queue_tmp_tail(queue_head),
 			queue_tmp_head(queue_head),
+			length_of_queue(2),
 			locker(),
 			queue_empty(),
 			queue_event_fd(-1)
@@ -108,6 +111,7 @@ namespace CBB
 			queue_tail(queue_head),
 			queue_tmp_tail(queue_head),
 			queue_tmp_head(queue_head),
+			length_of_queue(2),
 			locker(),
 			queue_empty(),
 			queue_event_fd(event_fd)
@@ -130,7 +134,7 @@ namespace CBB
 
 		template<class task_type> inline void task_parallel_queue<task_type>::task_dequeue()
 		{
-			//_DEBUG("task dequeue\n");
+			_DEBUG("task dequeue\n");
 			queue_tmp_tail=static_cast<task_type*>(queue_tmp_tail->get_next());
 		}
 
@@ -161,14 +165,17 @@ namespace CBB
 			task_type* ret=NULL;
 			if(queue_tmp_tail == queue_tmp_head->get_next())
 			{
+				_DEBUG("new queue item allocated\nlength of the queue=%ld\n", length_of_queue);
 				ret=new task_type();
 				ret->set_next(queue_head->get_next());
 				queue_head->set_next(ret);
 				queue_tmp_head=ret;
 				ret=queue_head;
+				length_of_queue++;
 			}
 			else
 			{
+				_DEBUG("queue item reused\nlength of the queue=%ld\n", length_of_queue);
 				ret=queue_head;
 				queue_tmp_head=static_cast<task_type*>(queue_head->get_next());
 			}

@@ -19,6 +19,7 @@ export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
 export DEP_FLAG = -MMD -MP
 #export FLAG=-O3 -g -Wall -std=c++0x
+#export FLAG=-O3 -g -Wall -std=c++0x -DDEBUG
 export FLAG=-O0 -g -Wall -std=c++0x -DDEBUG
 
 run:

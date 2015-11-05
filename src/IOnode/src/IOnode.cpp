@@ -280,7 +280,7 @@ int IOnode::_send_data(CBB::Common::extended_IO_task* new_task,
 		file& _file=_files.at(file_no);
 		const std::string& path = _file.file_path;
 		_DEBUG("file path=%s\n", path.c_str());
-		block* requested_block=_file.blocks[start_point];
+		block* requested_block=_file.blocks.at(start_point);
 		requested_block->file_stat=&_file;
 		if(INVALID == requested_block->valid)
 		{
@@ -326,7 +326,15 @@ int IOnode::_receive_data(CBB::Common::extended_IO_task* new_task,
 	{
 		file& _file=_files.at(file_no);
 		block_info_t &blocks=_file.blocks;
-		block* _block=blocks[start_point];
+		block* _block=NULL;
+		try
+		{
+			_block=blocks.at(start_point);
+		}
+		catch(std::out_of_range &e)
+		{
+			_block=blocks.insert(std::make_pair(start_point, new block(start_point, size, CLEAN, INVALID, &_file))).first->second;
+		}
 		if(INVALID == _block->valid)
 		{
 			_block->allocate_memory();
