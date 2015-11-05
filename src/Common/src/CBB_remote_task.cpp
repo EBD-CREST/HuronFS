@@ -61,6 +61,7 @@ void* CBB_remote_task::thread_fun(void* args)
 	while(KEEP_ALIVE == this_obj->keepAlive)
 	{
 		remote_task* new_task=this_obj->remote_task_queue.get_task();
+		_DEBUG("remote task received\n");
 		this_obj->remote_task_handler(new_task);
 		this_obj->remote_task_queue.task_dequeue();
 	}

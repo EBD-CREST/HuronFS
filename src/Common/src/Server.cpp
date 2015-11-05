@@ -123,6 +123,7 @@ int Server::input_from_producer(task_parallel_queue<extended_IO_task>* input_que
 	while(!input_queue->is_empty())
 	{
 		extended_IO_task* new_task=input_queue->get_task();
+		_DEBUG("new IO task\n");
 		send(new_task);
 		input_queue->task_dequeue();
 	}

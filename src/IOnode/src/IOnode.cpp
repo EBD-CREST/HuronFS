@@ -397,10 +397,10 @@ int IOnode::_close_file(CBB::Common::extended_IO_task* new_task,
 			{
 				//_write_to_storage(path, _block);
 				CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
+				_DEBUG("add write back\n");
 			}
-			delete _block;
 		}
-		_files.erase(file_no);
+		//_files.erase(file_no);
 		//_file_path.erase(file_no);
 		//Send(sockfd, SUCCESS);
 		return SUCCESS;
@@ -531,7 +531,7 @@ size_t IOnode::_read_from_storage(const std::string& path, block* block_data)thr
 size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 {
 	std::string real_path=_get_real_path(block_data->file_stat->file_path);
-	int fd = open64(real_path.c_str(),O_WRONLY);
+	int fd = open64(real_path.c_str(),O_WRONLY|O_CREAT, 0600);
 	if( -1 == fd)
 	{
 		perror("Open File");
@@ -542,6 +542,23 @@ size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 	{
 		perror("Seek"); 
 		throw std::runtime_error("Seek File Error"); 
+	}
+	size_t len=block_data->data_size;
+	ssize_t ret=0;
+	const char* buf=static_cast<const char*>(block_data->data);
+	while(0 != len && 0 != (ret=write(fd, buf, len)))
+	{
+		if(-1 == ret)
+		{
+			if(EINVAL == errno || EAGAIN == errno)
+			{
+				continue;
+			}
+			perror("do_recv");
+			break;
+		}
+		buf += ret;
+		len -= ret;
 	}
 	close(fd);
 
@@ -573,6 +590,7 @@ int IOnode::_flush_file(CBB::Common::extended_IO_task* new_task,
 			{
 				//_write_to_storage(path, _block);
 				CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
+				_DEBUG("add write back\n");
 			}
 		}
 		return SUCCESS;
@@ -670,6 +688,7 @@ int IOnode::remote_task_handler(remote_task* new_task)
 	switch(new_task->get_mode())
 	{
 		case CBB_REMOTE_WRITE_BACK:
+			_DEBUG("write back\n");
 			_write_to_storage(IO_block);break;
 	}
 	return SUCCESS;
