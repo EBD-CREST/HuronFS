@@ -52,7 +52,10 @@ CBB_client::CBB_client():
 	{
 		_opened_file[i]=false;
 	}
+}
 
+void CBB_client::start_threads()
+{
 	_client_addr.sin_family = AF_INET;
 	_client_addr.sin_port = htons(0);
 	_client_addr.sin_addr.s_addr = htons(INADDR_ANY);

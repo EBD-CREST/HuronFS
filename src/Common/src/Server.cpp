@@ -54,7 +54,6 @@ void Server::_init_server()throw(std::runtime_error)
 		perror("Server Listen PORT ERROR");  
 		throw std::runtime_error("Server Listen PORT ERROR");   
 	}
-	CBB_communication_thread::_add_socket(_server_socket);
 	CBB_communication_thread::set_queue(&_communication_input_queue, &_communication_output_queue);
 	CBB_request_handler::set_queue(&_communication_output_queue, &_communication_input_queue);
 	return; 
@@ -64,6 +63,7 @@ int Server::start_server()
 {
 	CBB_communication_thread::start_communication_server();
 	CBB_remote_task::start_listening();
+	CBB_communication_thread::_add_socket(_server_socket);
 	return CBB_request_handler::start_handler();
 }
 

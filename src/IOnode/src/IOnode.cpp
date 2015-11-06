@@ -112,6 +112,11 @@ IOnode::IOnode(const std::string& master_ip,
 	_master_conn_addr.sin_addr.s_addr = htons(INADDR_ANY);
 	_master_conn_addr.sin_port = htons(MASTER_CONN_PORT);
 
+	const char *IOnode_mount_point=getenv(IONODE_MOUNT_POINT);
+	if( NULL == IOnode_mount_point)
+	{
+		throw std::runtime_error("please set IONODE_MOUNT_POINT environment value");
+	}
 	_master_addr.sin_family = AF_INET;
 	_master_addr.sin_port = htons(master_port);
 	if( 0  ==  inet_aton(master_ip.c_str(), &_master_addr.sin_addr))
@@ -128,15 +133,6 @@ IOnode::IOnode(const std::string& master_ip,
 		//_unregist();
 		throw;
 	}
-	if(-1  ==  (_node_id=_regist(&_communication_input_queue, &_communication_output_queue)))
-	{
-		throw std::runtime_error("Get Node Id Error"); 
-	}
-	const char *IOnode_mount_point=getenv(IONODE_MOUNT_POINT);
-	if( NULL == IOnode_mount_point)
-	{
-		throw std::runtime_error("please set IONODE_MOUNT_POINT environment value");
-	}
 	_mount_point=std::string(IOnode_mount_point);
 }
 
@@ -149,6 +145,10 @@ IOnode::~IOnode()
 int IOnode::start_server()
 {
 	Server::start_server();
+	if(-1  ==  (_node_id=_regist(&_communication_input_queue, &_communication_output_queue)))
+	{
+		throw std::runtime_error("Get Node Id Error"); 
+	}
 	while(1)
 	{
 		sleep(1000000);

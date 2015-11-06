@@ -97,6 +97,7 @@ namespace CBB
 				//initalize parameters
 				CBB_client();
 				virtual ~CBB_client();
+				void start_threads();
 				//posix API
 				int _open(const char *path, int flag, mode_t mode);
 				ssize_t _read(int fd, void *buffer, size_t size);

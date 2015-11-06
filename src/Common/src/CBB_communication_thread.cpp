@@ -7,7 +7,6 @@
 
 using namespace CBB::Common;
 
-
 basic_IO_task::basic_IO_task():
 	basic_task(),
 	socket(-1),
@@ -31,31 +30,18 @@ extended_IO_task::~extended_IO_task()
 
 CBB_communication_thread::CBB_communication_thread()throw(std::runtime_error):
 	keepAlive(KEEP_ALIVE),
-	epollfd(epoll_create(LENGTH_OF_LISTEN_QUEUE+1)),
+	epollfd(-1),
 	_socket_pool(),
 	thread_started(UNSTARTED),
 	input_queue(),
 	output_queue(),
 	communication_thread(),
-	queue_event_fd(eventfd(0,0))
+	queue_event_fd(-1)
 {
-	if(-1 == queue_event_fd)
-	{
-		perror("eventfd");
-		throw std::runtime_error("CBB_communication_thread"); 
-	}
-
-	if(-1  ==  epollfd)
-	{
-		perror("epoll_creation"); 
-		throw std::runtime_error("CBB_communication_thread"); 
-	}
 }
 
 CBB_communication_thread::~CBB_communication_thread()
 {
-	stop_communication_server();
-	close(epollfd);
 	for(socket_pool_t::iterator it=_socket_pool.begin(); 
 			it!=_socket_pool.end(); ++it)
 	{
@@ -65,6 +51,8 @@ CBB_communication_thread::~CBB_communication_thread()
 		//close socket
 		close(*it); 
 	}
+	stop_communication_server();
+	close(epollfd);
 	close(queue_event_fd);
 }
 
@@ -75,6 +63,17 @@ int CBB_communication_thread::start_communication_server()
 	if(NULL == input_queue || NULL == output_queue)
 	{
 		return FAILURE;
+	}
+	if(-1 == (queue_event_fd=eventfd(0,0)))
+	{
+		perror("eventfd");
+		throw std::runtime_error("CBB_communication_thread"); 
+	}
+
+	if(-1 == (epollfd=epoll_create(LENGTH_OF_LISTEN_QUEUE+1)))
+	{
+		perror("epoll_creation"); 
+		throw std::runtime_error("CBB_communication_thread"); 
 	}
 	input_queue->set_queue_event_fd(queue_event_fd);
 	struct epoll_event event; 

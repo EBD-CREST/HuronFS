@@ -249,6 +249,12 @@ static int CBB_ftruncate(const char* path, off_t size, struct fuse_file_info* fi
 	return ret;
 }
 
+void start_threads()
+{
+	client.start_threads();
+	pthread_atfork(NULL, NULL, NULL);
+}
+
 int main(int argc, char *argv[])
 {
 	CBB_oper.open=CBB_open;
@@ -270,12 +276,26 @@ int main(int argc, char *argv[])
 	
 	char** fuse_argv=new char*[argc+2];
 	char* single_thread_string="-s";
+	bool daemon_flag=true;
 	for(int i=0; i<argc ;++i)
 	{
 		fuse_argv[i]=argv[i];
+		if(0 == strcmp(argv[i], "-d"))
+		{
+			daemon_flag=false;
+		}
 	}
+
 	fuse_argv[argc++]=single_thread_string;
 	fuse_argv[argc++]=mount_point;
+	if(daemon_flag)
+	{
+		pthread_atfork(NULL, NULL, start_threads);
+	}
+	else
+	{
+		start_threads();
+	}
 
 	return fuse_main(argc, fuse_argv, &CBB_oper, NULL);
 }
