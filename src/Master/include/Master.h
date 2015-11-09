@@ -156,6 +156,7 @@ namespace CBB
 						node_block_map_t& node_block_map); 
 
 				size_t _get_block_size(size_t length);
+				off64_t _get_block_start_point(off64_t start_point)const;
 				off64_t _get_block_start_point(off64_t start_point, size_t& size)const;
 
 				node_t& _get_IOnodes_for_IO(off64_t start_point,
@@ -218,6 +219,12 @@ namespace CBB
 		{
 			off64_t block_start_point=(start_point/BLOCK_SIZE)*BLOCK_SIZE;
 			size=start_point-block_start_point+size;
+			return block_start_point;
+		}
+
+		inline off64_t Master::_get_block_start_point(off64_t start_point)const
+		{
+			off64_t block_start_point=(start_point/BLOCK_SIZE)*BLOCK_SIZE;
 			return block_start_point;
 		}
 	}

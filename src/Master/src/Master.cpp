@@ -516,7 +516,7 @@ int Master::_parse_unlink(extended_IO_task* new_task, task_parallel_queue<extend
 	std::string relative_path;
 	std::string real_path;
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=NULL;
 	_LOG("path=%s\n", real_path.c_str());
 	file_stat_pool_t::iterator it=_file_stat_pool.find(relative_path);
 	if(_file_stat_pool.end() != it)
@@ -524,6 +524,7 @@ int Master::_parse_unlink(extended_IO_task* new_task, task_parallel_queue<extend
 		Master_file_stat& file_stat=it->second;
 		ssize_t fd=file_stat.get_fd();
 		_remove_file(fd, output_queue);
+		output=init_response_task(new_task, output_queue);
 		_file_stat_pool.erase(it);
 		output->push_back(SUCCESS);
 
@@ -531,6 +532,7 @@ int Master::_parse_unlink(extended_IO_task* new_task, task_parallel_queue<extend
 	}
 	else
 	{
+		output=init_response_task(new_task, output_queue);
 		output->push_back(-ENOENT);
 		ret=FAILURE;
 	}
@@ -718,9 +720,9 @@ int Master::_parse_truncate_file(extended_IO_task* new_task, task_parallel_queue
 			if(file->get_stat().st_size > size)
 			{
 				//send free to IOnode;
-				for(off64_t block_start_point=0;
+				for(off64_t block_start_point=_get_block_start_point(file->get_stat().st_size);
 						file->get_stat().st_size > static_cast<off64_t>(block_start_point+BLOCK_SIZE);
-						block_start_point+=BLOCK_SIZE)
+						block_start_point-=BLOCK_SIZE)
 				{
 					node_t::iterator it=file->p_node.find(block_start_point);
 					ssize_t node_id=it->second;
@@ -731,6 +733,7 @@ int Master::_parse_truncate_file(extended_IO_task* new_task, task_parallel_queue
 					output->push_back(block_start_point);
 					output_queue->task_enqueue();
 					file->p_node.erase(it);
+					file->get_stat().st_size-=BLOCK_SIZE;
 				}
 			}
 			file->get_stat().st_size=size;

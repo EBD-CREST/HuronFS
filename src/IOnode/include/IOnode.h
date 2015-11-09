@@ -59,6 +59,7 @@ namespace CBB
 					bool valid;
 					int exist_flag;
 					file* file_stat;
+					CBB::Common::remote_task* write_back_task;
 				};
 				//map: start_point : block*
 				typedef CBB::Common::CBB_map<off64_t, block*> block_info_t; 

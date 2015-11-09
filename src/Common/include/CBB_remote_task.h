@@ -31,7 +31,7 @@ namespace CBB
 				virtual int remote_task_handler(remote_task* new_task)=0;
 				int start_listening();
 				void stop_listening();
-				int add_remote_task(int task_code, void* file);
+				remote_task* add_remote_task(int task_code, void* file);
 				static void* thread_fun(void* args);
 			private:
 				int keepAlive;

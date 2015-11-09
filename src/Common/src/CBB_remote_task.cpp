@@ -69,10 +69,11 @@ void* CBB_remote_task::thread_fun(void* args)
 	return NULL;
 }
 
-int CBB_remote_task::add_remote_task(int task_code, void* file)
+remote_task* CBB_remote_task::add_remote_task(int task_code, void* file)
 {
 	remote_task* new_task = remote_task_queue.allocate_tmp_node();
 	new_task->set_mode(task_code);
 	new_task->set_file_stat(file);
-	return remote_task_queue.task_enqueue_signal_notification();
+	remote_task_queue.task_enqueue_signal_notification();
+	return new_task;
 }

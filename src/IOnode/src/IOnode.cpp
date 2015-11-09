@@ -34,7 +34,8 @@ IOnode::block::block(off64_t start_point,
 	start_point(start_point),
 	dirty_flag(dirty_flag),
 	valid(INVALID),
-	file_stat(file_stat)
+	file_stat(file_stat),
+	write_back_task(NULL)
 {
 	if(INVALID != valid)
 	{
@@ -58,7 +59,8 @@ IOnode::block::block(const block & src):
 	start_point(src.start_point),
 	dirty_flag(src.dirty_flag),
 	valid(src.valid),
-	file_stat(NULL)
+	file_stat(NULL),
+	write_back_task(NULL)
 {};
 
 IOnode::file::file(const char *path, int exist_flag, ssize_t file_no):
@@ -90,6 +92,7 @@ void IOnode::block::allocate_memory()throw(std::bad_alloc)
 	{
 		throw std::bad_alloc();
 	}
+	valid=VALID;
 	return;
 }
 
@@ -289,7 +292,6 @@ int IOnode::_send_data(CBB::Common::extended_IO_task* new_task,
 			{
 				_read_from_storage(path, requested_block);
 			}
-			requested_block->valid = VALID;
 		}
 		output->push_back(SUCCESS);
 		output->set_send_buffer(reinterpret_cast<unsigned char*>(requested_block->data)+offset, size);
@@ -401,10 +403,10 @@ int IOnode::_close_file(CBB::Common::extended_IO_task* new_task,
 				it != blocks.end();++it)
 		{
 			block* _block=it->second;
-			if(DIRTY == _block->dirty_flag)
+			if(DIRTY == _block->dirty_flag && NULL == _block->write_back_task)
 			{
 				//_write_to_storage(path, _block);
-				CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
+				_block->write_back_task=CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
 				_DEBUG("add write back\n");
 			}
 		}
@@ -448,9 +450,15 @@ void IOnode::_append_block(extended_IO_task* new_task,
 	size_t data_size=0;
 	new_task->pop(start_point); 
 	new_task->pop(data_size); 
+	block* new_block=NULL;
 	_DEBUG("append request from Master\n");
 	_DEBUG("start_point=%lu, data_size=%lu\n", start_point, data_size);
-	file_stat.blocks.insert(std::make_pair(start_point, new block(start_point, data_size, CLEAN, INVALID, &file_stat)));
+	if(NULL == (new_block=new block(start_point, data_size, CLEAN, INVALID, &file_stat)))
+	{
+		perror("allocate");
+		throw std::runtime_error("appen_block");
+	}
+	file_stat.blocks.insert(std::make_pair(start_point, new_block));
 	return ;
 }
 
@@ -539,6 +547,8 @@ size_t IOnode::_read_from_storage(const std::string& path, block* block_data)thr
 size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 {
 	std::string real_path=_get_real_path(block_data->file_stat->file_path);
+	block_data->write_back_task=NULL;
+	block_data->dirty_flag=CLEAN;
 	int fd = open64(real_path.c_str(),O_WRONLY|O_CREAT, 0600);
 	if( -1 == fd)
 	{
@@ -571,7 +581,6 @@ size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 	}
 	close(fd);
 
-	block_data->dirty_flag=CLEAN;
 	return block_data->data_size;
 }
 
@@ -595,10 +604,10 @@ int IOnode::_flush_file(CBB::Common::extended_IO_task* new_task,
 				it != blocks.end();++it)
 		{
 			block* _block=it->second;
-			if(DIRTY == _block->dirty_flag)
+			if(DIRTY == _block->dirty_flag && NULL == _block->write_back_task)
 			{
 				//_write_to_storage(path, _block);
-				CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
+				_block->write_back_task=CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
 				_DEBUG("add write back\n");
 			}
 		}
@@ -665,12 +674,16 @@ int IOnode::_truncate_file(CBB::Common::extended_IO_task* new_task,
 	new_task->pop(fd);
 	new_task->pop(start_point);
 	_LOG("fd=%ld, start_point=%ld\n", fd, start_point);
-	try{
-		file& _file=_files.at(fd);
-		delete _file.blocks.at(start_point);
+	file& _file=_files.at(fd);
+	block_info_t::iterator requested_block=_file.blocks.find(start_point);
+	if(_file.blocks.end() != requested_block)
+	{ 
+		delete requested_block->second;
+		_file.blocks.erase(requested_block);
+
 		return SUCCESS;
 	}
-	catch(std::out_of_range)
+	else
 	{
 		return FAILURE;
 	}
@@ -678,28 +691,34 @@ int IOnode::_truncate_file(CBB::Common::extended_IO_task* new_task,
 
 int IOnode::_remove_file(ssize_t file_no)
 {
-	_files.erase(file_no);
-	//file& _file=_files.find(file_no);
-	/*file_blocks_t::iterator it
-	_file_path.erase(file_no);
-	for(block_info_t::iterator block_it=it->second.begin();
-			block_it!=it->second.end();++block_it)
+	//_files.erase(file_no);
+	file_t::iterator it=_files.find(file_no);
+	if(_files.end() != it)
 	{
-		delete block_it->second;
+		for(block_info_t::iterator block_it=it->second.blocks.begin();
+				block_it!=it->second.blocks.end();++block_it)
+		{
+			if(NULL != block_it->second->write_back_task)
+			{
+				block_it->second->write_back_task->set_file_stat(NULL);
+			}
+			delete block_it->second;
+		}
+		_files.erase(it);
 	}
-	_files.erase(it);*/
 	return SUCCESS;
 }
 
 int IOnode::remote_task_handler(remote_task* new_task)
 {
 	block* IO_block=static_cast<block*>(new_task->get_file_stat());
-	switch(new_task->get_mode())
+	if(NULL != IO_block)
 	{
-		case CBB_REMOTE_WRITE_BACK:
-			//_DEBUG("write back\n");
-			_DEBUG("write to %s, size=%ld, offset=%ld, file_no=%ld\n", IO_block->file_stat->file_path.c_str(), IO_block->data_size, IO_block->start_point, IO_block->file_stat->file_no);
-			//_write_to_storage(IO_block);break;
+		switch(new_task->get_mode())
+		{
+			case CBB_REMOTE_WRITE_BACK:
+				_write_to_storage(IO_block);break;
+		}
 	}
 	return SUCCESS;
 }
