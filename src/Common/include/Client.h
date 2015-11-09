@@ -46,7 +46,13 @@ namespace CBB
 
 		inline extended_IO_task* Client::get_query_response(extended_IO_task* query)
 		{
-			return _communication_input_queue.get_task();
+			extended_IO_task* ret=_communication_input_queue.get_task();
+			while(ret->get_socket() != query->get_socket())
+			{
+				_DEBUG("error!\n");
+				ret=_communication_input_queue.get_task();
+			}
+			return ret;
 		}
 		
 		inline int Client::response_dequeue(extended_IO_task* response)

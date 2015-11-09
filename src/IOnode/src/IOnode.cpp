@@ -554,6 +554,7 @@ size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 	size_t len=block_data->data_size;
 	ssize_t ret=0;
 	const char* buf=static_cast<const char*>(block_data->data);
+	_DEBUG("write to %s, size=%ld, offset=%ld, file_no=%ld\n", real_path.c_str(), block_data->data_size, block_data->start_point, block_data->file_stat->file_no);
 	while(0 != len && 0 != (ret=write(fd, buf, len)))
 	{
 		if(-1 == ret)
@@ -696,8 +697,9 @@ int IOnode::remote_task_handler(remote_task* new_task)
 	switch(new_task->get_mode())
 	{
 		case CBB_REMOTE_WRITE_BACK:
-			_DEBUG("write back\n");
-			_write_to_storage(IO_block);break;
+			//_DEBUG("write back\n");
+			_DEBUG("write to %s, size=%ld, offset=%ld, file_no=%ld\n", IO_block->file_stat->file_path.c_str(), IO_block->data_size, IO_block->start_point, IO_block->file_stat->file_no);
+			//_write_to_storage(IO_block);break;
 	}
 	return SUCCESS;
 }
