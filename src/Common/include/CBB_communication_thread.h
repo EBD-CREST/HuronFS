@@ -222,8 +222,6 @@ namespace CBB
 		inline size_t extended_IO_task::get_received_data(void* buffer)
 		{
 			memcpy(buffer, receive_buffer, extended_size);
-			//delete receive_buffer;
-			//receive_buffer=NULL;
 			return extended_size;
 		}
 

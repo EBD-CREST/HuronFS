@@ -35,7 +35,9 @@ IOnode::block::block(off64_t start_point,
 	dirty_flag(dirty_flag),
 	valid(INVALID),
 	file_stat(file_stat),
-	write_back_task(NULL)
+	write_back_task(NULL),
+	locker(),
+	TO_BE_DELETED(CLEAN)
 {
 	if(INVALID != valid)
 	{
@@ -60,7 +62,9 @@ IOnode::block::block(const block & src):
 	dirty_flag(src.dirty_flag),
 	valid(src.valid),
 	file_stat(NULL),
-	write_back_task(NULL)
+	write_back_task(NULL),
+	locker(),
+	TO_BE_DELETED(CLEAN)
 {};
 
 IOnode::file::file(const char *path, int exist_flag, ssize_t file_no):
@@ -403,12 +407,15 @@ int IOnode::_close_file(CBB::Common::extended_IO_task* new_task,
 				it != blocks.end();++it)
 		{
 			block* _block=it->second;
-			if(DIRTY == _block->dirty_flag && NULL == _block->write_back_task)
+			_block->lock();
+			if((DIRTY == _block->dirty_flag && NULL == _block->write_back_task) ||
+					(CLEAN == _block->dirty_flag && NULL != _block->write_back_task))
 			{
 				//_write_to_storage(path, _block);
 				_block->write_back_task=CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
 				_DEBUG("add write back\n");
 			}
+			_block->unlock();
 		}
 		//_files.erase(file_no);
 		//_file_path.erase(file_no);
@@ -444,7 +451,7 @@ int IOnode::_rename(CBB::Common::extended_IO_task* new_task,
 }
 
 void IOnode::_append_block(extended_IO_task* new_task,
-		file& file_stat)
+		file& file_stat)throw(std::runtime_error)
 {
 	off64_t start_point=0;
 	size_t data_size=0;
@@ -546,9 +553,13 @@ size_t IOnode::_read_from_storage(const std::string& path, block* block_data)thr
 
 size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 {
-	std::string real_path=_get_real_path(block_data->file_stat->file_path);
-	block_data->write_back_task=NULL;
+	block_data->lock();
 	block_data->dirty_flag=CLEAN;
+	std::string real_path=_get_real_path(block_data->file_stat->file_path);
+	off64_t start_point=block_data->start_point;
+	size_t size=block_data->data_size, len=size;
+	const char* buf=static_cast<const char*>(block_data->data);
+	block_data->unlock();
 	int fd = open64(real_path.c_str(),O_WRONLY|O_CREAT, 0600);
 	if( -1 == fd)
 	{
@@ -556,15 +567,13 @@ size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 		throw std::runtime_error("Open File Error\n");
 	}
 	off64_t pos;
-	if(-1 == (pos=lseek64(fd, block_data->start_point, SEEK_SET)))
+	if(-1 == (pos=lseek64(fd, start_point, SEEK_SET)))
 	{
 		perror("Seek"); 
 		throw std::runtime_error("Seek File Error"); 
 	}
-	size_t len=block_data->data_size;
 	ssize_t ret=0;
-	const char* buf=static_cast<const char*>(block_data->data);
-	_DEBUG("write to %s, size=%ld, offset=%ld, file_no=%ld\n", real_path.c_str(), block_data->data_size, block_data->start_point, block_data->file_stat->file_no);
+	_DEBUG("write to %s, size=%ld, offset=%ld\n", real_path.c_str(), len, start_point);
 	while(0 != len && 0 != (ret=write(fd, buf, len)))
 	{
 		if(-1 == ret)
@@ -580,8 +589,14 @@ size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 		len -= ret;
 	}
 	close(fd);
-
-	return block_data->data_size;
+	block_data->lock();
+	block_data->write_back_task=NULL;
+	block_data->unlock();
+	if(block_data->TO_BE_DELETED)
+	{
+		delete block_data;
+	}
+	return size-len;
 }
 
 int IOnode::_flush_file(CBB::Common::extended_IO_task* new_task,
@@ -604,12 +619,15 @@ int IOnode::_flush_file(CBB::Common::extended_IO_task* new_task,
 				it != blocks.end();++it)
 		{
 			block* _block=it->second;
-			if(DIRTY == _block->dirty_flag && NULL == _block->write_back_task)
+			_block->lock();
+			if((DIRTY == _block->dirty_flag && NULL == _block->write_back_task) ||
+					(CLEAN == _block->dirty_flag && NULL != _block->write_back_task))
 			{
 				//_write_to_storage(path, _block);
 				_block->write_back_task=CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
 				_DEBUG("add write back\n");
 			}
+			_block->unlock();
 		}
 		return SUCCESS;
 	}
@@ -698,11 +716,20 @@ int IOnode::_remove_file(ssize_t file_no)
 		for(block_info_t::iterator block_it=it->second.blocks.begin();
 				block_it!=it->second.blocks.end();++block_it)
 		{
+			block_it->second->lock();
 			if(NULL != block_it->second->write_back_task)
 			{
-				block_it->second->write_back_task->set_file_stat(NULL);
+				if(CLEAN == block_it->second->dirty_flag)
+				{
+					block_it->second->TO_BE_DELETED=SET;
+					block_it->second->unlock();
+				}
+				else
+				{
+					block_it->second->write_back_task->set_file_stat(NULL);
+					delete block_it->second;
+				}
 			}
-			delete block_it->second;
 		}
 		_files.erase(it);
 	}

@@ -51,6 +51,8 @@ namespace CBB
 					block(const block&);
 
 					void allocate_memory()throw(std::bad_alloc);
+					int lock();
+					int unlock();
 					
 					size_t data_size;
 					void* data;
@@ -60,6 +62,10 @@ namespace CBB
 					int exist_flag;
 					file* file_stat;
 					CBB::Common::remote_task* write_back_task;
+					pthread_mutex_t locker;
+					//remote handler will delete this struct if TO_BE_DELETED is setted
+					//this appends when user unlink file while remote handler is writing back
+					bool TO_BE_DELETED;
 				};
 				//map: start_point : block*
 				typedef CBB::Common::CBB_map<off64_t, block*> block_info_t; 
@@ -127,7 +133,7 @@ namespace CBB
 				size_t _read_from_storage(const std::string& path,
 						block* block_data)throw(std::runtime_error);
 				void _append_block(CBB::Common::extended_IO_task* new_task,
-						file& file_stat);
+						file& file_stat)throw(std::runtime_error);
 				virtual std::string _get_real_path(const char* path)const;
 
 				std::string _get_real_path(const std::string& path)const;
@@ -155,6 +161,14 @@ namespace CBB
 				std::string _mount_point;
 				int _master_socket;
 		};
+		inline int IOnode::block::lock()
+		{
+			return pthread_mutex_lock(&locker);
+		}
+		inline int IOnode::block::unlock()
+		{
+			return pthread_mutex_unlock(&locker);
+		}
 	}
 }
 
