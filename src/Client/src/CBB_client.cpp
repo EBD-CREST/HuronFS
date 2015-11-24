@@ -16,6 +16,8 @@
 #include <errno.h>
 //#include <functional>
 
+#include <execinfo.h>
+
 #include "CBB_client.h"
 #include "CBB_internal.h"
 #include "CBB_const.h"
@@ -27,6 +29,28 @@ using namespace CBB::Client;
 const char* CBB_client::CLIENT_MOUNT_POINT="CBB_CLIENT_MOUNT_POINT";
 const char* CBB_client::MASTER_IP_LIST="CBB_MASTER_IP_LIST";
 const char *mount_point=NULL;
+
+/*#define CHECK_INIT()                                                      \
+	do                                                                \
+	{                                                                 \
+		if(!_initial)                                             \
+		{                                                         \
+			fprintf(stderr, "initialization unfinished\n");   \
+			errno = EAGAIN;                                   \
+			return -1;                                        \
+		}                                                         \
+	}while(0)*/
+
+//tmp solution
+#define CHECK_INIT()                                                      \
+	do                                                                \
+	{                                                                 \
+		if(!_initial)                                             \
+		{                                                         \
+			start_threads();				  \
+			_initial=true;					  \
+		}                                                         \
+	}while(0)
 
 CBB_client::CBB_client():
 	Client(),

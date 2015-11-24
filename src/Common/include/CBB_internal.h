@@ -55,17 +55,6 @@
 #endif
 
 
-#define CHECK_INIT()                                                      \
-	do                                                                \
-	{                                                                 \
-		if(!_initial)                                             \
-		{                                                         \
-			fprintf(stderr, "initialization unfinished\n");   \
-			errno = EAGAIN;                                   \
-			return -1;                                        \
-		}                                                         \
-	}while(0)
-
 #define MIN(a,b) ((a)>(b)?(b):(a))
 #define MAX(a,b) ((a)<(b)?(b):(a))
 
