@@ -820,7 +820,7 @@ void Master::_send_block_info(extended_IO_task* output,
 	//S: data size: size_t
 	//S: SUCCESS: int
 	//R: ret
-/*
+
 void Master::_send_append_request(ssize_t file_no,
 		const node_block_map_t& append_blocks,
 		task_parallel_queue<extended_IO_task>* output_queue)
@@ -842,7 +842,7 @@ void Master::_send_append_request(ssize_t file_no,
 		output_queue->task_enqueue();
 	}
 	return;
-}*/
+}
 
 //S: APPEND_BLOCK: int
 //S: file no: ssize_t
@@ -1147,7 +1147,7 @@ node_t& Master::_get_IOnodes_for_IO(off64_t start_point,
 	off64_t current_point=_get_block_start_point(start_point, size);
 	ssize_t remaining_size=size;
 	node_t::iterator it;
-	//node_block_map_t node_append_block;
+	node_block_map_t node_append_block;
 	for(;remaining_size>0;remaining_size-=BLOCK_SIZE, current_point+=BLOCK_SIZE)
 	{
 		if(file.p_node.end() != (it=file.p_node.find(current_point)))
@@ -1164,7 +1164,7 @@ node_t& Master::_get_IOnodes_for_IO(off64_t start_point,
 				node_set.insert(std::make_pair(current_point, node_id));
 				node_id_pool.insert(node_id);
 				size_t IO_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));
-				//node_append_block[node_id].insert(std::make_pair(current_point, IO_size));
+				node_append_block[node_id].insert(std::make_pair(current_point, IO_size));
 			}
 			catch(std::bad_alloc& e)
 			{
@@ -1172,7 +1172,7 @@ node_t& Master::_get_IOnodes_for_IO(off64_t start_point,
 			}
 		}
 	}
-	//_send_append_request(file.file_no, node_append_block, output_queue);
+	_send_append_request(file.file_no, node_append_block, output_queue);
 	return node_set;
 }
 
