@@ -459,6 +459,7 @@ int Master::_parse_attr(extended_IO_task* new_task, task_parallel_queue<extended
 			struct stat& status=file_stat.get_status();
 			output->push_back(SUCCESS);
 			Send_attr(output, &status);
+			_DEBUG("%ld\n", status.st_size);
 			ret=SUCCESS;
 		}
 	}
@@ -1319,6 +1320,7 @@ int Master::_dfs_items_in_remote(DIR* current_remote_directory,
 			}
 			file_path[offset+len]='/';
 			_dfs_items_in_remote(new_dir, file_path, file_relative_path, offset+len+1);
+			closedir(new_dir);
 		}
 	}
 	return SUCCESS;

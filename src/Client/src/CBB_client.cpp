@@ -48,7 +48,6 @@ const char *mount_point=NULL;
 		if(!_initial)                                             \
 		{                                                         \
 			start_threads();				  \
-			_initial=true;					  \
 		}                                                         \
 	}while(0)
 
