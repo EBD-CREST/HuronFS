@@ -81,7 +81,7 @@ IOnode::file::~file()
 	for(block_info_t::iterator block_it=blocks.begin();
 			block_it!=end;++block_it)
 	{
-		_DEBUG("delete block %p\n", block_it->second);
+		//_DEBUG("delete block %p\n", block_it->second);
 		delete block_it->second;
 	}
 }

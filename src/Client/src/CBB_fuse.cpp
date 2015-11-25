@@ -274,7 +274,6 @@ void test()
 void start_threads()
 {
 	client.start_threads();
-	//pthread_atfork(NULL, NULL, NULL);
 }
 
 int main(int argc, char *argv[])
@@ -317,7 +316,7 @@ int main(int argc, char *argv[])
 	}*/
 	if(!daemon_flag)
 	{
-		start_threads();
+		client.start_threads();
 	}
 
 	return fuse_main(argc, fuse_argv, &CBB_oper, NULL);

@@ -108,6 +108,7 @@ int CBB_communication_thread::stop_communication_server()
 int CBB_communication_thread::_add_socket(int socketfd)
 {
 	struct epoll_event event; 
+	memset(&event, 0, sizeof(event));
 	event.data.fd=socketfd; 
 	event.events=EPOLLIN; 
 	_socket_pool.insert(socketfd); 
@@ -117,6 +118,7 @@ int CBB_communication_thread::_add_socket(int socketfd)
 int CBB_communication_thread::_add_socket(int socketfd, int op)
 {
 	struct epoll_event event; 
+	memset(&event, 0, sizeof(event));
 	event.data.fd=socketfd; 
 	event.events=EPOLLIN|op; 
 	_socket_pool.insert(socketfd); 
