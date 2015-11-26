@@ -98,7 +98,7 @@ int Master::start_server()
 
 int Master::remote_task_handler(remote_task* new_task)
 {
-	
+	return SUCCESS;
 }
 
 int Master::_parse_request(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
@@ -210,7 +210,6 @@ int Master::_parse_open_file(extended_IO_task* new_task, task_parallel_queue<ext
 	int flag=0,ret=SUCCESS;
 	ssize_t file_no=0;
 	int exist_flag=EXISTING;
-	//bad hack, fix it later
 	std::string str_file_path=std::string(file_path);
 	file_stat_pool_t::iterator it=_file_stat_pool.find(str_file_path);
 
@@ -221,7 +220,6 @@ int Master::_parse_open_file(extended_IO_task* new_task, task_parallel_queue<ext
 		mode_t mode;
 		new_task->pop(mode);
 		exist_flag=NOT_EXIST;
-		//_create_file(file_path, mode);
 		flag &= ~(O_CREAT | O_TRUNC);
 	}
 	if((_file_stat_pool.end() != it))
@@ -466,13 +464,6 @@ int Master::_parse_attr(extended_IO_task* new_task, task_parallel_queue<extended
 	catch(std::out_of_range &e)
 	{
 		output->push_back(master_number);
-		/*try
-		{
-			Master_file_stat* new_file=_create_new_file_stat_pool(relative_path.c_str(), EXISTING);
-			Send(clientfd, SUCCESS);
-			Send_attr(clientfd, &(new_file_stat_poolus->fstat));
-			return SUCCESS;
-		}*/
 		output->push_back(-ENOENT);
 		ret=FAILURE;
 	}
@@ -1023,23 +1014,6 @@ Master::IOnode_t::iterator Master::_find_by_ip(const std::string &ip)
 	return it;
 }
 
-void Master::_create_file(const char* file_path, mode_t mode)throw(std::runtime_error)
-{
-	std::string real_path=_get_real_path(file_path);
-
-	/*int fd=creat64(real_path.c_str(), mode);
-	if(-1 == fd)
-	{
-		throw std::runtime_error("error on create file");
-	}
-	else
-	{
-		close(fd);
-		return ;
-	}*/
-}
-
-
 open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 		int flag,
 		Master_file_stat* stat,
@@ -1070,16 +1044,6 @@ Master_file_stat* Master::_create_new_file_stat(const char* relative_path,
 	_DEBUG("file path=%s\n", real_path.c_str());
 	struct stat file_status;
 
-	/*if(EXISTING == exist_flag)
-	{
-		if(-1 == stat(real_path.c_str(), &file_status))
-		{
-			_DEBUG("file can not open\n");
-			throw std::invalid_argument("file can not open");
-		}
-	}
-	else
-	{*/
 	time_t current_time;
 	memset(&file_status, 0, sizeof(file_status));
 	time(&current_time);
@@ -1105,7 +1069,6 @@ node_t Master::_select_IOnode(off64_t start_point,
 		node_block_map_t& node_block_map)
 {
 	off64_t block_start_point=_get_block_start_point(start_point, file_size);
-	//int node_number = (file_size+block_size-1)/block_size,count=(node_number+_node_number-1)/_node_number, count_node=0;
 	node_t nodes;
 	if(0 == _node_number)
 	{
@@ -1209,14 +1172,12 @@ int Master::_remove_file(ssize_t file_no, task_parallel_queue<extended_IO_task>*
 		for(node_pool_t::iterator it=file.nodes.begin();
 				it != file.nodes.end();++it)
 		{
-			//int ret;
 			extended_IO_task* output=output_queue->allocate_tmp_node();
 			output->set_socket(_registed_IOnodes.at(*it)->socket);
 			output->push_back(UNLINK);
 			_DEBUG("unlink file no=%ld\n", file_no);
 			output->push_back(file_no);
 			output_queue->task_enqueue();
-			//Recv(socket, ret);
 		}
 		_buffered_files.erase(file_no);
 		delete &file;
@@ -1227,8 +1188,8 @@ int Master::_remove_file(ssize_t file_no, task_parallel_queue<extended_IO_task>*
 
 //low performance
 Master::dir_t Master::_get_file_stat_from_dir(const std::string& dir)
-	{
-		dir_t files;
+{
+	dir_t files;
 	ssize_t start_pos=dir.size();
 	if(dir[start_pos-1] != '/')
 	{

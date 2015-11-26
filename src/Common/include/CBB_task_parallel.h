@@ -187,10 +187,7 @@ namespace CBB
 		{
 			task_type* original_head=queue_head;
 			queue_head=queue_tmp_head;
-			//if(queue_tail->get_next() == original_head)
-			//{
-				pthread_cond_signal(&queue_empty);
-			//}
+			pthread_cond_signal(&queue_empty);
 			return SUCCESS;
 		}
 
@@ -199,15 +196,11 @@ namespace CBB
 			task_type* original_head=queue_head;
 			queue_head=queue_tmp_head;
 			static uint64_t notification=1;
-			//if(queue_tail->get_next() == original_head)
-			//{
-				//_DEBUG("task enqueue\n");
 			if(-1 == write(queue_event_fd, &notification, sizeof(uint64_t)))
 			{
 				perror("write");
 				return FAILURE;
 			}
-			//}
 			return SUCCESS;
 		}
 
