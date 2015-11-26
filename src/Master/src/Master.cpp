@@ -392,7 +392,6 @@ int Master::_parse_close_file(extended_IO_task* new_task, task_parallel_queue<ex
 {
 	_LOG("request for closing file\n");
 	ssize_t file_no;
-	int ret;
 	new_task->pop(file_no);
 	extended_IO_task* output=init_response_task(new_task, output_queue);
 	open_file_info* file=NULL;
@@ -712,7 +711,7 @@ int Master::_parse_truncate_file(extended_IO_task* new_task, task_parallel_queue
 			if(file->get_stat().st_size > size)
 			{
 				//send free to IOnode;
-				for(off64_t block_start_point=_get_block_start_point(file->get_stat().st_size);
+				for(off64_t block_start_point=get_block_start_point(file->get_stat().st_size);
 						file->get_stat().st_size > static_cast<off64_t>(block_start_point+BLOCK_SIZE);
 						block_start_point-=BLOCK_SIZE)
 				{
@@ -1023,7 +1022,7 @@ open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 	{
 		open_file_info *new_file=new open_file_info(file_no, flag, stat); 
 		_buffered_files.insert(std::make_pair(file_no, new_file));
-		new_file->block_size=_get_block_size(stat->get_status().st_size); 
+		new_file->block_size=get_block_size(stat->get_status().st_size); 
 		stat->opened_file_info=new_file;
 		_send_open_request_to_IOnodes(*new_file, output_queue);
 		return new_file;
@@ -1068,7 +1067,7 @@ node_t Master::_select_IOnode(off64_t start_point,
 		size_t block_size,
 		node_block_map_t& node_block_map)
 {
-	off64_t block_start_point=_get_block_start_point(start_point, file_size);
+	off64_t block_start_point=get_block_start_point(start_point, file_size);
 	node_t nodes;
 	if(0 == _node_number)
 	{
@@ -1091,7 +1090,6 @@ node_t Master::_select_IOnode(off64_t start_point,
 		for(int i=0;i<count && (count_node++)<node_number;++i)
 		{
 			nodes.insert(std::make_pair(block_start_point, it->first));
-			//node_pool.insert(it->first);
 			node_block_map[it->first].insert(std::make_pair(block_start_point, MIN(remaining_size, block_size)));
 			block_start_point += block_size;
 			remaining_size -= block_size;
@@ -1107,7 +1105,7 @@ node_t& Master::_get_IOnodes_for_IO(off64_t start_point,
 		node_id_pool_t& node_id_pool,
 		task_parallel_queue<extended_IO_task>* output_queue)throw(std::bad_alloc)
 {
-	off64_t current_point=_get_block_start_point(start_point, size);
+	off64_t current_point=get_block_start_point(start_point, size);
 	ssize_t remaining_size=size;
 	node_t::iterator it;
 	node_block_map_t node_append_block;

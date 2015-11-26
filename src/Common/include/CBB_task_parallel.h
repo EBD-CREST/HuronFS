@@ -185,7 +185,6 @@ namespace CBB
 
 		template<class task_type> int task_parallel_queue<task_type>::task_enqueue_signal_notification()
 		{
-			task_type* original_head=queue_head;
 			queue_head=queue_tmp_head;
 			pthread_cond_signal(&queue_empty);
 			return SUCCESS;
@@ -193,7 +192,6 @@ namespace CBB
 
 		template<class task_type> int task_parallel_queue<task_type>::task_enqueue()
 		{
-			task_type* original_head=queue_head;
 			queue_head=queue_tmp_head;
 			static uint64_t notification=1;
 			if(-1 == write(queue_event_fd, &notification, sizeof(uint64_t)))

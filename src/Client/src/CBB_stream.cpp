@@ -260,10 +260,6 @@ size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 			{
 				return total_size;
 			}
-			/*if(ret != stream->buffer_size)
-			{
-				return total_size;
-			}*/
 			stream->_update_meta_for_rebuf(CLEAN, ret);
 			size_t current_IO_size=MIN(unbuffered_size, stream->buffered_data_size);
 			memcpy(buffer, stream->buf, current_IO_size);
@@ -332,10 +328,6 @@ size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t s
 			_flush_stream(file_stream);
 
 			stream->_update_meta_for_rebuf(DIRTY, stream->buffered_data_size);
-			/*if(ret != stream->buffered_data_size)
-			{
-				return total_size;
-			}*/
 			size_t current_IO_size=MIN(unbuffered_size, stream->buffer_size);
 			memcpy(stream->buf, buffer, current_IO_size);
 			stream->_write_meta_update(current_IO_size);
@@ -373,7 +365,7 @@ off64_t CBB_stream::_seek_stream(FILE* file_stream, off64_t offset, int whence)
 			stream->cur_buf_ptr=stream->buf;
 			stream->buf_file_off=new_pos;
 			stream->buffered_data_size=0;
-			_lseek(stream->fd, new_pos, SEEK_SET);
+			_lseek(stream->fd, get_block_start_point(new_pos), SEEK_SET);
 		}
 		else
 		{

@@ -155,10 +155,6 @@ namespace CBB
 						size_t block_size,
 						node_block_map_t& node_block_map); 
 
-				size_t _get_block_size(size_t length);
-				off64_t _get_block_start_point(off64_t start_point)const;
-				off64_t _get_block_start_point(off64_t start_point, size_t& size)const;
-
 				node_t& _get_IOnodes_for_IO(off64_t start_point,
 						size_t& size,
 						struct open_file_info& file,
@@ -177,10 +173,8 @@ namespace CBB
 
 				dir_t _get_file_stat_from_dir(const std::string& path);
 
-				//void flush_map(file_stat_t& map)const;
 			private:
 				IOnode_t _registed_IOnodes;
-				//file_stat_t _file_stat;  
 				file_stat_pool_t _file_stat_pool;
 
 				File_t _buffered_files; 
@@ -207,25 +201,6 @@ namespace CBB
 		inline std::string Master::_get_real_path(const std::string& path)const
 		{
 			return _mount_point+path;
-		}
-
-		inline size_t Master::_get_block_size(size_t size)
-		{
-			return BLOCK_SIZE;
-			//return (size+_node_number-1)/_node_number;
-		}
-		inline off64_t Master::_get_block_start_point(off64_t start_point,
-				size_t& size)const
-		{
-			off64_t block_start_point=(start_point/BLOCK_SIZE)*BLOCK_SIZE;
-			size=start_point-block_start_point+size;
-			return block_start_point;
-		}
-
-		inline off64_t Master::_get_block_start_point(off64_t start_point)const
-		{
-			off64_t block_start_point=(start_point/BLOCK_SIZE)*BLOCK_SIZE;
-			return block_start_point;
 		}
 	}
 }

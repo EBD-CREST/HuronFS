@@ -4,13 +4,16 @@
 
 #ifdef DEBUG
 	#define _DEBUG(fmt, args... ) fprintf(stderr, "[%s]" fmt, __func__, ##args)
-	#define _LOG(fmt, args... ) fprintf(stderr, "[%s]" fmt, __func__, ##args)
 	#define _ERROR(fmt, args... ) fprintf(stderr, "[%s]" fmt, __func__, ##args)
 #else
 	#define _DEBUG(fmt, args... )
-	#define _LOG(fmt, args... ) 
-	//#define _LOG(fmt, args... ) fprintf("[%s]"fmt, __func__, ##args)
 	#define _ERROR(fmt, args... ) fprintf(stderr, "[%s]" fmt, __func__, ##args)
+#endif
+
+#ifdef LOG
+	#define _LOG(fmt, args... ) fprintf(stderr, "[%s]" fmt, __func__, ##args)
+#else
+	#define _LOG(fmt, args... ) 
 #endif
 
 
@@ -82,6 +85,24 @@ inline void set_server_addr(const std::string& ip, struct sockaddr_in& addr)
 		perror("IOnode Address Error");
 	}
 	return;
+}
+
+inline size_t get_block_size(size_t size)
+{
+	return BLOCK_SIZE;
+}
+inline off64_t get_block_start_point(off64_t start_point,
+		size_t& size)
+{
+	off64_t block_start_point=(start_point/BLOCK_SIZE)*BLOCK_SIZE;
+	size=start_point-block_start_point+size;
+	return block_start_point;
+}
+
+inline off64_t get_block_start_point(off64_t start_point)
+{
+	off64_t block_start_point=(start_point/BLOCK_SIZE)*BLOCK_SIZE;
+	return block_start_point;
 }
 
 #endif

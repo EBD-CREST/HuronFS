@@ -81,7 +81,6 @@ IOnode::file::~file()
 	for(block_info_t::iterator block_it=blocks.begin();
 			block_it!=end;++block_it)
 	{
-		//_DEBUG("delete block %p\n", block_it->second);
 		delete block_it->second;
 	}
 }
@@ -402,8 +401,7 @@ int IOnode::_close_file(CBB::Common::extended_IO_task* new_task,
 	{
 		file& _file=_files.at(file_no);
 		block_info_t &blocks=_file.blocks;
-		std::string &path=_file.file_path;
-		_DEBUG("close file, path=%s\n", path.c_str());
+		_DEBUG("close file, path=%s\n", _file.file_path.c_str());
 		for(block_info_t::iterator it=blocks.begin();
 				it != blocks.end();++it)
 		{
@@ -418,9 +416,6 @@ int IOnode::_close_file(CBB::Common::extended_IO_task* new_task,
 			}
 			_block->unlock();
 		}
-		//_files.erase(file_no);
-		//_file_path.erase(file_no);
-		//Send(sockfd, SUCCESS);
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -440,13 +435,10 @@ int IOnode::_rename(CBB::Common::extended_IO_task* new_task,
 	try{
 		file& _file=_files.at(file_no);
 		_file.file_path=std::string(new_path);
-		//_file_path.insert(std::make_pair(file_no, new_path));
-		//Send_flush(sockfd, SUCCESS);
 	}
 	catch(std::out_of_range& e)
 	{
 		_DEBUG("file unfound");
-		//Send_flush(sockfd, FAILURE);
 	}
 	return SUCCESS; 
 }
@@ -539,19 +531,6 @@ size_t IOnode::_read_from_storage(const std::string& path, block* block_data)thr
 	return block_data->data_size-size;
 }
 
-/*IOnode::block* IOnode::_buffer_block(off64_t start_point, size_t size)throw(std::runtime_error)
-{
-	try
-	{
-		block *new_block=new block(start_point, size, DIRTY, VALID); 
-		return new_block; 
-	}
-	catch(std::bad_alloc &e)
-	{
-		throw std::runtime_error("Memory Alloc Error"); 
-	}
-}*/
-
 size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 {
 	block_data->lock();
@@ -605,12 +584,10 @@ int IOnode::_flush_file(CBB::Common::extended_IO_task* new_task,
 {
 	ssize_t file_no=0;
 	new_task->pop(file_no);
-	//Send_flush(sockfd, SUCCESS);
 	try
 	{
 		file& _file=_files.at(file_no);
-		std::string &path=_file.file_path;
-		_DEBUG("flush file file_no=%ld, path=%s\n", file_no, path.c_str());
+		_DEBUG("flush file file_no=%ld, path=%s\n", file_no, _file.file_path.c_str());
 		block_info_t &blocks=_file.blocks;
 		if(CLEAN == _file.dirty_flag)
 		{
@@ -636,7 +613,6 @@ int IOnode::_flush_file(CBB::Common::extended_IO_task* new_task,
 	{
 		return FAILURE;
 	}
-	//Send(sockfd, SUCCESS);
 }
 
 int IOnode::_regist_new_client(CBB::Common::extended_IO_task* new_task,
@@ -656,7 +632,6 @@ int IOnode::_close_client(CBB::Common::extended_IO_task* new_task,
 	_LOG("close client\n");
 	int sockfd=new_task->get_socket();
 	Server::_delete_socket(sockfd);
-	//Send_flush(sockfd, SUCCESS);
 	close(sockfd);
 	return SUCCESS;
 }
@@ -669,7 +644,6 @@ int IOnode::_unlink(CBB::Common::extended_IO_task* new_task,
 	new_task->pop(file_no);
 	_LOG("file no=%ld\n", file_no);
 	int ret=_remove_file(file_no);	
-	//Send_flush(sockfd, SUCCESS);
 	return ret;
 
 }
@@ -710,7 +684,6 @@ int IOnode::_truncate_file(CBB::Common::extended_IO_task* new_task,
 
 int IOnode::_remove_file(ssize_t file_no)
 {
-	//_files.erase(file_no);
 	file_t::iterator it=_files.find(file_no);
 	if(_files.end() != it)
 	{

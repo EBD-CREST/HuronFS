@@ -251,31 +251,6 @@ static int CBB_ftruncate(const char* path, off_t size, struct fuse_file_info* fi
 	return ret;
 }
 
-void test()
-{
-	void *array[20];
-	size_t size;
-	char ** string=NULL;
-	size=backtrace(array, 20);
-	string=backtrace_symbols(array, 20);
-	_DEBUG("backtrace\n");
-	if(NULL == string)
-	{
-		_DEBUG("backtrace_symbols error\n");
-		exit(1);
-	}
-	for(int i=0; i<size; ++i)
-	{
-		_DEBUG("%s\n", string[i]);
-	}
-	free(string);
-}
-
-void start_threads()
-{
-	client.start_threads();
-}
-
 int main(int argc, char *argv[])
 {
 	CBB_oper.open=CBB_open;
@@ -309,11 +284,6 @@ int main(int argc, char *argv[])
 
 	fuse_argv[argc++]=single_thread_string;
 	fuse_argv[argc++]=mount_point;
-	/*if(daemon_flag)
-	{
-		//pthread_atfork(NULL, NULL, start_threads);
-		pthread_atfork(NULL, NULL, test);
-	}*/
 	if(!daemon_flag)
 	{
 		client.start_threads();
