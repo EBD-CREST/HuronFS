@@ -42,13 +42,13 @@ static int CBB_open(const char* path, struct fuse_file_info *fi)
 {
 	mode_t mode=0600;
 	int flag=fi->flags;
-	FILE* stream=NULL;
+	FILE* stream=nullptr;
 	_DEBUG("open with CBB path=%s\n", path);
 	lock_stream(stdout);
 	stream=client._open_stream(path, flag, mode);
 	unlock_stream(stdout);
 	fi->fh=(uint64_t)stream;
-	if(NULL == stream)
+	if(nullptr == stream)
 	{
 		return -errno;
 	}
@@ -70,13 +70,13 @@ static int CBB_flush(const char *path, struct fuse_file_info* fi)
 
 static int CBB_creat(const char * path, mode_t mode, struct fuse_file_info* fi)
 {
-	FILE* stream=NULL;
+	FILE* stream=nullptr;
 	_DEBUG("CBB create file path=%s\n", path);
 	lock_stream(stdout);
 	stream=client._open_stream(path, O_CREAT|O_WRONLY|O_TRUNC, mode);
 	unlock_stream(stdout);
 	fi->fh=(uint64_t)stream;
-	if(NULL == stream)
+	if(nullptr == stream)
 	{
 		return -errno;
 	}
@@ -90,7 +90,7 @@ static int CBB_read(const char* path, char *buffer, size_t count, off_t offset, 
 {
 	FILE* stream=(FILE*)fi->fh;
 	int ret=0;
-	if(NULL != stream)
+	if(nullptr != stream)
 	{
 		lock_stream(stdout);
 		if(-1 == client._seek_stream(stream, offset, SEEK_SET))
@@ -100,6 +100,69 @@ static int CBB_read(const char* path, char *buffer, size_t count, off_t offset, 
 		ret=client._read_stream(stream, buffer, count);
 		_DEBUG("ret=%d path=%s\n", ret,path);
 		unlock_stream(stdout);
+
+#if 0
+		if(0 == strcmp(path, "/data/data2/newcimages_0_0.tbl"))
+		{
+			//static int i=0;
+			char path[PATH_MAX];
+			//sprintf(path, "%s%d", "/tmp/test", i++);
+			sprintf(path, "%s", "/tmp/test0");
+			FILE* fp=fopen(path, "w");
+			if(nullptr == fp)
+			{
+				perror("open");
+			}
+			fseek(fp, offset, SEEK_SET);
+			fwrite(buffer, count, 1, fp);
+			fclose(fp);
+		}
+		if(0 == strcmp(path, "/data/data2/newcimages_0_1.tbl"))
+		{
+			//static int i=0;
+			char path[PATH_MAX];
+			//sprintf(path, "%s%d", "/tmp/test", i++);
+			sprintf(path, "%s", "/tmp/test1");
+			FILE* fp=fopen(path, "w");
+			if(nullptr == fp)
+			{
+				perror("open");
+			}
+			fseek(fp, offset, SEEK_SET);
+			fwrite(buffer, count, 1, fp);
+			fclose(fp);
+		}
+		if(0 == strcmp(path, "/data/data2/newcimages_1_0.tbl"))
+		{
+			//static int i=0;
+			char path[PATH_MAX];
+			//sprintf(path, "%s%d", "/tmp/test", i++);
+			sprintf(path, "%s", "/tmp/test2");
+			FILE* fp=fopen(path, "w");
+			if(nullptr == fp)
+			{
+				perror("open");
+			}
+			fseek(fp, offset, SEEK_SET);
+			fwrite(buffer, count, 1, fp);
+			fclose(fp);
+		}
+		if(0 == strcmp(path, "/data/data2/newcimages_1_1.tbl"))
+		{
+			//static int i=0;
+			char path[PATH_MAX];
+			//sprintf(path, "%s%d", "/tmp/test", i++);
+			sprintf(path, "%s", "/tmp/test3");
+			FILE* fp=fopen(path, "w");
+			if(nullptr == fp)
+			{
+				perror("open");
+			}
+			fseek(fp, offset, SEEK_SET);
+			fwrite(buffer, count, 1, fp);
+			fclose(fp);
+		}
+#endif
 		return ret;
 	}
 	else
@@ -113,7 +176,7 @@ static int CBB_write(const char* path, const char*buffer, size_t count, off_t of
 {
 	FILE* stream=(FILE*)fi->fh;
 	int ret;
-	if(NULL != stream)
+	if(nullptr != stream)
 	{
 		lock_stream(stdout);
 		if(-1 == client._seek_stream(stream, offset, SEEK_SET))
@@ -153,7 +216,7 @@ static int CBB_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_
 	for(CBB_client::dir_t::const_iterator it=dir.begin();
 			it!=dir.end();++it)
 	{
-		if(1 == filler(buf, it->c_str(), NULL, 0))
+		if(1 == filler(buf, it->c_str(), nullptr, 0))
 		{
 			return -1;
 		}
@@ -289,5 +352,5 @@ int main(int argc, char *argv[])
 		client.start_threads();
 	}
 
-	return fuse_main(argc, fuse_argv, &CBB_oper, NULL);
+	return fuse_main(argc, fuse_argv, &CBB_oper, nullptr);
 }

@@ -50,8 +50,8 @@ Master_file_stat::Master_file_stat(const struct stat& file_stat,
 	external_master(0),
 	external_name(),
 	exist_flag(exist_flag),
-	full_path(NULL),
-	opened_file_info(NULL)
+	full_path(nullptr),
+	opened_file_info(nullptr)
 {}
 
 Master_file_stat::Master_file_stat(const struct stat& file_stat, 
@@ -64,7 +64,7 @@ Master_file_stat::Master_file_stat(const struct stat& file_stat,
 	external_master(0),
 	external_name(),
 	exist_flag(exist_flag),
-	full_path(NULL),
+	full_path(nullptr),
 	opened_file_info(opened_file_info)
 {}
 
@@ -75,7 +75,7 @@ Master_file_stat::Master_file_stat():
 	external_master(0),
 	external_name(),
 	exist_flag(),
-	full_path(NULL),
+	full_path(nullptr),
 	opened_file_info()
 {}
 

@@ -8,7 +8,7 @@ using namespace CBB::Common;
 
 remote_task::remote_task():
 	mode(0),
-	file_stat(NULL)
+	file_stat(nullptr)
 {}
 
 remote_task::~remote_task()
@@ -30,7 +30,7 @@ CBB_remote_task::~CBB_remote_task()
 int CBB_remote_task::start_listening()
 {
 	int ret=0;
-	if(0 == (ret=pthread_create(&remote_task_thread, NULL, thread_fun, this)))
+	if(0 == (ret=pthread_create(&remote_task_thread, nullptr, thread_fun, this)))
 	{
 		thread_started=STARTED;
 	}
@@ -44,7 +44,7 @@ int CBB_remote_task::start_listening()
 void CBB_remote_task::stop_listening()
 {
 	keepAlive=NOT_KEEP_ALIVE;
-	void* ret=NULL;
+	void* ret=nullptr;
 	if(STARTED == thread_started)
 	{
 		pthread_join(remote_task_thread, &ret);
@@ -66,7 +66,7 @@ void* CBB_remote_task::thread_fun(void* args)
 		this_obj->remote_task_queue.task_dequeue();
 	}
 	_DEBUG("request handler thread end\n");
-	return NULL;
+	return nullptr;
 }
 
 remote_task* CBB_remote_task::add_remote_task(int task_code, void* file)

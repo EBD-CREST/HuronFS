@@ -27,7 +27,7 @@ void Thread_pool::create_thread_pool()throw(std::runtime_error)
 	for(int i=0;i<num_threads;++i)
 	{
 		pthread_t new_thread;
-		if(0 != pthread_create(&new_thread, NULL, (void*) thread_routine, NULL))
+		if(0 != pthread_create(&new_thread, nullptr, (void*) thread_routine, nullptr))
 		{
 			perror("thread create error");
 			throw(std::runtime_error("thread create error"));
@@ -43,7 +43,7 @@ void* Thread_pool::thread_routine()
 		pthread_cond_wait(&queue_empty, &cond_mutex);
 		do_work(detach_job());
 	}
-	pthread_exit(NULL);
+	pthread_exit(nullptr);
 }
 
 void Thread_pool::destory_thread_pool()
@@ -53,7 +53,7 @@ void Thread_pool::destory_thread_pool()
 	for(worker_pool_t::iterator it=workers.begin();
 			workers.end()!= it; ++it)
 	{
-		pthread_join(it->thread_handler, NULL);
+		pthread_join(it->thread_handler, nullptr);
 	}
 	return ;
 }
@@ -79,7 +79,7 @@ job Thread_pool::detach_job()
 		pthread_cond_wait(&queue_not_empty, &cond_mutex);
 		if(!keepAlive)
 		{
-			pthread_exit(NULL);
+			pthread_exit(nullptr);
 		}
 		job_queue.lock();
 	}

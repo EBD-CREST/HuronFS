@@ -21,8 +21,8 @@ basic_IO_task::~basic_IO_task()
 extended_IO_task::extended_IO_task():
 	basic_IO_task(),
 	extended_size(0),
-	send_buffer(NULL),
-	receive_buffer(NULL)
+	send_buffer(nullptr),
+	receive_buffer(nullptr)
 {}
 
 extended_IO_task::~extended_IO_task()
@@ -60,7 +60,7 @@ int CBB_communication_thread::start_communication_server()
 {
 	int ret=SUCCESS;
 
-	if(NULL == input_queue || NULL == output_queue)
+	if(nullptr == input_queue || nullptr == output_queue)
 	{
 		return FAILURE;
 	}
@@ -81,7 +81,7 @@ int CBB_communication_thread::start_communication_server()
 	event.events=EPOLLIN|EPOLLPRI; 
 	epoll_ctl(epollfd, EPOLL_CTL_ADD, queue_event_fd, &event); 
 
-	if(0 == (ret=pthread_create(&communication_thread, NULL, thread_function, this)))
+	if(0 == (ret=pthread_create(&communication_thread, nullptr, thread_function, this)))
 	{
 		thread_started=STARTED;
 	}
@@ -95,7 +95,7 @@ int CBB_communication_thread::start_communication_server()
 int CBB_communication_thread::stop_communication_server()
 {
 	keepAlive=NOT_KEEP_ALIVE;
-	void* ret=NULL;
+	void* ret=nullptr;
 	if(STARTED == thread_started)
 	{
 		pthread_join(communication_thread, &ret);
@@ -159,7 +159,7 @@ void* CBB_communication_thread::thread_function(void* args)
 			}
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 size_t CBB_communication_thread::send(extended_IO_task* new_task)

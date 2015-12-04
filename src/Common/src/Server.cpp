@@ -78,7 +78,7 @@ void Server::stop_server()
 
 int Server::_recv_real_path(extended_IO_task* new_task, std::string& real_path)
 {
-	char *path=NULL;
+	char *path=nullptr;
 	new_task->pop_string(&path);
 	real_path=_get_real_path(path);
 	return SUCCESS;
@@ -86,7 +86,7 @@ int Server::_recv_real_path(extended_IO_task* new_task, std::string& real_path)
 
 int Server::_recv_real_relative_path(extended_IO_task* new_task, std::string& real_path, std::string& relative_path)
 {
-	char* path=NULL;
+	char* path=nullptr;
 	//Recvv(clientfd, &path);
 	new_task->pop_string(&path);
 	relative_path=std::string(path);

@@ -22,8 +22,8 @@ CBB_stream::stream_info::stream_info(bool dirty_flag,
 	err(NO_ERROR),
 	open_flag(open_flag),
 	open_mode(open_mode),
-	buf(NULL),
-	cur_buf_ptr(NULL),
+	buf(nullptr),
+	cur_buf_ptr(nullptr),
 	buffer_size(STREAM_BUFFER_SIZE),
 	buffered_data_size(0),
 	file_size(file_size),
@@ -97,7 +97,7 @@ FILE* CBB_stream::_open_stream(const char* path, const char* mode)
 	int fd=_open(path, flag, open_mode);
 	if(-1 == fd)
 	{
-		return NULL;
+		return nullptr;
 	}
 	else
 	{
@@ -113,7 +113,7 @@ FILE* CBB_stream::_open_stream(const char* path, int flag, mode_t mode)
 	int fd=_open(path, flag, mode);
 	if(-1 == fd)
 	{
-		return NULL;
+		return nullptr;
 	}
 	else
 	{
@@ -156,7 +156,7 @@ void CBB_stream::_freebuf_stream(FILE* file_stream)
 	if(stream->buffer_flag)
 	{
 		_flush_stream(file_stream);
-		stream->cur_buf_ptr=NULL;
+		stream->cur_buf_ptr=nullptr;
 		stream->buffered_data_size=0;
 		delete[] stream->buf;
 		stream->buffer_flag=false;
@@ -439,7 +439,7 @@ int CBB_stream::_fileno_stream(FILE* file_stream)
 	catch(std::out_of_range &e)
 	{
 		fprintf(stderr, "open file frist\n");
-		return NULL;
+		return nullptr;
 	}
 }
 
@@ -453,7 +453,7 @@ const FILE* CBB_stream::_get_stream_from_path(const char* path)const
 	catch(std::out_of_range &e)
 	{
 		fprintf(stderr, "open file frist\n");
-		return NULL;
+		return nullptr;
 	}
 }*/
 

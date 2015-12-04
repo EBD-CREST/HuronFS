@@ -89,14 +89,14 @@ _basic_dir::_basic_item* find_by_name(const std::string filename, _basic_dir::_b
 	{
 		_basic_dir* directory_p=dynamic_cast<_basic_dir*>(current_directory);
 		_basic_dir::items_set_t& files=directory_p->get_files();
-		_basic_dir::_basic_item* ret=NULL;
+		_basic_dir::_basic_item* ret=nullptr;
 		for(_basic_dir::items_set_t::iterator it=files.begin(); it != files.end(); ++it)
 		{
-			if(NULL != (ret=CBB::Common::find_by_name(filename, *it)))
+			if(nullptr != (ret=CBB::Common::find_by_name(filename, *it)))
 			{
 				return ret;
 			}
 		}
 	}
-	return NULL;
+	return nullptr;
 }

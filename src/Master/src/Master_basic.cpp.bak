@@ -63,7 +63,7 @@ Master_file::Master_file(const struct stat& file_stat,
 		const std::string& filename,
 		int exist_flag):
 	Master_extended_file_stat(file_stat, filename, exist_flag),
-	opened_file_info(NULL)
+	opened_file_info(nullptr)
 {}
 
 Master_file::Master_file(const struct stat& file_stat, 
@@ -151,16 +151,16 @@ Master_extended_file_stat* find_by_name(const std::string filename, Master_exten
 	{
 		Master_dir* directory_p=dynamic_cast<Master_dir*>(current_directory);
 		items_set_t& files=directory_p->get_files();
-		Master_extended_file_stat* ret=NULL;
+		Master_extended_file_stat* ret=nullptr;
 		for(items_set_t::iterator it=files.begin(); it != files.end(); ++it)
 		{
-			if(NULL != (ret=CBB::Master::find_by_name(filename, *it)))
+			if(nullptr != (ret=CBB::Master::find_by_name(filename, *it)))
 			{
 				return ret;
 			}
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 node_info::node_info(ssize_t id,

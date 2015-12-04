@@ -4,7 +4,7 @@
 using namespace CBB::Common;
 
 basic_task::basic_task():
-	next(NULL)
+	next(nullptr)
 {}
 
 basic_task::~basic_task()

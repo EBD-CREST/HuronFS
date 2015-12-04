@@ -39,15 +39,15 @@ Master::Master()throw(std::runtime_error):
 	const char *master_number_string = getenv(MASTER_NUMBER);
 	const char *master_total_size_string= getenv(MASTER_TOTAL_NUMBER);
 	
-	if(NULL == master_mount_point)
+	if(nullptr == master_mount_point)
 	{
 		throw std::runtime_error("please set master mount point");
 	}
-	if(NULL == master_number_string)
+	if(nullptr == master_number_string)
 	{
 		throw std::runtime_error("please set master number");
 	}
-	if(NULL == master_total_size_string)
+	if(nullptr == master_total_size_string)
 	{
 		throw std::runtime_error("please set master total number");
 	}
@@ -204,7 +204,7 @@ int Master::_parse_new_client(extended_IO_task* new_task, task_parallel_queue<ex
 //S: attr: struct stat
 int Master::_parse_open_file(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
 {
-	char *file_path=NULL;
+	char *file_path=nullptr;
 	_LOG("request for open file\n");
 	new_task->pop_string(&file_path); 
 	int flag=0,ret=SUCCESS;
@@ -280,7 +280,7 @@ int Master::_parse_read_file(extended_IO_task* new_task, task_parallel_queue<ext
 	size_t size=0;
 	int ret=0;
 	off64_t start_point=0;
-	open_file_info *file=NULL; 
+	open_file_info *file=nullptr; 
 	_LOG("request for reading\n");
 	new_task->pop(file_no); 
 	extended_IO_task* output=init_response_task(new_task, output_queue);
@@ -320,7 +320,7 @@ int Master::_parse_write_file(extended_IO_task* new_task, task_parallel_queue<ex
 	off64_t start_point=0;
 	new_task->pop(file_no);
 	_DEBUG("file no=%ld\n", file_no);
-	extended_IO_task* output=NULL;
+	extended_IO_task* output=nullptr;
 	try
 	{
 		open_file_info &file=*_buffered_files.at(file_no);
@@ -394,7 +394,7 @@ int Master::_parse_close_file(extended_IO_task* new_task, task_parallel_queue<ex
 	ssize_t file_no;
 	new_task->pop(file_no);
 	extended_IO_task* output=init_response_task(new_task, output_queue);
-	open_file_info* file=NULL;
+	open_file_info* file=nullptr;
 	try
 	{
 		_LOG("file no %ld\n", file_no);
@@ -507,7 +507,7 @@ int Master::_parse_unlink(extended_IO_task* new_task, task_parallel_queue<extend
 	std::string relative_path;
 	std::string real_path;
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
-	extended_IO_task* output=NULL;
+	extended_IO_task* output=nullptr;
 	_LOG("path=%s\n", real_path.c_str());
 	file_stat_pool_t::iterator it=_file_stat_pool.find(relative_path);
 	if(_file_stat_pool.end() != it)
@@ -643,7 +643,7 @@ int Master::_parse_rename(extended_IO_task* new_task, task_parallel_queue<extend
 			file_stat_pool_t::iterator new_it=_file_stat_pool.insert(std::make_pair(new_relative_path, file_stat)).first;
 			_file_stat_pool.erase(it);
 			new_it->second.full_path=new_it;
-			if(NULL != new_it->second.opened_file_info)
+			if(nullptr != new_it->second.opened_file_info)
 			{
 				open_file_info* opened_file = new_it->second.opened_file_info;
 				opened_file->file_status=&(new_it->second);
@@ -915,7 +915,7 @@ const node_t& Master::_open_file(const char* file_path,
 		task_parallel_queue<extended_IO_task>* output_queue)throw(std::runtime_error, std::invalid_argument, std::bad_alloc)
 {
 	file_stat_pool_t::iterator it; 
-	open_file_info *file=NULL; 
+	open_file_info *file=nullptr; 
 	//file not buffered
 	if(_file_stat_pool.end() ==  (it=_file_stat_pool.find(file_path)))
 	{
@@ -934,7 +934,7 @@ const node_t& Master::_open_file(const char* file_path,
 	else
 	{
 		Master_file_stat& file_stat=it->second;
-		if(NULL == file_stat.opened_file_info)
+		if(nullptr == file_stat.opened_file_info)
 		{
 			file_no=_get_file_no(); 
 			file=_create_new_open_file_info(file_no, flag, &file_stat, output_queue);
@@ -1108,7 +1108,7 @@ node_t& Master::_get_IOnodes_for_IO(off64_t start_point,
 	off64_t current_point=get_block_start_point(start_point, size);
 	ssize_t remaining_size=size;
 	node_t::iterator it;
-	node_block_map_t node_append_block;
+	//node_block_map_t node_append_block;
 	for(;remaining_size>0;remaining_size-=BLOCK_SIZE, current_point+=BLOCK_SIZE)
 	{
 		if(file.p_node.end() != (it=file.p_node.find(current_point)))
@@ -1124,8 +1124,8 @@ node_t& Master::_get_IOnodes_for_IO(off64_t start_point,
 				_append_block(file, node_id, current_point);
 				node_set.insert(std::make_pair(current_point, node_id));
 				node_id_pool.insert(node_id);
-				size_t IO_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));
-				node_append_block[node_id].insert(std::make_pair(current_point, IO_size));
+				//size_t IO_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));
+				//node_append_block[node_id].insert(std::make_pair(current_point, IO_size));
 			}
 			catch(std::bad_alloc& e)
 			{
@@ -1133,7 +1133,7 @@ node_t& Master::_get_IOnodes_for_IO(off64_t start_point,
 			}
 		}
 	}
-	_send_append_request(file.file_no, node_append_block, output_queue);
+	//_send_append_request(file.file_no, node_append_block, output_queue);
 	return node_set;
 }
 
@@ -1224,7 +1224,7 @@ int Master::_buffer_all_meta_data_from_remote(const char* mount_point)throw(std:
 {
 	char file_path[PATH_MAX];
 	DIR *dir=opendir(mount_point);
-	if(NULL == dir)
+	if(nullptr == dir)
 	{
 		_DEBUG("file path%s\n", mount_point);
 		perror("open remote storage");
@@ -1253,8 +1253,8 @@ int Master::_dfs_items_in_remote(DIR* current_remote_directory,
 		const char* file_relative_path,
 		size_t offset)throw(std::runtime_error)
 {
-	const struct dirent* dir_item=NULL;
-	while(NULL != (dir_item=readdir(current_remote_directory)))
+	const struct dirent* dir_item=nullptr;
+	while(nullptr != (dir_item=readdir(current_remote_directory)))
 	{
 		if(0 == strcmp(dir_item->d_name, ".") || 0 == strcmp(dir_item->d_name, ".."))
 		{
@@ -1273,7 +1273,7 @@ int Master::_dfs_items_in_remote(DIR* current_remote_directory,
 		if(DT_DIR == dir_item->d_type)
 		{
 			DIR* new_dir=opendir(file_path);
-			if(NULL == new_dir)
+			if(nullptr == new_dir)
 			{
 				throw std::runtime_error(file_path);
 			}

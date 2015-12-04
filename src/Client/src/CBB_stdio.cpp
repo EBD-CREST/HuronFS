@@ -39,7 +39,7 @@ extern "C" FILE *CBB_WRAP(fopen)(const char* path, const char* mode)
 extern "C" FILE *CBB_WRAP(freopen)(const char* path, const char* mode, FILE* stream)
 {
 	CBB_FUNC_P(FILE*, freopen, (const char* path, const char *mode, FILE* stream));
-	if(NULL != stream && client._interpret_stream(stream))
+	if(nullptr != stream && client._interpret_stream(stream))
 	{
 		client._close_stream(stream);
 		_LOG("CBB freopen path=%s, mode=%s\n", path, mode);
@@ -233,7 +233,7 @@ extern "C" char *CBB_WRAP(fgets)(char* s, int n, FILE* stream)
 		start=CBB_REAL(fgets)(s, n, stream);
 //#ifdef DEBUG
 #if 0
-		if(NULL != start)
+		if(nullptr != start)
 		{
 			printf("%s\n",start);
 		}

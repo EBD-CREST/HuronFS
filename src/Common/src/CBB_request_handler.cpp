@@ -16,13 +16,13 @@ CBB_request_handler::CBB_request_handler():
 	handler_thread(),
 	//init_barrier(),
 	keepAlive(KEEP_ALIVE),
-	input_queue(NULL),
-	output_queue(NULL)
+	input_queue(nullptr),
+	output_queue(nullptr)
 {}
 
 CBB_request_handler::~CBB_request_handler()
 {
-	void *ret=NULL;
+	void *ret=nullptr;
 	if(STARTED == thread_started)
 	{
 		pthread_join(handler_thread, &ret);
@@ -31,12 +31,12 @@ CBB_request_handler::~CBB_request_handler()
 
 int CBB_request_handler::start_handler()
 {
-	if( NULL == input_queue || NULL == output_queue)
+	if( nullptr == input_queue || nullptr == output_queue)
 	{
 		return FAILURE;
 	}
 	int ret=SUCCESS;;
-	if(0 == (ret=pthread_create(&handler_thread, NULL, handle_routine, static_cast<void*>(this))))
+	if(0 == (ret=pthread_create(&handler_thread, nullptr, handle_routine, static_cast<void*>(this))))
 	{
 		thread_started=STARTED;
 	}
@@ -46,7 +46,7 @@ int CBB_request_handler::start_handler()
 int CBB_request_handler::stop_handler()
 {
 	keepAlive = NOT_KEEP_ALIVE;
-	void * ret=NULL;
+	void * ret=nullptr;
 	return pthread_join(handler_thread, &ret);
 }
 
@@ -62,7 +62,7 @@ void* CBB_request_handler::handle_routine(void* args)
 		this_obj->input_queue->task_dequeue();
 	}
 	_DEBUG("request handler thread end\n");
-	return NULL;
+	return nullptr;
 }
 
 void CBB_request_handler::set_queue(task_parallel_queue<extended_IO_task>* input_queue, task_parallel_queue<extended_IO_task>* output_queue)

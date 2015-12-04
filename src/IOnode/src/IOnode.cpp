@@ -30,19 +30,19 @@ IOnode::block::block(off64_t start_point,
 		bool valid,
 		file* file_stat) throw(std::bad_alloc):
 	data_size(data_size),
-	data(NULL),
+	data(nullptr),
 	start_point(start_point),
 	dirty_flag(dirty_flag),
 	valid(INVALID),
 	file_stat(file_stat),
-	write_back_task(NULL),
+	write_back_task(nullptr),
 	locker(),
 	TO_BE_DELETED(CLEAN)
 {
 	if(INVALID != valid)
 	{
 		data=malloc(BLOCK_SIZE);
-		if( NULL == data)
+		if( nullptr == data)
 		{
 		   throw std::bad_alloc();
 		}
@@ -61,8 +61,8 @@ IOnode::block::block(const block & src):
 	start_point(src.start_point),
 	dirty_flag(src.dirty_flag),
 	valid(src.valid),
-	file_stat(NULL),
-	write_back_task(NULL),
+	file_stat(nullptr),
+	write_back_task(nullptr),
 	locker(),
 	TO_BE_DELETED(CLEAN)
 {};
@@ -87,12 +87,12 @@ IOnode::file::~file()
 
 void IOnode::block::allocate_memory()throw(std::bad_alloc)
 {
-	if(NULL != data)
+	if(nullptr != data)
 	{
 		free(data);
 	}
 	data=malloc(BLOCK_SIZE);
-	if(NULL == data)
+	if(nullptr == data)
 	{
 		throw std::bad_alloc();
 	}
@@ -120,7 +120,7 @@ IOnode::IOnode(const std::string& master_ip,
 	_master_conn_addr.sin_port = htons(MASTER_CONN_PORT);
 
 	const char *IOnode_mount_point=getenv(IONODE_MOUNT_POINT);
-	if( NULL == IOnode_mount_point)
+	if( nullptr == IOnode_mount_point)
 	{
 		throw std::runtime_error("please set IONODE_MOUNT_POINT environment value");
 	}
@@ -332,7 +332,7 @@ int IOnode::_receive_data(CBB::Common::extended_IO_task* new_task,
 	{
 		file& _file=_files.at(file_no);
 		block_info_t &blocks=_file.blocks;
-		block* _block=NULL;
+		block* _block=nullptr;
 		try
 		{
 			_block=blocks.at(start_point);
@@ -374,7 +374,7 @@ int IOnode::_open_file(CBB::Common::extended_IO_task* new_task,
 {
 	ssize_t file_no=0; 
 	int flag=0;
-	char *path_buffer=NULL; 
+	char *path_buffer=nullptr; 
 	int exist_flag=0;
 	int count=0;
 	new_task->pop(file_no);
@@ -407,8 +407,8 @@ int IOnode::_close_file(CBB::Common::extended_IO_task* new_task,
 		{
 			block* _block=it->second;
 			_block->lock();
-			if((DIRTY == _block->dirty_flag && NULL == _block->write_back_task) ||
-					(CLEAN == _block->dirty_flag && NULL != _block->write_back_task))
+			if((DIRTY == _block->dirty_flag && nullptr == _block->write_back_task) ||
+					(CLEAN == _block->dirty_flag && nullptr != _block->write_back_task))
 			{
 				//_write_to_storage(path, _block);
 				_block->write_back_task=CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
@@ -428,7 +428,7 @@ int IOnode::_rename(CBB::Common::extended_IO_task* new_task,
 		CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue)
 {
 	ssize_t file_no=0; 
-	char *new_path=NULL; 
+	char *new_path=nullptr; 
 	new_task->pop(file_no);
 	new_task->pop_string(&new_path);
 	_DEBUG("rename file_no =%ld, new_path=%s\n", file_no, new_path);
@@ -450,10 +450,10 @@ void IOnode::_append_block(extended_IO_task* new_task,
 	size_t data_size=0;
 	new_task->pop(start_point); 
 	new_task->pop(data_size); 
-	block* new_block=NULL;
+	block* new_block=nullptr;
 	_DEBUG("append request from Master\n");
 	_DEBUG("start_point=%lu, data_size=%lu\n", start_point, data_size);
-	if(NULL == (new_block=new block(start_point, data_size, CLEAN, INVALID, &file_stat)))
+	if(nullptr == (new_block=new block(start_point, data_size, CLEAN, INVALID, &file_stat)))
 	{
 		perror("allocate");
 		throw std::runtime_error("appen_block");
@@ -570,7 +570,7 @@ size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 	}
 	close(fd);
 	block_data->lock();
-	block_data->write_back_task=NULL;
+	block_data->write_back_task=nullptr;
 	block_data->unlock();
 	if(block_data->TO_BE_DELETED)
 	{
@@ -598,8 +598,8 @@ int IOnode::_flush_file(CBB::Common::extended_IO_task* new_task,
 		{
 			block* _block=it->second;
 			_block->lock();
-			if((DIRTY == _block->dirty_flag && NULL == _block->write_back_task) ||
-					(CLEAN == _block->dirty_flag && NULL != _block->write_back_task))
+			if((DIRTY == _block->dirty_flag && nullptr == _block->write_back_task) ||
+					(CLEAN == _block->dirty_flag && nullptr != _block->write_back_task))
 			{
 				//_write_to_storage(path, _block);
 				_block->write_back_task=CBB_remote_task::add_remote_task(CBB_REMOTE_WRITE_BACK, _block);
@@ -691,7 +691,7 @@ int IOnode::_remove_file(ssize_t file_no)
 				block_it!=it->second.blocks.end();++block_it)
 		{
 			block_it->second->lock();
-			if(NULL != block_it->second->write_back_task)
+			if(nullptr != block_it->second->write_back_task)
 			{
 				if(CLEAN == block_it->second->dirty_flag)
 				{
@@ -700,7 +700,7 @@ int IOnode::_remove_file(ssize_t file_no)
 				}
 				else
 				{
-					block_it->second->write_back_task->set_file_stat(NULL);
+					block_it->second->write_back_task->set_file_stat(nullptr);
 					delete block_it->second;
 				}
 			}
@@ -713,7 +713,7 @@ int IOnode::_remove_file(ssize_t file_no)
 int IOnode::remote_task_handler(remote_task* new_task)
 {
 	block* IO_block=static_cast<block*>(new_task->get_file_stat());
-	if(NULL != IO_block)
+	if(nullptr != IO_block)
 	{
 		switch(new_task->get_mode())
 		{
