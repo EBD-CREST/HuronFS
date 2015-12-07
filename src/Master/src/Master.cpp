@@ -1263,7 +1263,7 @@ int Master::_dfs_items_in_remote(DIR* current_remote_directory,
 		strcpy(file_path+offset, dir_item->d_name);
 		size_t len=strlen(dir_item->d_name);
 		file_path[offset+len]=0;
-		if(master_number == file_path_hash(std::string(file_path), master_total_size))
+		if(master_number == file_path_hash(std::string(file_relative_path), master_total_size))
 		{
 			struct stat file_status;
 			lstat(file_path, &file_status);

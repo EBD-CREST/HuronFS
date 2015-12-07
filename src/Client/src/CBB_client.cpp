@@ -1092,6 +1092,7 @@ int CBB_client::_rename(const char* old_name, const char* new_name)
 	else
 	{
 		query->push_back(new_master_number);
+		send_query(query);
 		response=get_query_response(query);
 		response->pop(ret);
 		response_dequeue(response);
