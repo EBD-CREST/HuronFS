@@ -422,7 +422,7 @@ ssize_t CBB_client::_read_from_IOnode(int master_number,
 			response=get_query_response(query);
 			response->pop(ret);
 		}
-		while(FILE_NOT_FOUND != ret && response_dequeue(response));
+		while(FILE_NOT_FOUND == ret && 0 == response_dequeue(response));
 		if(SUCCESS == ret)
 		{
 			ssize_t ret_size=response->get_received_data(buffer);
@@ -492,7 +492,7 @@ ssize_t CBB_client::_write_to_IOnode(int master_number,
 			response=get_query_response(query);
 			response->pop(ret);
 		}
-		while(FILE_NOT_FOUND != ret && response_dequeue(response));
+		while(FILE_NOT_FOUND == ret && 0 == response_dequeue(response));
 		if(SUCCESS == ret)
 		{
 			_DEBUG("IO_size=%lu, start_point=%ld, file_no=%ld\n", IO_size, it->start_point, file.file_meta_p->file_no);
