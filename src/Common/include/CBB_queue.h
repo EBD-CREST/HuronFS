@@ -4,13 +4,13 @@
 #include <queue>
 #include <stdexcept>
 
-#include "CBB_mutex_locker.h"
+#include "CBB_rwlock.h"
 
 namespace CBB
 {
 	namespace Common
 	{
-		template<class Key> class CBB_queue:public CBB_mutex_locker
+		template<class Key> class CBB_queue:public CBB_rwlock
 		{
 			public:
 				typedef std::queue<Key> Queue_t;
@@ -21,8 +21,8 @@ namespace CBB
 			private:
 				Queue_t _actual_queue;
 			public:
-				CBB_queue();
-				~CBB_queue();
+				CBB_queue()=default;
+				~CBB_queue()=default;
 				void push(const value_type& val);
 				void push(value_type& val);
 				void pop();
@@ -30,50 +30,41 @@ namespace CBB
 				reference front();
 		};
 
-		template<class Key>CBB_queue<Key>::CBB_queue():
-			CBB_mutex_locker(),
-			_actual_queue()
-		{}
-
-		template<class Key>CBB_queue<Key>::~CBB_queue()
-		{}
-
-		inline template<class Key> void CBB_queue<Key>::push(const value_type& val)
+		template<class Key> inline void CBB_queue<Key>::push(const value_type& val)
 		{
-			//CBB_mutex_locker::lock();
+			CBB_rwlock::wr_lock();
 			_actual_queue.push(val);
-			//CBB_mutex_locker::unlock();
+			CBB_rwlock::unlock();
 			return;
 		}
 
-		inline template<class Key> void CBB_queue<Key>::push(value_type& val)
+		template<class Key> inline void CBB_queue<Key>::push(value_type& val)
 		{
-			//CBB_mutex_locker::lock();
+			CBB_rwlock::wr_lock();
 			_actual_queue.push(val);
-			//CBB_mutex_locker::unlock();
+			CBB_rwlock::unlock();
 			return;
 		}
 
-		inline template<class Key> void CBB_queue<Key>::pop()
+		template<class Key> inline void CBB_queue<Key>::pop()
 		{
-			//CBB_mutex_locker::lock();
+			CBB_rwlock::wr_lock();
 			_actual_queue.pop();
-			//CBB_mutex_locker::unlock();
+			CBB_rwlock::unlock();
 			return ;
 		}
 
-		inline template<class Key> typename CBB_queue<Key>::size_type CBB_queue<Key>::size()const
+		template<class Key> inline typename CBB_queue<Key>::size_type CBB_queue<Key>::size()const
 		{
-			return _actual_queue.size();
+			CBB_rwlock::rd_lock()
+			size_type ret=_actual_queue.size();
+			CBB_rwlock::unlock()
 		}
 
 
-		inline template<class Key> typename CBB_queue<Key>::reference CBB_queue<Key>::front()
+		template<class Key> inline typename CBB_queue<Key>::reference CBB_queue<Key>::front()
 		{
-			//CBB_mutex_locker::lock();
-			reference ret=_actual_queue.front();
-			//CBB_mutex_locker::unlock();
-			return ret;
+			return _actual_queue.front();
 		}
 	}
 }

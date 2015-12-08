@@ -19,7 +19,7 @@ namespace CBB
 
 		class Master_file_stat; 
 
-		typedef CBB::Common::CBB_map<off64_t, ssize_t> node_t; 
+		typedef std::map<off64_t, ssize_t> node_t; 
 		typedef CBB::Common::CBB_set<ssize_t> node_pool_t;
 		typedef CBB::Common::CBB_set<Master_file_stat*> items_set_t;
 		//map file_path, Master_file_stat

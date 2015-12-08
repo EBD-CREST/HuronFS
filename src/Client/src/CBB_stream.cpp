@@ -362,10 +362,11 @@ off64_t CBB_stream::_seek_stream(FILE* file_stream, off64_t offset, int whence)
 			_DEBUG("flush stream, new_pos=%ld, current buffered data offset=%ld, current buffer offset =%ld\n",
 					new_pos,stream->buf_file_off+stream->buffered_data_size, stream->buf_file_off);
 			_flush_stream(file_stream);
-			stream->cur_buf_ptr=stream->buf;
 			stream->buf_file_off=new_pos;
 			stream->buffered_data_size=0;
-			_lseek(stream->fd, get_block_start_point(new_pos), SEEK_SET);
+			off64_t new_block_start_point=get_block_start_point(new_pos);
+			stream->cur_buf_ptr=stream->buf+new_pos-new_block_start_point;
+			_lseek(stream->fd, new_block_start_point, SEEK_SET);
 		}
 		else
 		{
@@ -478,4 +479,3 @@ int CBB_stream::_truncate_stream(FILE* file_stream, off64_t size)
 	}
 	return _ftruncate(stream->fd, size);
 }
-

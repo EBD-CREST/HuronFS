@@ -18,9 +18,10 @@ export CC=g++
 export LIB_FLAG=-shared -fPIC
 export PRELOAD = -DCBB_PRELOAD
 export DEP_FLAG = -MMD -MP
-export FLAG=-O3 -g -Wall -std=c++0x
-#export FLAG=-O3 -g -Wall -std=c++0x -DDEBUG
-#export FLAG=-O0 -g -Wall -std=c++0x -DDEBUG
+export WRITE_BACK = -DWRITE_BACK
+export FLAG=-O3 -g -Wall -std=c++0x -DLOG
+#export FLAG=-O3 -g -Wall -std=c++0x -DDEBUG -DLOG
+#export FLAG=-O0 -g -Wall -std=c++0x -DDEBUG -DLOG
 
 run:
 	@echo 'run'

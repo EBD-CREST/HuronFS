@@ -12,6 +12,8 @@ const int MAX_IONODE = 1000;
 const int MAX_BASIC_MESSAGE_SIZE = 1*MB;
 //const int CLIENT_PORT = 8001;
 //const int IO_CLIENT_PORT = 8002;
+const int SERVER_THREAD_NUM = 1;
+const int CLIENT_THREAD_NUM = 2;
 
 const int MEMORY = 10000; 
 const int MAX_BLOCK_NUMBER = 1000; 

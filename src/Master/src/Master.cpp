@@ -14,6 +14,7 @@
 
 using namespace CBB::Common;
 using namespace CBB::Master;
+
 const char *Master::MASTER_MOUNT_POINT="CBB_MASTER_MOUNT_POINT";
 const char *Master::MASTER_NUMBER="CBB_MASTER_MY_ID";
 const char *Master::MASTER_TOTAL_NUMBER="CBB_MASTER_TOTAL_NUMBER";
@@ -101,7 +102,7 @@ int Master::remote_task_handler(remote_task* new_task)
 	return SUCCESS;
 }
 
-int Master::_parse_request(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_request(extended_IO_task* new_task)
 {
 	int request=0, ans=SUCCESS; 
 	new_task->pop(request); 
@@ -111,41 +112,41 @@ int Master::_parse_request(extended_IO_task* new_task, task_parallel_queue<exten
 		//case PRINT_NODE_INFO:
 		//	_send_node_info(clientfd);break;
 		case REGIST:
-			_parse_regist_IOnode(new_task, output_queue);break;
+			_parse_regist_IOnode(new_task);break;
 		case NEW_CLIENT:
-			_parse_new_client(new_task, output_queue);break;
+			_parse_new_client(new_task);break;
 		case OPEN_FILE:
-			_parse_open_file(new_task, output_queue);break; 
+			_parse_open_file(new_task);break; 
 		case READ_FILE:
-			_parse_read_file(new_task, output_queue);break;
+			_parse_read_file(new_task);break;
 		case WRITE_FILE:
-			_parse_write_file(new_task, output_queue);break;
+			_parse_write_file(new_task);break;
 		case FLUSH_FILE:
-			_parse_flush_file(new_task, output_queue);break;
+			_parse_flush_file(new_task);break;
 		case CLOSE_FILE:
-			_parse_close_file(new_task, output_queue);break;
+			_parse_close_file(new_task);break;
 			//case GET_FILE_META:
 			//	_send_file_meta(clientfd);break;
 		case GET_ATTR:
-			_parse_attr(new_task, output_queue);break;
+			_parse_attr(new_task);break;
 		case READ_DIR:
-			_parse_readdir(new_task, output_queue);break;
+			_parse_readdir(new_task);break;
 		case RM_DIR:
-			_parse_rmdir(new_task, output_queue);break;
+			_parse_rmdir(new_task);break;
 		case UNLINK:
-			_parse_unlink(new_task, output_queue);break;
+			_parse_unlink(new_task);break;
 		case ACCESS:
-			_parse_access(new_task, output_queue);break;
+			_parse_access(new_task);break;
 		case RENAME:
-			_parse_rename(new_task, output_queue);break;
+			_parse_rename(new_task);break;
 		case RENAME_MIGRATING:
-			_parse_rename_migrating(new_task, output_queue);break;
+			_parse_rename_migrating(new_task);break;
 		case MKDIR:
-			_parse_mkdir(new_task, output_queue);break;
+			_parse_mkdir(new_task);break;
 		case TRUNCATE:
-			_parse_truncate_file(new_task, output_queue);break;
+			_parse_truncate_file(new_task);break;
 		case CLOSE_CLIENT:
-			_parse_close_client(new_task, output_queue);break;
+			_parse_close_client(new_task);break;
 			/*case I_AM_SHUT_DOWN:
 			  id=_IOnode_socket.at(clientfd)->node_id;
 			  _DEBUG("IOnode %ld shutdown\nIP Address=%s, Unregisted\n", id, _registed_IOnodes.at(id)->ip.c_str()); 
@@ -158,7 +159,7 @@ int Master::_parse_request(extended_IO_task* new_task, task_parallel_queue<exten
 
 //R: total memory: size_t
 //S: node_id: ssize_t
-int Master::_parse_regist_IOnode(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_regist_IOnode(extended_IO_task* new_task)
 {
 	struct sockaddr_in addr;
 	socklen_t len=sizeof(addr);
@@ -168,17 +169,17 @@ int Master::_parse_regist_IOnode(extended_IO_task* new_task, task_parallel_queue
 	_LOG("regist IOnode\nip=%s\n",ip.c_str());
 	new_task->pop(total_memory);
 
-	extended_IO_task* output=CBB::Common::init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 
 	output->push_back(_add_IO_node(ip, total_memory, output->get_socket()));
 
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	_DEBUG("total memory %lu\n", total_memory);
 	return SUCCESS;
 }
 
 //S: SUCCESS: int
-int Master::_parse_new_client(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_new_client(extended_IO_task* new_task)
 {
 	struct sockaddr_in addr;
 	socklen_t len=sizeof(addr);
@@ -187,11 +188,11 @@ int Master::_parse_new_client(extended_IO_task* new_task, task_parallel_queue<ex
 	_LOG("new client ip=%s\n", ip.c_str());
 	Server::_add_socket(new_task->get_socket()); 
 
-	extended_IO_task* output=CBB::Common::init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 
 	output->push_back(SUCCESS);
 
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return SUCCESS;
 }
 
@@ -202,7 +203,7 @@ int Master::_parse_new_client(extended_IO_task* new_task, task_parallel_queue<ex
 //S: file no: ssize_t
 //S: block size: size_t
 //S: attr: struct stat
-int Master::_parse_open_file(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_open_file(extended_IO_task* new_task)
 {
 	char *file_path=nullptr;
 	_LOG("request for open file\n");
@@ -210,6 +211,7 @@ int Master::_parse_open_file(extended_IO_task* new_task, task_parallel_queue<ext
 	int flag=0,ret=SUCCESS;
 	ssize_t file_no=0;
 	int exist_flag=EXISTING;
+	extended_IO_task* output=nullptr;
 	std::string str_file_path=std::string(file_path);
 	file_stat_pool_t::iterator it=_file_stat_pool.find(str_file_path);
 
@@ -227,19 +229,19 @@ int Master::_parse_open_file(extended_IO_task* new_task, task_parallel_queue<ext
 		Master_file_stat& file_stat=it->second;
 		if(file_stat.is_external())
 		{
-			extended_IO_task* output=init_response_task(new_task, output_queue);
+			extended_IO_task* output=init_response_task(new_task);
 			output->push_back(file_stat.external_master);
-			output_queue->task_enqueue();
+			output_task_enqueue(output);
 			return SUCCESS;
 		}
 	}
 	try
 	{
-		_open_file(file_path, flag, file_no, exist_flag, output_queue); 
+		_open_file(file_path, flag, file_no, exist_flag); 
 		open_file_info *opened_file=_buffered_files.at(file_no);
 		size_t block_size=opened_file->block_size;
 		_DEBUG("file path= %s, file no=%ld\n", file_path, file_no);
-		extended_IO_task* output=init_response_task(new_task, output_queue);
+		output=init_response_task(new_task);
 		output->push_back(SUCCESS);
 		output->push_back(file_no);
 		output->push_back(block_size);
@@ -248,24 +250,24 @@ int Master::_parse_open_file(extended_IO_task* new_task, task_parallel_queue<ext
 	catch(std::runtime_error &e)
 	{
 		_DEBUG("%s\n",e.what());
-		extended_IO_task* output=init_response_task(new_task, output_queue);
+		output=init_response_task(new_task);
 		output->push_back(UNKNOWN_ERROR);
 		ret=FAILURE;
 	}
 	catch(std::invalid_argument &e)
 	{
 		_DEBUG("%s\n",e.what());
-		extended_IO_task* output=init_response_task(new_task, output_queue);
+		output=init_response_task(new_task);
 		output->push_back(FILE_NOT_FOUND);
 		ret=FAILURE;
 	}
 	catch(std::bad_alloc &e)
 	{
-		extended_IO_task* output=init_response_task(new_task, output_queue);
+		output=init_response_task(new_task);
 		output->push_back(TOO_MANY_FILES);
 		ret=FAILURE;
 	}
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return ret;
 }
 
@@ -274,7 +276,7 @@ int Master::_parse_open_file(extended_IO_task* new_task, task_parallel_queue<ext
 //R: start point: off64_t
 //R: size: size_t
 //S: block_info
-int Master::_parse_read_file(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_read_file(extended_IO_task* new_task)
 {
 	ssize_t file_no=0;
 	size_t size=0;
@@ -283,7 +285,7 @@ int Master::_parse_read_file(extended_IO_task* new_task, task_parallel_queue<ext
 	open_file_info *file=nullptr; 
 	_LOG("request for reading\n");
 	new_task->pop(file_no); 
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 	try
 	{
 		file=_buffered_files.at(file_no);
@@ -291,7 +293,7 @@ int Master::_parse_read_file(extended_IO_task* new_task, task_parallel_queue<ext
 		new_task->pop(size);
 		node_t nodes;
 		node_id_pool_t node_pool;
-		_get_IOnodes_for_IO(start_point, size, *file, nodes, node_pool, output_queue);
+		_get_IOnodes_for_IO(start_point, size, *file, nodes, node_pool);
 		_send_block_info(output, node_pool, nodes);
 		ret=SUCCESS;
 	}
@@ -300,7 +302,7 @@ int Master::_parse_read_file(extended_IO_task* new_task, task_parallel_queue<ext
 		output->push_back(OUT_OF_RANGE);
 		ret=FAILURE; 
 	}
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return ret;
 
 }
@@ -311,7 +313,7 @@ int Master::_parse_read_file(extended_IO_task* new_task, task_parallel_queue<ext
 //R: start point: off64_t
 //R: size: size_t
 //S: send_block
-int Master::_parse_write_file(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_write_file(extended_IO_task* new_task)
 {
 	_LOG("request for writing\n");
 	ssize_t file_no=0;
@@ -332,45 +334,45 @@ int Master::_parse_write_file(extended_IO_task* new_task, task_parallel_queue<ex
 
 		node_t nodes;
 		node_id_pool_t node_pool;
-		_get_IOnodes_for_IO(start_point, size, file, nodes, node_pool, output_queue);
-		output=init_response_task(new_task, output_queue);
+		_get_IOnodes_for_IO(start_point, size, file, nodes, node_pool);
+		output=init_response_task(new_task);
 		_send_block_info(output, node_pool, nodes);
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
-		output=init_response_task(new_task, output_queue);
+		output=init_response_task(new_task);
 		output->push_back(OUT_OF_RANGE);
 		ret=FAILURE;
 	}
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return ret;
 }
 
 //R: file no: ssize_t
 //S: SUCCESS			errno: int
-int Master::_parse_flush_file(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_flush_file(extended_IO_task* new_task)
 {
 	_LOG("request for writing\n");
 	ssize_t file_no=0;
 	int ret=0;
 	new_task->pop(file_no);
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 	try
 	{
 		open_file_info &file=*_buffered_files.at(file_no);
 		output->push_back(SUCCESS);
-		output_queue->task_enqueue();
+		output_task_enqueue(output);
 		file.nodes.rd_lock();
 		for(node_pool_t::iterator it=file.nodes.begin();
 				it != file.nodes.end();++it)
 		{
 			_DEBUG("write back request to IOnode %ld, file_no %ld\n", *it, file_no);
-			extended_IO_task* IOnode_output=output_queue->allocate_tmp_node();
+			extended_IO_task* IOnode_output=allocate_output_task(0);
 			IOnode_output->set_socket(_registed_IOnodes.at(*it)->socket);
 			IOnode_output->push_back(FLUSH_FILE);
 			IOnode_output->push_back(file_no);
-			output_queue->task_enqueue();
+			output_task_enqueue(IOnode_output);
 		}
 		file.nodes.unlock();
 
@@ -378,9 +380,9 @@ int Master::_parse_flush_file(extended_IO_task* new_task, task_parallel_queue<ex
 	}
 	catch(std::out_of_range &e)
 	{
-		extended_IO_task* output=init_response_task(new_task, output_queue);
+		extended_IO_task* output=init_response_task(new_task);
 		output->push_back(FAILURE);
-		output_queue->task_enqueue();
+		output_task_enqueue(output);
 		ret=FAILURE;
 	}
 	return ret;
@@ -388,19 +390,19 @@ int Master::_parse_flush_file(extended_IO_task* new_task, task_parallel_queue<ex
 
 //R: file no: ssize_t
 //S: SUCCESS			errno: int
-int Master::_parse_close_file(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_close_file(extended_IO_task* new_task)
 {
 	_LOG("request for closing file\n");
 	ssize_t file_no;
 	new_task->pop(file_no);
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 	open_file_info* file=nullptr;
 	try
 	{
 		_LOG("file no %ld\n", file_no);
 		file=_buffered_files.at(file_no);
 		output->push_back(SUCCESS);
-		output_queue->task_enqueue();
+		output_task_enqueue(output);
 		/*if(NOT_EXIST == file.file_status->exist_flag)
 		{
 			if(-1 == creat(file.file_status->get_path().c_str(), 0600))
@@ -413,18 +415,18 @@ int Master::_parse_close_file(extended_IO_task* new_task, task_parallel_queue<ex
 	catch(std::out_of_range &e)
 	{
 		output->push_back(FAILURE);
-		output_queue->task_enqueue();
+		output_task_enqueue(output);
 		return FAILURE;
 	}
 	for(node_pool_t::iterator it=file->nodes.begin();
 			it != file->nodes.end();++it)
 	{
 		_DEBUG("write back request to IOnode %ld\n", *it);
-		extended_IO_task* IOnode_output=output_queue->allocate_tmp_node();
+		extended_IO_task* IOnode_output=allocate_output_task(0);
 		IOnode_output->set_socket(_registed_IOnodes.at(*it)->socket);
 		IOnode_output->push_back(CLOSE_FILE);
 		IOnode_output->push_back(file_no);
-		output_queue->task_enqueue();
+		output_task_enqueue(IOnode_output);
 	}
 	return SUCCESS;
 }
@@ -432,13 +434,13 @@ int Master::_parse_close_file(extended_IO_task* new_task, task_parallel_queue<ex
 //R: file_path: char[]
 //S: SUCCESS			errno: int
 //S: attr: struct stat
-int Master::_parse_attr(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_attr(extended_IO_task* new_task)
 {
 	_DEBUG("requery for File info\n");
 	std::string real_path, relative_path;
 	int ret;
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 	_DEBUG("file path=%s\n", real_path.c_str());
 	try
 	{
@@ -466,7 +468,7 @@ int Master::_parse_attr(extended_IO_task* new_task, task_parallel_queue<extended
 		output->push_back(-ENOENT);
 		ret=FAILURE;
 	}
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return ret;
 }
 
@@ -476,7 +478,7 @@ int Master::_parse_attr(extended_IO_task* new_task, task_parallel_queue<extended
 //for dir_count
 	//S: file name: char[]
 //S: SUCCESS: int
-int Master::_parse_readdir(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_readdir(extended_IO_task* new_task)
 {
 	_DEBUG("requery for dir info\n");
 	std::string relative_path;
@@ -485,7 +487,7 @@ int Master::_parse_readdir(extended_IO_task* new_task, task_parallel_queue<exten
 	_DEBUG("file path=%s\n", real_path.c_str());
 	dir_t files=_get_file_stat_from_dir(relative_path);
 	
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 	output->push_back(SUCCESS);
 	output->push_back(static_cast<int>(files.size()));
 	for(dir_t::const_iterator it=files.begin();
@@ -494,13 +496,13 @@ int Master::_parse_readdir(extended_IO_task* new_task, task_parallel_queue<exten
 		output->push_back_string(it->c_str(), it->length());
 	}
 
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return SUCCESS;
 }
 
 //R: file path: char[]
 //S: SUCCESS				errno: int
-int Master::_parse_unlink(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_unlink(extended_IO_task* new_task)
 {
 	_LOG("request for unlink\n"); 
 	int ret;
@@ -514,8 +516,8 @@ int Master::_parse_unlink(extended_IO_task* new_task, task_parallel_queue<extend
 	{
 		Master_file_stat& file_stat=it->second;
 		ssize_t fd=file_stat.get_fd();
-		_remove_file(fd, output_queue);
-		output=init_response_task(new_task, output_queue);
+		_remove_file(fd);
+		output=init_response_task(new_task);
 		_file_stat_pool.erase(it);
 		output->push_back(SUCCESS);
 
@@ -523,24 +525,24 @@ int Master::_parse_unlink(extended_IO_task* new_task, task_parallel_queue<extend
 	}
 	else
 	{
-		output=init_response_task(new_task, output_queue);
+		output=init_response_task(new_task);
 		output->push_back(-ENOENT);
 		ret=FAILURE;
 	}
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return ret;
 }
 
 //R: file path: char[]
 //S: SUCCESS				errno: int
-int Master::_parse_rmdir(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_rmdir(extended_IO_task* new_task)
 {
 	_LOG("request for rmdir\n");
 	std::string file_path;
 	Server::_recv_real_path(new_task, file_path);
 	int ret;
 	_LOG("path=%s\n", file_path.c_str());
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 	if(-1 != rmdir(file_path.c_str()))
 	{
 		output->push_back(SUCCESS);
@@ -551,19 +553,19 @@ int Master::_parse_rmdir(extended_IO_task* new_task, task_parallel_queue<extende
 		output->push_back(-errno);
 		ret=FAILURE;
 	}
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return ret;
 }
 
 //R: file path: char[]
 //R: mode: int
 //S: SUCCESS				errno: int
-int Master::_parse_access(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_access(extended_IO_task* new_task)
 {
 	int mode, ret;
 	_LOG("request for access\n");
 	std::string real_path, relative_path;
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
 	new_task->pop(mode);
 	_LOG("path=%s\n, mode=%d", real_path.c_str(), mode);
@@ -591,18 +593,18 @@ int Master::_parse_access(extended_IO_task* new_task, task_parallel_queue<extend
 		output->push_back(-ENOENT);
 		ret=FAILURE;
 	}
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return ret;
 }
 
 //R: file path: char[]
 //R: mode: mode_t
 //S: SUCCESS				errno: int
-int Master::_parse_mkdir(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_mkdir(extended_IO_task* new_task)
 {
 	_LOG("request for mkdir\n");
 	mode_t mode=0;
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 	std::string real_path;
 	_recv_real_path(new_task, real_path);
 	new_task->pop(mode);
@@ -616,14 +618,14 @@ int Master::_parse_mkdir(extended_IO_task* new_task, task_parallel_queue<extende
 	{
 		output->push_back(SUCCESS);
 	}
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return SUCCESS;
 }
 
 //R: file path: char[]
 //R: file path: char[]
 //S: SUCCESS				errno: int
-int Master::_parse_rename(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_rename(extended_IO_task* new_task)
 {
 	int new_master=0;
 	_LOG("request for rename file\n");
@@ -650,11 +652,12 @@ int Master::_parse_rename(extended_IO_task* new_task, task_parallel_queue<extend
 				for(node_pool_t::iterator it=opened_file->nodes.begin();
 						it!=opened_file->nodes.end();++it)
 				{
-					extended_IO_task* output=output_queue->allocate_tmp_node();
+					extended_IO_task* output=allocate_output_task(0);
 					output->set_socket(_registed_IOnodes.at(*it)->socket);
 					output->push_back(RENAME);
 					output->push_back(opened_file->file_no);
 					output->push_back_string(new_relative_path.c_str(), new_relative_path.size());
+					output_task_enqueue(output);
 				}
 			}
 		}
@@ -667,14 +670,14 @@ int Master::_parse_rename(extended_IO_task* new_task, task_parallel_queue<extend
 			it->second.external_name = new_relative_path;
 		}
 	}
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 	output->push_back(SUCCESS);
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 
 	return SUCCESS;
 }
 
-int Master::_parse_close_client(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_close_client(extended_IO_task* new_task)
 {
 	_LOG("close client\n");
 	int socket=new_task->get_socket();
@@ -686,11 +689,12 @@ int Master::_parse_close_client(extended_IO_task* new_task, task_parallel_queue<
 //R: file path: char[]
 //R: file size: off64_t
 //S: SUCCESS				errno: int
-int Master::_parse_truncate_file(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_truncate_file(extended_IO_task* new_task)
 {
 	_LOG("request for truncate file\n");
 	int ret;
 	off64_t size;
+	extended_IO_task* output=nullptr;
 	std::string real_path, relative_path;
 	_recv_real_relative_path(new_task, real_path, relative_path);
 	new_task->pop(size);
@@ -700,7 +704,7 @@ int Master::_parse_truncate_file(extended_IO_task* new_task, task_parallel_queue
 		Master_file_stat& file_stat=_file_stat_pool.at(relative_path);
 		if(file_stat.is_external())
 		{
-			extended_IO_task* output=init_response_task(new_task, output_queue);
+			output=init_response_task(new_task);
 			output->push_back(file_stat.external_master);
 			ret=SUCCESS;
 		}
@@ -717,18 +721,18 @@ int Master::_parse_truncate_file(extended_IO_task* new_task, task_parallel_queue
 				{
 					node_t::iterator it=file->p_node.find(block_start_point);
 					ssize_t node_id=it->second;
-					extended_IO_task* output=output_queue->allocate_tmp_node();
+					output=allocate_output_task(0);
 					output->set_socket(_registed_IOnodes.at(node_id)->socket);
 					output->push_back(TRUNCATE);
 					output->push_back(fd);
 					output->push_back(block_start_point);
-					output_queue->task_enqueue();
+					output_task_enqueue(output);
 					file->p_node.erase(it);
 					file->get_stat().st_size-=BLOCK_SIZE;
 				}
 			}
 			file->get_stat().st_size=size;
-			extended_IO_task* output=init_response_task(new_task, output_queue);
+			output=init_response_task(new_task);
 			output->push_back(master_number);
 			output->push_back(SUCCESS);
 			ret=SUCCESS;
@@ -736,16 +740,16 @@ int Master::_parse_truncate_file(extended_IO_task* new_task, task_parallel_queue
 	}
 	catch(std::out_of_range &e)
 	{
-		extended_IO_task* output=init_response_task(new_task, output_queue);
+		output=init_response_task(new_task);
 		output->push_back(master_number);
 		output->push_back(-ENOENT);
 		ret=FAILURE;
 	}
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return ret;
 }
 
-int Master::_parse_rename_migrating(extended_IO_task* new_task, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_parse_rename_migrating(extended_IO_task* new_task)
 {
 	_LOG("request for truncate file\n");
 	int old_master;
@@ -753,7 +757,7 @@ int Master::_parse_rename_migrating(extended_IO_task* new_task, task_parallel_qu
 	_recv_real_relative_path(new_task, real_path, relative_path);
 	new_task->pop(old_master);
 	_LOG("path=%s\n", relative_path.c_str());
-	extended_IO_task* output=init_response_task(new_task, output_queue);
+	extended_IO_task* output=init_response_task(new_task);
 	file_stat_pool_t::iterator it=_file_stat_pool.find(relative_path);
 	if(_file_stat_pool.end() == it)
 	{
@@ -764,7 +768,7 @@ int Master::_parse_rename_migrating(extended_IO_task* new_task, task_parallel_qu
 	file_stat.external_flag=EXTERNAL;
 	file_stat.external_master=old_master;
 	output->push_back(SUCCESS);
-	output_queue->task_enqueue();
+	output_task_enqueue(output);
 	return SUCCESS;
 }
 
@@ -810,15 +814,14 @@ void Master::_send_block_info(extended_IO_task* output,
 	//S: data size: size_t
 	//S: SUCCESS: int
 	//R: ret
-
+/*
 void Master::_send_append_request(ssize_t file_no,
-		const node_block_map_t& append_blocks,
-		task_parallel_queue<extended_IO_task>* output_queue)
+		const node_block_map_t& append_blocks)
 {
 	for(node_block_map_t::const_iterator nodes_it=append_blocks.begin();
 			nodes_it != append_blocks.end();++nodes_it)
 	{
-		extended_IO_task* output=output_queue->allocate_tmp_node();
+		extended_IO_task* output=allocate_output_task(0);
 		output->set_socket(_registed_IOnodes.at(nodes_it->first)->socket);
 		output->push_back(APPEND_BLOCK);
 		output->push_back(file_no);
@@ -829,10 +832,10 @@ void Master::_send_append_request(ssize_t file_no,
 			output->push_back(block_it->first);
 			output->push_back(block_it->second);
 		}
-		output_queue->task_enqueue();
+		output_task_enqueue(output);
 	}
 	return;
-}
+}*/
 
 //S: APPEND_BLOCK: int
 //S: file no: ssize_t
@@ -842,7 +845,7 @@ void Master::_send_append_request(ssize_t file_no,
 	//S: data size: size_t
 	//S: SUCCESS: int
 	//R: ret
-int Master::_send_open_request_to_IOnodes(struct open_file_info& file, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_send_open_request_to_IOnodes(struct open_file_info& file)
 {
 	node_block_map_t node_block_map;
 	file.p_node=_select_IOnode(0, file.get_stat().st_size, file.block_size, node_block_map);
@@ -852,7 +855,7 @@ int Master::_send_open_request_to_IOnodes(struct open_file_info& file, task_para
 	{
 		//send read request to each IOnode
 		//buffer requset, file_no, open_flag, exist_flag, file_path, start_point, block_size
-		extended_IO_task* output=output_queue->allocate_tmp_node();
+		extended_IO_task* output=allocate_output_task(0);
 		output->set_socket(_registed_IOnodes.at(it->first)->socket);
 		output->push_back(OPEN_FILE);
 		output->push_back(file.file_no); 
@@ -868,7 +871,7 @@ int Master::_send_open_request_to_IOnodes(struct open_file_info& file, task_para
 			output->push_back(blocks_it->first);
 			output->push_back(blocks_it->second);
 		}
-		output_queue->task_enqueue();
+		output_task_enqueue(output);
 	}
 	return SUCCESS; 
 }
@@ -911,8 +914,7 @@ ssize_t Master::_delete_IO_node(int socket)
 const node_t& Master::_open_file(const char* file_path,
 		int flag,
 		ssize_t& file_no,
-		int exist_flag,
-		task_parallel_queue<extended_IO_task>* output_queue)throw(std::runtime_error, std::invalid_argument, std::bad_alloc)
+		int exist_flag)throw(std::runtime_error, std::invalid_argument, std::bad_alloc)
 {
 	file_stat_pool_t::iterator it; 
 	open_file_info *file=nullptr; 
@@ -923,7 +925,7 @@ const node_t& Master::_open_file(const char* file_path,
 		if(-1 != file_no)
 		{
 			Master_file_stat* file_status=_create_new_file_stat(file_path, exist_flag);
-			file=_create_new_open_file_info(file_no, flag, file_status, output_queue);
+			file=_create_new_open_file_info(file_no, flag, file_status);
 		}
 		else
 		{
@@ -937,7 +939,7 @@ const node_t& Master::_open_file(const char* file_path,
 		if(nullptr == file_stat.opened_file_info)
 		{
 			file_no=_get_file_no(); 
-			file=_create_new_open_file_info(file_no, flag, &file_stat, output_queue);
+			file=_create_new_open_file_info(file_no, flag, &file_stat);
 		}
 		else
 		{
@@ -1015,8 +1017,7 @@ Master::IOnode_t::iterator Master::_find_by_ip(const std::string &ip)
 
 open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 		int flag,
-		Master_file_stat* stat,
-		task_parallel_queue<extended_IO_task>* output_queue)throw(std::invalid_argument)
+		Master_file_stat* stat)throw(std::invalid_argument)
 {
 	try
 	{
@@ -1024,7 +1025,7 @@ open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 		_buffered_files.insert(std::make_pair(file_no, new_file));
 		new_file->block_size=get_block_size(stat->get_status().st_size); 
 		stat->opened_file_info=new_file;
-		_send_open_request_to_IOnodes(*new_file, output_queue);
+		_send_open_request_to_IOnodes(*new_file);
 		return new_file;
 	}
 	catch(std::invalid_argument &e)
@@ -1102,8 +1103,7 @@ node_t& Master::_get_IOnodes_for_IO(off64_t start_point,
 		size_t &size,
 		struct open_file_info& file,
 		node_t& node_set,
-		node_id_pool_t& node_id_pool,
-		task_parallel_queue<extended_IO_task>* output_queue)throw(std::bad_alloc)
+		node_id_pool_t& node_id_pool)throw(std::bad_alloc)
 {
 	off64_t current_point=get_block_start_point(start_point, size);
 	ssize_t remaining_size=size;
@@ -1161,7 +1161,7 @@ void Master::_append_block(struct open_file_info& file, int node_id, off64_t sta
 }
 
 
-int Master::_remove_file(ssize_t file_no, task_parallel_queue<extended_IO_task>* output_queue)
+int Master::_remove_file(ssize_t file_no)
 {
 	File_t::iterator it=_buffered_files.find(file_no);
 	if(_buffered_files.end() != it)
@@ -1170,12 +1170,12 @@ int Master::_remove_file(ssize_t file_no, task_parallel_queue<extended_IO_task>*
 		for(node_pool_t::iterator it=file.nodes.begin();
 				it != file.nodes.end();++it)
 		{
-			extended_IO_task* output=output_queue->allocate_tmp_node();
+			extended_IO_task* output=allocate_output_task(0);
 			output->set_socket(_registed_IOnodes.at(*it)->socket);
 			output->push_back(UNLINK);
 			_DEBUG("unlink file no=%ld\n", file_no);
 			output->push_back(file_no);
-			output_queue->task_enqueue();
+			output_task_enqueue(output);
 		}
 		_buffered_files.erase(file_no);
 		delete &file;

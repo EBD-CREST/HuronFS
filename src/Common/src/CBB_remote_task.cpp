@@ -17,7 +17,7 @@ remote_task::~remote_task()
 CBB_remote_task::CBB_remote_task():
 	keepAlive(KEEP_ALIVE),
 	thread_started(UNSTARTED),
-	remote_task_queue(),
+	remote_task_queue(0),
 	remote_task_thread(),
 	locker()
 {}

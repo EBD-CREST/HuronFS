@@ -2,10 +2,10 @@
 
 using namespace CBB::Common;
 
-CBB_request_handler::CBB_request_handler(task_parallel_queue<extended_IO_task>* input_queue, task_parallel_queue<extended_IO_task>* output_queue):
+CBB_request_handler::CBB_request_handler(communication_queue_array_t* input_queue,
+		communication_queue_array_t* output_queue):
 	thread_started(UNSTARTED),
 	handler_thread(),
-	//init_barrier(),
 	keepAlive(KEEP_ALIVE),
 	input_queue(input_queue),
 	output_queue(output_queue)
@@ -14,7 +14,6 @@ CBB_request_handler::CBB_request_handler(task_parallel_queue<extended_IO_task>* 
 CBB_request_handler::CBB_request_handler():
 	thread_started(UNSTARTED),
 	handler_thread(),
-	//init_barrier(),
 	keepAlive(KEEP_ALIVE),
 	input_queue(nullptr),
 	output_queue(nullptr)
@@ -46,26 +45,28 @@ int CBB_request_handler::start_handler()
 int CBB_request_handler::stop_handler()
 {
 	keepAlive = NOT_KEEP_ALIVE;
-	void * ret=nullptr;
+	void* ret=nullptr;
 	return pthread_join(handler_thread, &ret);
 }
 
 void* CBB_request_handler::handle_routine(void* args)
 {
 	CBB_request_handler* this_obj=static_cast<CBB_request_handler*>(args);
-	//pthread_barrier_wait(this_obj->init_barrier);
+	communication_queue_t& input_queue=this_obj->input_queue->at(0);
+	//communication_queue_t& output_queue=this_obj->output_queue->at(id);
 
 	while(KEEP_ALIVE == this_obj->keepAlive)
 	{
-		extended_IO_task* new_task=this_obj->input_queue->get_task();
-		this_obj->_parse_request(new_task, this_obj->output_queue);
-		this_obj->input_queue->task_dequeue();
+		extended_IO_task* new_task=input_queue.get_task();
+		this_obj->_parse_request(new_task);
+		input_queue.task_dequeue();
 	}
 	_DEBUG("request handler thread end\n");
 	return nullptr;
 }
 
-void CBB_request_handler::set_queue(task_parallel_queue<extended_IO_task>* input_queue, task_parallel_queue<extended_IO_task>* output_queue)
+void CBB_request_handler::set_queues(communication_queue_array_t* input_queue,
+		communication_queue_array_t* output_queue)
 {
 	this->input_queue=input_queue;
 	this->output_queue=output_queue;

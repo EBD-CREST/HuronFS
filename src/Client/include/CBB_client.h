@@ -12,6 +12,7 @@
 #include "CBB_const.h"
 #include "CBB_map.h"
 #include "CBB_set.h"
+#include "CBB_vector.h"
 
 namespace CBB
 {
@@ -82,10 +83,10 @@ namespace CBB
 			public:
 				//map fd opened_file_info
 				typedef Common::CBB_map<int, opened_file_info> _file_list_t;
-				typedef std::vector<bool> _file_t;
+				typedef Common::CBB_vector<bool> _fd_pool_t;
 				typedef std::vector<block_info> _block_list_t;
-				typedef Common::CBB_map<ssize_t, std::string> _node_pool_t;
-				typedef Common::CBB_set<std::string> dir_t;
+				typedef std::map<ssize_t, std::string> _node_pool_t;
+				typedef std::set<std::string> dir_t;
 				//map IOnode id: fd
 				typedef Common::CBB_map<int, int> IOnode_fd_map_t;
 				typedef std::vector<int> master_list_t;
@@ -114,7 +115,7 @@ namespace CBB
 				int _rename(const char* old_name, const char* new_name);
 				int _mkdir(const char* path, mode_t mode);
 				int _mkmod(const char* path, mode_t mode, dev_t rdev);
-				int _touch(int fd);
+				int _update_time(int fd);
 				int _truncate(const char*path, off64_t size);
 				int _ftruncate(int fd, off64_t size);
 				off64_t _tell(int fd);
@@ -139,18 +140,21 @@ namespace CBB
 						const _block_list_t& blocks,
 						const _node_pool_t& node_pool,
 						char *buffer,
-						size_t size);
+						size_t size,
+						int Communication_queue_id);
 
 				ssize_t _write_to_IOnode(int master_number,
 						opened_file_info& file,
 						const _block_list_t& blocks,
 						const _node_pool_t& node_pool,
 						const char *buffer,
-						size_t size);
+						size_t size,
+						int Communication_queue_id);
 
 				int _get_fid();
+				void _release_fid(int fid);
 				int _regist_to_master();
-				int _get_IOnode_socket(int master_number, int IOnode_id, const std::string& ip);
+				int _get_IOnode_socket(int master_number, int IOnode_id, const std::string& ip, int communication_queue_id);
 
 				static inline int _fd_to_fid(int fd);
 				static inline int _fid_to_fd(int fid);
@@ -161,13 +165,13 @@ namespace CBB
 				int _get_master_socket_from_path(const std::string& path)const;
 				int _get_master_socket_from_master_number(int master_number)const;
 				int _get_master_number_from_path(const std::string& path)const;
-				int _get_master_socket_from_fd(int fd)const;
-				int _get_master_number_from_fd(int fd)const;
+				int _get_master_socket_from_fd(int fd);
+				int _get_master_number_from_fd(int fd);
 				int _get_IOnode_id(int master_number, int IOnode_id)const;
 			private:
-				int _fid_now;
 				_file_list_t _file_list;
-				_file_t _opened_file;
+				_fd_pool_t _opened_file;
+				_fd_pool_t::iterator _fid_now;
 				_path_file_meta_map_t _path_file_meta_map;
 				struct sockaddr_in _client_addr;
 				bool _initial;
@@ -175,6 +179,7 @@ namespace CBB
 				master_list_t master_socket_list;
 				IOnode_fd_map_t IOnode_fd_map;
 		};
+
 		inline int CBB_client::_fd_to_fid(int fd)
 		{
 			return fd-INIT_FD;
@@ -195,12 +200,12 @@ namespace CBB
 			return master_socket_list.at(master_number);
 		}
 
-		inline int CBB_client::_get_master_socket_from_fd(int fd)const
+		inline int CBB_client::_get_master_socket_from_fd(int fd)
 		{
 			return _file_list.at(fd).file_meta_p->master_socket;
 		}
 
-		inline int CBB_client::_get_master_number_from_fd(int fd)const
+		inline int CBB_client::_get_master_number_from_fd(int fd)
 		{
 			return _file_list.at(fd).file_meta_p->master_number;
 		}
@@ -214,6 +219,15 @@ namespace CBB
 		inline int CBB_client::_get_IOnode_id(int master_number, int IOnode_id)const
 		{
 			return master_number*MAX_IONODE+IOnode_id;
+		}
+
+		inline void CBB_client::_release_fid(int fid)
+		{
+			_opened_file.wr_lock();
+			auto it=_opened_file.begin() + fid;
+			*it=false;
+			_opened_file.unlock();
+			return;
 		}
 	}
 }

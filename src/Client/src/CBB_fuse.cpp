@@ -101,68 +101,6 @@ static int CBB_read(const char* path, char *buffer, size_t count, off_t offset, 
 		_DEBUG("ret=%d path=%s\n", ret,path);
 		unlock_stream(stdout);
 
-#if 0
-		if(0 == strcmp(path, "/data/data2/newcimages_0_0.tbl"))
-		{
-			//static int i=0;
-			char path[PATH_MAX];
-			//sprintf(path, "%s%d", "/tmp/test", i++);
-			sprintf(path, "%s", "/tmp/test0");
-			FILE* fp=fopen(path, "w");
-			if(nullptr == fp)
-			{
-				perror("open");
-			}
-			fseek(fp, offset, SEEK_SET);
-			fwrite(buffer, count, 1, fp);
-			fclose(fp);
-		}
-		if(0 == strcmp(path, "/data/data2/newcimages_0_1.tbl"))
-		{
-			//static int i=0;
-			char path[PATH_MAX];
-			//sprintf(path, "%s%d", "/tmp/test", i++);
-			sprintf(path, "%s", "/tmp/test1");
-			FILE* fp=fopen(path, "w");
-			if(nullptr == fp)
-			{
-				perror("open");
-			}
-			fseek(fp, offset, SEEK_SET);
-			fwrite(buffer, count, 1, fp);
-			fclose(fp);
-		}
-		if(0 == strcmp(path, "/data/data2/newcimages_1_0.tbl"))
-		{
-			//static int i=0;
-			char path[PATH_MAX];
-			//sprintf(path, "%s%d", "/tmp/test", i++);
-			sprintf(path, "%s", "/tmp/test2");
-			FILE* fp=fopen(path, "w");
-			if(nullptr == fp)
-			{
-				perror("open");
-			}
-			fseek(fp, offset, SEEK_SET);
-			fwrite(buffer, count, 1, fp);
-			fclose(fp);
-		}
-		if(0 == strcmp(path, "/data/data2/newcimages_1_1.tbl"))
-		{
-			//static int i=0;
-			char path[PATH_MAX];
-			//sprintf(path, "%s%d", "/tmp/test", i++);
-			sprintf(path, "%s", "/tmp/test3");
-			FILE* fp=fopen(path, "w");
-			if(nullptr == fp)
-			{
-				perror("open");
-			}
-			fseek(fp, offset, SEEK_SET);
-			fwrite(buffer, count, 1, fp);
-			fclose(fp);
-		}
-#endif
 		return ret;
 	}
 	else
@@ -334,7 +272,7 @@ int main(int argc, char *argv[])
 	CBB_oper.ftruncate=CBB_ftruncate;
 	
 	char** fuse_argv=new char*[argc+2];
-	char* single_thread_string="-s";
+	//char* single_thread_string="-s";
 	bool daemon_flag=true;
 	for(int i=0; i<argc ;++i)
 	{
@@ -345,7 +283,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	fuse_argv[argc++]=single_thread_string;
+	//fuse_argv[argc++]=single_thread_string;
 	fuse_argv[argc++]=mount_point;
 	if(!daemon_flag)
 	{

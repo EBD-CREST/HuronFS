@@ -2,7 +2,7 @@ CBB_LTLIB= libCBB.so
 CBB_SLIB= libCBB.a
 MAIN = cbbfs
 
-COMMON = ../Common/Client.o ../Common/CBB_rwlocker.o ../Common/CBB_communication_thread.o ../Common/CBB_task_parallel.o ../Common/CBB_connector.o
+COMMON = ../Common/Client.o ../Common/CBB_rwlocker.o ../Common/CBB_communication_thread.o ../Common/CBB_connector.o
 
 FUSE_SRC = CBB_fuse.cpp
 BASE_SRC = CBB_client.cpp CBB_stream.cpp
