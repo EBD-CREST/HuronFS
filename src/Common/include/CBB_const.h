@@ -64,6 +64,9 @@ const int NEW_CLIENT = 20;
 const int CLOSE_CLIENT = 21;
 const int TRUNCATE = 22;
 const int RENAME_MIGRATING = 23;
+const int HEART_BEAT = 24;
+const int NODE_FAILURE = 25;
+const int OPEN_FILE_RECOVERY = 26;
 
 const int SERVER_SHUT_DOWN = 30; 
 const int I_AM_SHUT_DOWN = 31;
@@ -76,10 +79,11 @@ const int OUT_OF_DATE = 54;
 const int SEND_META = 55;
 const int RECV_META = 56;
 const int NO_NEED_META = 57;
+const int SOCKET_KILLED = 58;
 const int EXISTING = 1;
 const int NOT_EXIST = 0;
 
-const int OUT_OF_RANGE=100;//"out of range\n"; 
+const int OUT_OF_RANGE=100;
 
 const int EXTERNAL = 0;
 const int INTERNAL = -1;
@@ -97,5 +101,8 @@ const bool UNSTARTED = false;
 const bool SET = true;
 
 const int CBB_REMOTE_WRITE_BACK = 0;
+const int HEART_BEAT_INTERVAL=1000;
+
+const int NUM_OF_REPLICA = 2;
 
 #endif

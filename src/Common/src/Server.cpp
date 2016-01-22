@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <iterator>
 
 #include "Server.h"
 #include "CBB_const.h"
@@ -10,17 +11,18 @@
 
 using namespace CBB::Common;
 
-Server::Server(int port)throw(std::runtime_error):
+Server::Server(int communication_thread_number, int port)throw(std::runtime_error):
 	CBB_communication_thread(),
 	CBB_request_handler(),
 	CBB_remote_task(),
-	_communication_input_queue(SERVER_THREAD_NUM),
-	_communication_output_queue(SERVER_THREAD_NUM),
+	_communication_input_queue(communication_thread_number),
+	_communication_output_queue(communication_thread_number),
 	_server_addr(sockaddr_in()), 
 	_port(port), 
-	_server_socket(-1)
+	_server_socket(-1),
+	_threads_socket_map(communication_thread_number)
 {
-	for(int i=0;i<SERVER_THREAD_NUM; ++i)
+	for(int i=0;i<communication_thread_number; ++i)
 	{
 		_communication_output_queue[i].set_queue_id(i);
 		_communication_input_queue[i].set_queue_id(i);
@@ -43,6 +45,15 @@ Server::~Server()
 
 void Server::_init_server()throw(std::runtime_error)
 {
+	_setup_socket();
+	CBB_communication_thread::setup(&_communication_output_queue,
+			&_communication_input_queue);
+	CBB_request_handler::set_queues(&_communication_input_queue, &_communication_output_queue);
+	return; 
+}
+
+void Server::_setup_socket()
+{
 	memset(&_server_addr,  0,  sizeof(_server_addr)); 
 	_server_addr.sin_family = AF_INET;  
 	_server_addr.sin_addr.s_addr = htons(INADDR_ANY);  
@@ -54,6 +65,25 @@ void Server::_init_server()throw(std::runtime_error)
 	}
 	int on = 1; 
 	setsockopt( _server_socket,  SOL_SOCKET,  SO_REUSEADDR,  &on,  sizeof(on) ); 
+
+	struct timeval timeout;      
+	timeout.tv_sec = 10;
+	timeout.tv_usec = 0;
+
+	if (setsockopt (_server_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+				sizeof(timeout)) < 0)
+	{
+		perror("setsockopt failed");
+		throw std::runtime_error("sockopt Failed");   
+	}
+
+	if (setsockopt (_server_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+				sizeof(timeout)) < 0)
+	{
+		perror("setsockopt failed");
+		throw std::runtime_error("sockopt Failed");   
+	}
+
 	if(0 != bind(_server_socket,  reinterpret_cast<struct sockaddr*>(&_server_addr),  sizeof(_server_addr)))
 	{
 		perror("Server Bind Port Failed"); 
@@ -65,9 +95,6 @@ void Server::_init_server()throw(std::runtime_error)
 		perror("Server Listen PORT ERROR");  
 		throw std::runtime_error("Server Listen PORT ERROR");   
 	}
-	CBB_communication_thread::set_queues(&_communication_output_queue, &_communication_input_queue);
-	CBB_request_handler::set_queues(&_communication_input_queue, &_communication_output_queue);
-	return; 
 }
 
 int Server::start_server()
@@ -120,14 +147,31 @@ int Server::input_from_socket(int socket, communication_queue_array_t* output_qu
 		}
 		_DEBUG("A New Client\n"); 
 	}
-	int id=0;
-	Recv(socket, id);
-	communication_queue_t& output_queue=output_queue_array->at(get_my_id());
-	extended_IO_task* new_task=output_queue.allocate_tmp_node();
-	new_task->set_receiver_id(id);
-	CBB_communication_thread::receive_message(socket, new_task);
-	_DEBUG("send to queue %p\n", &output_queue);
-	output_queue.task_enqueue_signal_notification();
+	int from_id=0, to_id=0;
+	communication_queue_t* output_queue=nullptr;
+	extended_IO_task* new_task=nullptr;
+	try
+	{
+		Recv(socket, from_id);
+		Recv(socket, to_id);
+		output_queue=&output_queue_array->at(to_id);
+		new_task=output_queue->allocate_tmp_node();
+		new_task->set_receiver_id(from_id);
+		CBB_communication_thread::receive_message(socket, new_task);
+		output_queue->task_enqueue_signal_notification();
+	}
+	catch(std::runtime_error &e)
+	{
+		//socket is killed after get to_id;
+		//server won't get response;
+		//since we allocated new task;
+		//we deallocate it;
+		if(nullptr != output_queue)
+		{
+			output_queue->putback_tmp_node();
+		}
+		node_failure_handler(socket);
+	}
 	return SUCCESS; 
 }
 
@@ -137,7 +181,14 @@ int Server::input_from_producer(communication_queue_t* input_queue)
 	{
 		extended_IO_task* new_task=input_queue->get_task();
 		_DEBUG("new IO task\n");
-		send(new_task);
+		try
+		{
+			send(new_task);
+		}
+		catch(std::runtime_error& e)
+		{
+			node_failure_handler(new_task->get_socket());
+		}
 		input_queue->task_dequeue();
 	}
 	return SUCCESS;
@@ -145,9 +196,40 @@ int Server::input_from_producer(communication_queue_t* input_queue)
 
 extended_IO_task* Server::init_response_task(extended_IO_task* input_task)
 {
-	communication_queue_t& output_queue=_communication_output_queue.at(get_my_id());
+	communication_queue_t& output_queue=_communication_output_queue.at(input_task->get_id());
 	extended_IO_task* output=output_queue.allocate_tmp_node();
 	output->set_socket(input_task->get_socket());
-	output->set_id_to_be_sent(input_task->get_receiver_id());
+	output->set_receiver_id(input_task->get_receiver_id());
+	_threads_socket_map[input_task->get_id()]=input_task->get_socket();
 	return output;
+}
+
+int Server::send_input_for_socket_error(int socket)
+{
+	communication_queue_t& input_queue=_communication_input_queue.at(0);
+	extended_IO_task* input=input_queue.allocate_tmp_node();
+	input->set_socket(socket);
+	input->push_back(NODE_FAILURE);
+	input_queue.task_enqueue_signal_notification();
+	return SUCCESS;
+}
+
+communication_queue_t* Server::get_communication_queue_from_socket(int socket)
+{
+	for(threads_socket_map_t::iterator it=begin(_threads_socket_map);
+			end(_threads_socket_map) != it; ++it)
+	{
+		if(socket == *it)
+		{
+			return &_communication_input_queue.at(distance(begin(_threads_socket_map), it));
+		}
+	}
+	return nullptr;
+}
+
+int Server::node_failure_handler(int node_socket)
+{
+	//dummy code
+	_DEBUG("IOnode failed id=%d\n", node_socket);
+	return send_input_for_socket_error(node_socket);
 }

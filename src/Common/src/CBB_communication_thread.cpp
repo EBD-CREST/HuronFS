@@ -1,5 +1,6 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+#include <iterator>
 
 #include "CBB_communication_thread.h"
 #include "CBB_const.h"
@@ -144,7 +145,6 @@ void* CBB_communication_thread::thread_function(void* args)
 		{
 			int socket=events[i].data.fd;
 			_DEBUG("socket %d\n", socket);
-			//flush_map(this_obj->fd_queue_map);
 			fd_queue_map_t::const_iterator it=this_obj->fd_queue_map.find(socket);
 			if(this_obj->fd_queue_map.end() != it)
 			{
@@ -162,12 +162,13 @@ void* CBB_communication_thread::thread_function(void* args)
 	return nullptr;
 }
 
-size_t CBB_communication_thread::send(extended_IO_task* new_task)
+size_t CBB_communication_thread::send(extended_IO_task* new_task)throw(std::runtime_error)
 {
 	size_t ret=0;
 	int socket=new_task->get_socket();
 	_DEBUG("send message socket=%d, size=%ld\n", socket, new_task->get_message_size());
-	Send(socket, new_task->get_id_to_be_sent());
+	Send(socket, new_task->get_id());
+	Send(socket, new_task->get_receiver_id());
 	Send(socket, new_task->get_message_size());
 	Send(socket, new_task->get_extended_data_size());
 	if(0 != new_task->get_extended_data_size())
@@ -183,7 +184,7 @@ size_t CBB_communication_thread::send(extended_IO_task* new_task)
 	return ret;
 }
 
-size_t CBB_communication_thread::receive_message(int socket, extended_IO_task* new_task)
+size_t CBB_communication_thread::receive_message(int socket, extended_IO_task* new_task)throw(std::runtime_error)
 {
 	size_t basic_size=0, extended_size=0;
 	int ret=0;

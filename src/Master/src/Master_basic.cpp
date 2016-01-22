@@ -1,17 +1,15 @@
 #include "Master_basic.h"
 
 using namespace CBB::Master;
-using namespace CBB::Common;
 
 open_file_info::open_file_info(ssize_t fileno,
 		size_t block_size,
-		const node_t& IOnodes,
+		const node_id_pool_t& IOnodes,
 		int flag,
 		Master_file_stat* file_stat):
-	CBB_rwlocker(),
 	file_no(fileno),
-	p_node(IOnodes), 
-	nodes(node_pool_t()),
+	block_list(),
+	IOnodes_set(IOnodes), 
 	block_size(block_size),
 	open_count(1),
 	flag(flag),
@@ -21,25 +19,24 @@ open_file_info::open_file_info(ssize_t fileno,
 open_file_info::open_file_info(ssize_t fileno,
 		int flag,
 		Master_file_stat* file_stat):
-	CBB_rwlocker(),
 	file_no(fileno),
-	p_node(), 
-	nodes(node_pool_t()),
+	block_list(),
+	IOnodes_set(), 
 	block_size(0),
 	open_count(1),
 	flag(flag),
 	file_status(file_stat)
 {}
 
-void open_file_info::_set_nodes_pool()
+/*void open_file_info::_set_nodes_pool()
 {
-	for(node_t::const_iterator it=p_node.begin();
+	for(::const_iterator it=p_node.begin();
 			it != p_node.end();++it)
 	{
 		nodes.insert(it->second);
 	}
 	return;
-}
+}*/
 
 Master_file_stat::Master_file_stat(const struct stat& file_stat, 
 		const std::string& filename,

@@ -12,18 +12,6 @@ namespace CBB
 {
 	namespace Common
 	{
-		template<typename T> inline T atomic_get(const T* addr)
-		{
-			T v=*const_cast<T const volatile*>(addr);
-			//__memory_barrier();
-			return v;
-		}
-
-		template<typename T> inline void atomic_set(T* addr, T v)
-		{
-			//__memory_barrier();
-			*const_cast<T volatile*>(addr)=v;
-		}
 
 		class basic_task
 		{
@@ -48,6 +36,7 @@ namespace CBB
 				task_parallel_queue(int id, int event_fd);
 				~task_parallel_queue();
 				task_type* allocate_tmp_node();
+				void putback_tmp_node();
 				int task_enqueue_signal_notification();
 				int task_enqueue();
 				void task_dequeue();
@@ -241,6 +230,7 @@ namespace CBB
 		template<class task_type> int task_parallel_queue<task_type>::task_enqueue_signal_notification()
 		{
 			queue_head=queue_tmp_head;
+			_DEBUG("send to queue %p\n",this);
 			pthread_cond_signal(&queue_empty);
 			return SUCCESS;
 		}
@@ -282,6 +272,12 @@ namespace CBB
 			queue_tail->set_id(id);
 			return;
 		}
+
+		template<class task_type> void task_parallel_queue<task_type>::putback_tmp_node()
+		{
+			queue_tmp_head=queue_head;
+		}
+
 	}
 }
 

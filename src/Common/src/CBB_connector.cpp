@@ -22,6 +22,25 @@ int CBB_connector::_connect_to_server(const struct sockaddr_in& client_addr, con
 	}
 	int on = 1; 
 	setsockopt( client_socket,  SOL_SOCKET,  SO_REUSEADDR,  &on,  sizeof(on) ); 
+
+	struct timeval timeout;      
+	timeout.tv_sec = 10;
+	timeout.tv_usec = 0;
+
+	if (setsockopt (client_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+				sizeof(timeout)) < 0)
+	{
+		perror("setsockopt failed");
+		throw std::runtime_error("sockopt failed");
+	}
+
+	if (setsockopt (client_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+				sizeof(timeout)) < 0)
+	{
+		perror("setsockopt failed");
+		throw std::runtime_error("sockopt failed");
+	}
+
 	if(bind(client_socket,  reinterpret_cast<struct sockaddr*>(const_cast<struct sockaddr_in*>(&client_addr)),  sizeof(client_addr)))
 	{
 		perror("client bind port failed\n"); 

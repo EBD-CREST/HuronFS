@@ -39,13 +39,13 @@ namespace CBB
 				size_t get_message_size()const;
 				int get_receiver_id()const;
 				void set_receiver_id(int id);
-				int get_id_to_be_sent()const;
-				void set_id_to_be_sent(int id);
+				int get_error()const;
+				void set_error(int error);
 			private:
 				int socket;
 				//remote id refers to the queue which communicates with
 				int receiver_id;
-				int id_to_be_sent;
+				int error;
 				size_t message_size;
 				unsigned char basic_message[MAX_BASIC_MESSAGE_SIZE];
 				size_t current_point;
@@ -74,6 +74,8 @@ namespace CBB
 		int Recv_attr(extended_IO_task* new_task, struct stat* file_stat);
 		typedef task_parallel_queue<extended_IO_task> communication_queue_t;
 		typedef std::vector<communication_queue_t> communication_queue_array_t;
+		//each thread set the socket which it is waiting on
+		typedef std::vector<int> threads_socket_map_t;
 
 		class CBB_communication_thread
 		{
@@ -91,12 +93,17 @@ namespace CBB
 				virtual int input_from_socket(int socket, communication_queue_array_t* output_queue)=0;
 				virtual int input_from_producer(communication_queue_t* input_queue)=0;
 				virtual int output_task_enqueue(extended_IO_task* output_task)=0;
+				virtual communication_queue_t* get_communication_queue_from_socket(int socket)=0;
 
-				size_t send(extended_IO_task* new_task);
-				size_t receive_message(int socket, extended_IO_task* new_task);
+				size_t send(extended_IO_task* new_task)throw(std::runtime_error);
+				size_t receive_message(int socket, extended_IO_task* new_task)throw(std::runtime_error);
 				static void* thread_function(void*);
 				//thread wait on queue event;
 				//static void* queue_wait_function(void*);
+				void setup(communication_queue_array_t* input_queues,
+						communication_queue_array_t* output_queues);
+			private:
+
 				void set_queues(communication_queue_array_t* input_queues,
 						communication_queue_array_t* output_queues);
 			private:
@@ -211,6 +218,7 @@ namespace CBB
 		{
 			message_size=0;
 			current_point=0;
+			errno=SUCCESS;
 		}
 
 		inline void basic_IO_task::set_socket(int socket)
@@ -238,14 +246,14 @@ namespace CBB
 			this->receiver_id=id;
 		}
 
-		inline int basic_IO_task::get_id_to_be_sent()const
+		inline int basic_IO_task::get_error()const
 		{
-			return this->id_to_be_sent;
+			return this->error;
 		}
 
-		inline void basic_IO_task::set_id_to_be_sent(int id)
+		inline void basic_IO_task::set_error(int error)
 		{
-			this->id_to_be_sent=id;
+			this->error=error;
 		}
 
 		inline size_t extended_IO_task::get_received_data(void* buffer)
@@ -289,6 +297,18 @@ namespace CBB
 				this->receive_buffer = new unsigned char[size];
 			}
 			return this->receive_buffer;
+		}
+
+		/*inline void communication_thread::set_threads_socket_map(threads_socket_map_t* threads_socket_map)
+		{
+			this->threads_socket_map=threads_socket_map;
+		}*/
+
+		inline void CBB_communication_thread::setup(communication_queue_array_t* input_queues,
+				communication_queue_array_t* output_queues)
+		{
+			set_queues(input_queues, output_queues);
+			//set_threads_socket_map(threads_socket_map);
 		}
 	}
 }

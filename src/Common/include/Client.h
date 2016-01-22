@@ -6,15 +6,16 @@
 
 #include "CBB_communication_thread.h"
 #include "CBB_connector.h"
+#include "CBB_fault_tolerance.h"
 
 namespace CBB
 {
 	namespace Common
 	{
-		class Client:public CBB_communication_thread, public CBB_connector
+		class Client:public CBB_communication_thread, public CBB_connector, public CBB_fault_tolerance
 		{
 			public:
-				Client();
+				Client(int thread_number);
 				virtual ~Client();
 			protected:
 
@@ -25,7 +26,10 @@ namespace CBB
 						communication_queue_array_t* output_queue)override;
 				virtual int input_from_producer(communication_queue_t* input_queue)override;
 				virtual int output_task_enqueue(extended_IO_task* output_task)override;
+				virtual communication_queue_t* get_communication_queue_from_socket(int socket)override;
+				virtual int node_failure_handler(int socket)override;
 
+				int reply_with_socket_error(extended_IO_task* input_task);
 				communication_queue_t* get_new_communication_queue();
 				int release_communication_queue(communication_queue_t* queue);
 				int release_communication_queue(extended_IO_task* task);
@@ -39,6 +43,7 @@ namespace CBB
 			private:
 				communication_queue_array_t _communication_input_queue;
 				communication_queue_array_t _communication_output_queue;
+				threads_socket_map_t _threads_socket_map;
 
 		}; 
 
@@ -48,7 +53,7 @@ namespace CBB
 			_DEBUG("lock queue %p\n", new_queue);
 			extended_IO_task* query_task=new_queue->allocate_tmp_node();
 			query_task->set_socket(socket);
-			query_task->set_id_to_be_sent(query_task->get_id());
+			query_task->set_receiver_id(0);
 			return query_task;
 		}
 
@@ -68,18 +73,17 @@ namespace CBB
 
 		inline extended_IO_task* Client::get_query_response(extended_IO_task* query)
 		{
+			_threads_socket_map[query->get_id()]=query->get_socket();
+			_DEBUG("wait on query address %p\n", get_input_queue_from_query(query));
 			extended_IO_task* ret=get_input_queue_from_query(query)->get_task();
-			/*while(ret->get_socket() != query->get_socket())
-			{
-				_DEBUG("error!\n");
-				ret=_communication_input_queue.get_task();
-			}*/
+			_threads_socket_map[query->get_id()]=-1;
 			return ret;
 		}
 		
 		inline int Client::response_dequeue(extended_IO_task* response)
 		{
 			get_input_queue_from_query(response)->task_dequeue();
+			release_communication_queue(response);
 			return SUCCESS;
 		}
 

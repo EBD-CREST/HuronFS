@@ -7,11 +7,9 @@
 using namespace CBB::Common;
 
 remote_task::remote_task():
-	mode(0),
-	file_stat(nullptr)
-{}
-
-remote_task::~remote_task()
+	task_id(0),
+	task_data(nullptr),
+	extended_task_data(nullptr)
 {}
 
 CBB_remote_task::CBB_remote_task():
@@ -69,11 +67,18 @@ void* CBB_remote_task::thread_fun(void* args)
 	return nullptr;
 }
 
-remote_task* CBB_remote_task::add_remote_task(int task_code, void* file)
+remote_task* CBB_remote_task::add_remote_task(int task_code, void* task_data)
 {
 	remote_task* new_task = remote_task_queue.allocate_tmp_node();
-	new_task->set_mode(task_code);
-	new_task->set_file_stat(file);
-	remote_task_queue.task_enqueue_signal_notification();
+	new_task->set_task_id(task_code);
+	new_task->set_task_data(task_data);
+	//remote_task_queue.task_enqueue_signal_notification();
+	return new_task;
+}
+
+remote_task* CBB_remote_task::add_remote_task(int task_code, void* task_data, void* extended_task_data)
+{
+	remote_task* new_task=add_remote_task(task_code, task_data);
+	new_task->set_extended_task_data(extended_task_data);
 	return new_task;
 }

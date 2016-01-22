@@ -3,11 +3,14 @@
 
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <map>
+#include <set>
 
-#include "CBB_socket.h"
-#include "CBB_rwlocker.h"
-#include "CBB_map.h"
-#include "CBB_set.h"
+#include "CBB_const.h"
+//#include "CBB_socket.h"
+//#include "CBB_rwlocker.h"
+//#include "CBB_map.h"
+//#include "CBB_set.h"
 
 namespace CBB
 {
@@ -19,22 +22,28 @@ namespace CBB
 
 		class Master_file_stat; 
 
-		typedef std::map<off64_t, ssize_t> node_t; 
-		typedef CBB::Common::CBB_set<ssize_t> node_pool_t;
-		typedef CBB::Common::CBB_set<Master_file_stat*> items_set_t;
+		//map start_point, data_size
+		//unused
+		//typedef std::map<off64_t, ssize_t> block_info_t;
+		//map offset:node_id
+		typedef std::multimap<off64_t, ssize_t> block_list_t; 
+		//set node_id
+		typedef std::set<ssize_t> node_id_pool_t;
+		typedef std::set<Master_file_stat*> items_set_t;
 		//map file_path, Master_file_stat
-		typedef CBB::Common::CBB_map<std::string, Master_file_stat> file_stat_pool_t;
+		typedef std::map<std::string, Master_file_stat> file_stat_pool_t;
+		typedef std::set<ssize_t> file_no_pool_t;
 
 		class node_info
 		{
 			public:
 				//set file_no
 				friend class Master;
-				typedef std::set<ssize_t> file_no_pool_t;
 				node_info(ssize_t id,
 						const std::string& ip,
 						std::size_t total_memory,
 						int socket); 
+				~node_info()=default;
 				ssize_t get_id()const;
 				std::string& get_ip()const;
 			private:
@@ -46,7 +55,7 @@ namespace CBB
 				std::size_t total_memory;
 		}; 
 
-		class Master_file_stat: public CBB::Common::CBB_rwlocker
+		class Master_file_stat
 		{
 			public:
 				friend Master;
@@ -58,6 +67,7 @@ namespace CBB
 						const std::string& filename,
 						open_file_info* opened_file_info_p,
 						int exist_flag);
+				~Master_file_stat()=default;
 
 				Master_file_stat();
 				//virtual ~Master_file_stat();
@@ -85,7 +95,7 @@ namespace CBB
 				open_file_info* opened_file_info;
 		};
 
-		class open_file_info:public CBB::Common::CBB_rwlocker
+		class open_file_info
 		{
 			public:
 				//map file start_point:node_id
@@ -94,26 +104,29 @@ namespace CBB
 
 				open_file_info(ssize_t fileno,
 						size_t block_size,
-						const node_t& IOnodes,
+						const node_id_pool_t& IOnodes,
 						int flag,
 						Master_file_stat* file_stat); 
 				open_file_info(ssize_t fileno,
 						int flag,
 						Master_file_stat* file_stat);
-				void _set_nodes_pool();
+				~open_file_info()=default;
+				//void _set_nodes_pool();
 				const std::string& get_path()const;
 				struct stat& get_stat();
 				const struct stat& get_stat()const;
 			private:
 				ssize_t file_no;
-				node_t p_node;
-				node_pool_t nodes;
+				//node_t IOnodes_set;
+				block_list_t block_list;
+				node_id_pool_t IOnodes_set;
 				size_t block_size;
 				int open_count;
 				//open file
 				int flag; 
 				Master_file_stat* file_status;
 		}; 
+
 		inline struct stat& open_file_info::get_stat()
 		{
 			return file_status->get_status();
@@ -178,11 +191,6 @@ namespace CBB
 		{
 			return file_status->get_filefullpath();
 		}
-
-		/*inline const std::string& Master_file_stat::get_path()const
-		{
-			return it->first;
-		}*/
 
 		inline ssize_t Master_file_stat::get_fd()
 		{

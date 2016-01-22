@@ -102,7 +102,7 @@ void IOnode::block::allocate_memory()throw(std::bad_alloc)
 
 IOnode::IOnode(const std::string& master_ip,
 		int master_port) throw(std::runtime_error):
-	Server(IONODE_PORT), 
+	Server(SERVER_THREAD_NUM+2, IONODE_PORT), 
 	CBB_connector(), 
 	_node_id(-1),
 	_files(file_t()),
@@ -151,9 +151,8 @@ IOnode::~IOnode()
 
 int IOnode::start_server()
 {
-	//CBB_communication_thread::set_queues(&_communication_input_queue, &_communication_output_queue);
 	Server::start_server();
-	if(-1  ==  (_node_id=_regist()))
+	if(-1  ==  (_node_id=_regist(&_communication_input_queue, &_communication_output_queue)))
 	{
 		throw std::runtime_error("Get Node Id Error"); 
 	}
@@ -174,42 +173,29 @@ int IOnode::_unregist()
 	return SUCCESS;
 }
 
-ssize_t IOnode::_regist() throw(std::runtime_error)
+ssize_t IOnode::_regist(communication_queue_array_t* input_queue,
+		communication_queue_array_t* output_queue) throw(std::runtime_error)
 { 
 	_LOG("start registeration\n");
 	try
 	{
 		_master_socket=CBB_connector::_connect_to_server(_master_conn_addr, _master_addr); 
+		Server::_add_socket(_master_socket, EPOLLPRI);
 	}
 	catch(std::runtime_error &e)
 	{
 		throw;
 	}
-
-	/*extended_IO_task* output=allocate_output_task(0);
+	extended_IO_task* output=allocate_output_task(SERVER_THREAD_NUM);
 	output->set_socket(_master_socket);
 	output->push_back(REGIST);
 	output->push_back(_memory);
 	output_task_enqueue(output);
 
-	_DEBUG("start to wait on queue %p\n", &_communication_input_queue.at(0));
-	extended_IO_task* response=_communication_input_queue.at(0).get_task();
+	extended_IO_task* response=get_communication_input_queue(SERVER_THREAD_NUM)->get_task();
 	ssize_t id=-1;
 	response->pop(id);
-	_communication_input_queue.at(0).task_dequeue();*/
-	Send(_master_socket, int(0));
-	Send(_master_socket, sizeof(int)+sizeof(size_t));
-	Send(_master_socket, size_t(0));
-	Send(_master_socket, REGIST);
-	Send_flush(_master_socket, _memory);
-	size_t size;
-	ssize_t id=-1;
-	int i;
-	Recv(_master_socket, i);
-	Recv(_master_socket, size);
-	Recv(_master_socket, size);
-	Recv(_master_socket, id);
-	_add_socket(_master_socket, EPOLLPRI);
+	get_communication_input_queue(SERVER_THREAD_NUM)->task_dequeue();
 	_LOG("registeration finished, id=%ld\n", id);
 	return id; 
 }
@@ -234,7 +220,7 @@ ssize_t IOnode::_regist() throw(std::runtime_error)
 }*/
 
 //request from master
-int IOnode::_parse_request(CBB::Common::extended_IO_task* new_task)
+int IOnode::_parse_request(extended_IO_task* new_task)
 {
 	int request, ans=SUCCESS; 
 	new_task->pop(request); 
@@ -262,13 +248,17 @@ int IOnode::_parse_request(CBB::Common::extended_IO_task* new_task)
 		_truncate_file(new_task);break;
 	case UNLINK:
 		_unlink(new_task);break;
+	case HEART_BEAT:
+		_heart_beat(new_task);break;
+	case NODE_FAILURE:
+		_node_failure(new_task);break;
 	default:
 		break; 
 	}
 	return ans; 
 }
 
-int IOnode::_send_data(CBB::Common::extended_IO_task* new_task)
+int IOnode::_send_data(extended_IO_task* new_task)
 {
 	ssize_t file_no=0;
 	off64_t start_point=0;
@@ -313,7 +303,7 @@ int IOnode::_send_data(CBB::Common::extended_IO_task* new_task)
 
 }
 
-int IOnode::_receive_data(CBB::Common::extended_IO_task* new_task)
+int IOnode::_receive_data(extended_IO_task* new_task)
 {
 	ssize_t file_no=0;
 	off64_t start_point=0;
@@ -369,7 +359,7 @@ int IOnode::_receive_data(CBB::Common::extended_IO_task* new_task)
 	return ret;
 }
 
-int IOnode::_open_file(Common::extended_IO_task* new_task)
+int IOnode::_open_file(extended_IO_task* new_task)
 {
 	ssize_t file_no=0; 
 	int flag=0;
@@ -391,7 +381,7 @@ int IOnode::_open_file(Common::extended_IO_task* new_task)
 	return SUCCESS; 
 }
 
-int IOnode::_close_file(Common::extended_IO_task* new_task)
+int IOnode::_close_file(extended_IO_task* new_task)
 {
 	ssize_t file_no=0;
 	new_task->pop(file_no);
@@ -422,7 +412,7 @@ int IOnode::_close_file(Common::extended_IO_task* new_task)
 	}
 }
 
-int IOnode::_rename(Common::extended_IO_task* new_task)
+int IOnode::_rename(extended_IO_task* new_task)
 {
 	ssize_t file_no=0; 
 	char *new_path=nullptr; 
@@ -459,7 +449,7 @@ void IOnode::_append_block(extended_IO_task* new_task,
 	return ;
 }
 
-int IOnode::_append_new_block(Common::extended_IO_task* new_task)
+int IOnode::_append_new_block(extended_IO_task* new_task)
 {
 	int count=0;
 	ssize_t file_no=0;
@@ -540,15 +530,13 @@ size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 	if( -1 == fd)
 	{
 		perror("Open File");
-		return 0;
-		//throw std::runtime_error("Open File Error\n");
+		throw std::runtime_error("Open File Error\n");
 	}
 	off64_t pos;
 	if(-1 == (pos=lseek64(fd, start_point, SEEK_SET)))
 	{
 		perror("Seek"); 
-		return 0;
-		//throw std::runtime_error("Seek File Error"); 
+		throw std::runtime_error("Seek File Error"); 
 	}
 	ssize_t ret=0;
 	_DEBUG("write to %s, size=%ld, offset=%ld\n", real_path.c_str(), len, start_point);
@@ -577,7 +565,7 @@ size_t IOnode::_write_to_storage(block* block_data)throw(std::runtime_error)
 	return size-len;
 }
 
-int IOnode::_flush_file(CBB::Common::extended_IO_task* new_task)
+int IOnode::_flush_file(extended_IO_task* new_task)
 {
 	ssize_t file_no=0;
 	new_task->pop(file_no);
@@ -612,7 +600,7 @@ int IOnode::_flush_file(CBB::Common::extended_IO_task* new_task)
 	}
 }
 
-int IOnode::_regist_new_client(CBB::Common::extended_IO_task* new_task)
+int IOnode::_regist_new_client(extended_IO_task* new_task)
 {
 	_LOG("new client\n");
 	Server::_add_socket(new_task->get_socket());
@@ -622,7 +610,7 @@ int IOnode::_regist_new_client(CBB::Common::extended_IO_task* new_task)
 	return SUCCESS;
 }
 
-int IOnode::_close_client(CBB::Common::extended_IO_task* new_task)
+int IOnode::_close_client(extended_IO_task* new_task)
 {
 	_LOG("close client\n");
 	int sockfd=new_task->get_socket();
@@ -631,7 +619,7 @@ int IOnode::_close_client(CBB::Common::extended_IO_task* new_task)
 	return SUCCESS;
 }
 
-int IOnode::_unlink(CBB::Common::extended_IO_task* new_task)
+int IOnode::_unlink(extended_IO_task* new_task)
 {
 	ssize_t file_no=0;
 	_LOG("unlink\n");
@@ -652,27 +640,26 @@ inline std::string IOnode::_get_real_path(const std::string& path)const
 	return _mount_point+path;
 }
 
-int IOnode::_truncate_file(CBB::Common::extended_IO_task* new_task)
+int IOnode::_truncate_file(extended_IO_task* new_task)
 {
 	_LOG("truncate file\n");
 	off64_t start_point=0;
 	ssize_t fd=0;
+	size_t avaliable_size=0;
 	new_task->pop(fd);
 	new_task->pop(start_point);
+	new_task->pop(avaliable_size);
 	_LOG("fd=%ld, start_point=%ld\n", fd, start_point);
 	file& _file=_files.at(fd);
 	block_info_t::iterator requested_block=_file.blocks.find(start_point);
-	if(_file.blocks.end() != requested_block)
+	requested_block->second->data_size=avaliable_size;
+	requested_block++;
+	while(end(_file.blocks) != requested_block)
 	{ 
 		delete requested_block->second;
-		_file.blocks.erase(requested_block);
-
-		return SUCCESS;
+		_file.blocks.erase(requested_block++);
 	}
-	else
-	{
-		return FAILURE;
-	}
+	return SUCCESS;
 }
 
 int IOnode::_remove_file(ssize_t file_no)
@@ -693,7 +680,7 @@ int IOnode::_remove_file(ssize_t file_no)
 				}
 				else
 				{
-					block_it->second->write_back_task->set_file_stat(nullptr);
+					block_it->second->write_back_task->set_task_data(nullptr);
 					delete block_it->second;
 				}
 			}
@@ -705,17 +692,29 @@ int IOnode::_remove_file(ssize_t file_no)
 
 int IOnode::remote_task_handler(remote_task* new_task)
 {
-	block* IO_block=static_cast<block*>(new_task->get_file_stat());
+	block* IO_block=static_cast<block*>(new_task->get_task_data());
 	if(nullptr != IO_block)
 	{
-		switch(new_task->get_mode())
+		switch(new_task->get_task_id())
 		{
 			case CBB_REMOTE_WRITE_BACK:
-#ifdef WRITE_BACK
-				_write_to_storage(IO_block);
-#endif
-				break;
+				_write_to_storage(IO_block);break;
 		}
 	}
+	return SUCCESS;
+}
+
+int IOnode::_heart_beat(extended_IO_task* new_task)
+{
+	int ret=0;
+	new_task->pop(ret);
+	return ret;
+}
+
+int IOnode::_node_failure(extended_IO_task* new_task)
+{
+	int socket=new_task->get_socket();
+	_DEBUG("node failure, close socket %d\n", socket);
+	close(socket);
 	return SUCCESS;
 }
