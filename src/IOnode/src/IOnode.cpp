@@ -71,8 +71,10 @@ IOnode::file::file(const char *path, int exist_flag, ssize_t file_no):
 	file_path(path),
 	exist_flag(exist_flag),
 	dirty_flag(CLEAN),
+	main_flag(SUB_REPLICA),
 	file_no(file_no),
-	blocks()
+	blocks(),
+	IOnode_pool()
 {}
 
 IOnode::file::~file()
@@ -102,8 +104,9 @@ void IOnode::block::allocate_memory()throw(std::bad_alloc)
 
 IOnode::IOnode(const std::string& master_ip,
 		int master_port) throw(std::runtime_error):
-	Server(SERVER_THREAD_NUM+2, IONODE_PORT), 
+	Server(IONODE_QUEUE_NUM, IONODE_PORT), 
 	CBB_connector(), 
+	CBB_data_sync(),
 	_node_id(-1),
 	_files(file_t()),
 	_current_block_number(0), 
@@ -111,7 +114,8 @@ IOnode::IOnode(const std::string& master_ip,
 	_memory(MEMORY), 
 	_master_port(MASTER_PORT),
 	_mount_point(std::string()),
-	_master_socket(-1)
+	_master_socket(-1),
+	IOnode_socket_pool()
 {
 	memset(&_master_conn_addr, 0, sizeof(_master_conn_addr));
 	memset(&_master_addr, 0, sizeof(_master_addr));
@@ -119,6 +123,7 @@ IOnode::IOnode(const std::string& master_ip,
 	_master_conn_addr.sin_addr.s_addr = htons(INADDR_ANY);
 	_master_conn_addr.sin_port = htons(MASTER_CONN_PORT);
 
+	CBB_data_sync::set_queues(&_communication_input_queue.at(DATA_SYNC_QUEUE_NUM), &_communication_output_queue.at(DATA_SYNC_QUEUE_NUM));
 	const char *IOnode_mount_point=getenv(IONODE_MOUNT_POINT);
 	if( nullptr == IOnode_mount_point)
 	{
@@ -152,6 +157,7 @@ IOnode::~IOnode()
 int IOnode::start_server()
 {
 	Server::start_server();
+	CBB_data_sync::start_listening();
 	if(-1  ==  (_node_id=_regist(&_communication_input_queue, &_communication_output_queue)))
 	{
 		throw std::runtime_error("Get Node Id Error"); 
@@ -252,10 +258,25 @@ int IOnode::_parse_request(extended_IO_task* new_task)
 		_heart_beat(new_task);break;
 	case NODE_FAILURE:
 		_node_failure(new_task);break;
+	case DATA_SYNC:
+		_get_sync_data(new_task);break;
+	case NEW_IONODE:
+		_regist_new_IOnode(new_task);break;
 	default:
 		break; 
 	}
 	return ans; 
+}
+
+int IOnode::_regist_new_IOnode(extended_IO_task* new_task)
+{
+	ssize_t new_IOnode_id=0;
+	int socket=new_task->get_socket();
+	new_task->pop(new_IOnode_id);
+	_LOG("regist new IOnode %ld socket=%d\n", new_IOnode_id, socket);
+	IOnode_socket_pool.insert(std::make_pair(new_IOnode_id, socket));
+	Server::_add_socket(socket);
+	return SUCCESS;
 }
 
 int IOnode::_send_data(extended_IO_task* new_task)
@@ -317,7 +338,6 @@ int IOnode::_receive_data(extended_IO_task* new_task)
 	_LOG("request for receive data\n");
 	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n", file_no, start_point, offset, size);
 
-	extended_IO_task* output=init_response_task(new_task);
 	try
 	{
 		file& _file=_files.at(file_no);
@@ -340,32 +360,41 @@ int IOnode::_receive_data(extended_IO_task* new_task)
 			}
 			_block->valid = VALID;
 		}
-		output->push_back(SUCCESS);
-		new_task->get_received_data(reinterpret_cast<unsigned char*>(_block->data)+offset);
 		if(_block->data_size < offset+size)
 		{
 			_block->data_size = offset+size;
 		}
-		_block->dirty_flag=DIRTY;
-		_file.dirty_flag=DIRTY;
+		_sync_data(_file, _block, offset, new_task);
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
+		extended_IO_task* output=init_response_task(new_task);
 		output->push_back(FILE_NOT_FOUND);
 		ret=FAILURE;
+		output_task_enqueue(output);
 	}
-	output_task_enqueue(output);
 	return ret;
+}
+
+int IOnode::_sync_data(file& file_info, 
+		block* requested_block,
+		off64_t offset,
+		extended_IO_task* new_task)
+{
+	return add_data_sync_task(&file_info, requested_block, offset, new_task);
 }
 
 int IOnode::_open_file(extended_IO_task* new_task)
 {
 	ssize_t file_no=0; 
+	ssize_t node_id=0;
+	char* node_ip=nullptr;
 	int flag=0;
 	char *path_buffer=nullptr; 
 	int exist_flag=0;
 	int count=0;
+	int main_flag=0;
 	new_task->pop(file_no);
 	new_task->pop(flag);
 	new_task->pop(exist_flag);
@@ -373,12 +402,56 @@ int IOnode::_open_file(extended_IO_task* new_task)
 	_DEBUG("openfile fileno=%ld, path=%s\n", file_no, path_buffer);
 	
 	file& _file=_files.insert(std::make_pair(file_no, file(path_buffer, exist_flag, file_no))).first->second;
+	//get blocks
 	new_task->pop(count);
 	for(int i=0;i<count;++i)
 	{
 		_append_block(new_task, _file);
 	}
+	//get replica ips
+	new_task->pop(main_flag);
+	new_task->pop(count);
+	for(int i=0;i<count;++i)
+	{
+		new_task->pop(node_id);
+		int new_socket=0;
+		node_socket_pool_t::const_iterator it;
+		if(end(IOnode_socket_pool) == (it=IOnode_socket_pool.find(node_id)))
+		{
+			new_task->pop_string(&node_ip);
+			new_socket=_connect_to_new_IOnode(node_id, _node_id, node_ip);
+		}
+		else
+		{
+			new_socket=it->second;
+		}
+		_file.IOnode_pool.insert(std::make_pair(node_id, new_socket));
+	}
+
 	return SUCCESS; 
+}
+
+int IOnode::_connect_to_new_IOnode(ssize_t destination_node_id, ssize_t my_node_id, const char* node_ip)
+{
+	struct sockaddr_in IOnode_addr;
+	memset(&IOnode_addr, 0, sizeof(IOnode_addr));
+	IOnode_addr.sin_family = AF_INET;
+	IOnode_addr.sin_port = htons(IONODE_PORT);
+	if(0  ==  inet_aton(node_ip, &IOnode_addr.sin_addr))
+	{
+		perror("Server IP Address Error"); 
+		return -1;
+	}
+	int socket=CBB_connector::_connect_to_server(_master_conn_addr, IOnode_addr); 
+	_DEBUG("connect to destination node id %ld, socket=%d\n", destination_node_id, socket);
+	Server::_add_socket(socket);
+	extended_IO_task* output=allocate_output_task(0);
+	output->set_socket(socket);
+	output->push_back(NEW_IONODE);
+	output->push_back(my_node_id);
+	output_task_enqueue(output);
+	IOnode_socket_pool.insert(std::make_pair(destination_node_id, socket));
+	return socket;
 }
 
 int IOnode::_close_file(extended_IO_task* new_task)
@@ -717,4 +790,87 @@ int IOnode::_node_failure(extended_IO_task* new_task)
 	_DEBUG("node failure, close socket %d\n", socket);
 	close(socket);
 	return SUCCESS;
+}
+
+int IOnode::data_sync_parser(data_sync_task* new_task)
+{
+	block* requested_block=static_cast<block*>(new_task->_block);
+	file* requested_file=static_cast<file*>(new_task->_file);
+	extended_IO_task* input_task=new_task->input_task;
+	_LOG("send sync data file_no = %ld\n", requested_file->file_no);
+	off64_t offset=new_task->offset;
+	input_task->get_received_data(static_cast<unsigned char*>(requested_block->data)+offset);
+	requested_block->dirty_flag=DIRTY;
+	requested_file->dirty_flag=DIRTY;
+	for(auto& replicas:requested_file->IOnode_pool)
+	{
+		_send_sync_data(replicas.second, requested_block, requested_file);
+	}
+	extended_IO_task* output_task=allocate_data_sync_task();
+	output_task->set_socket(input_task->get_socket());
+	output_task->set_receiver_id(input_task->get_receiver_id());
+	output_task->push_back(SUCCESS);
+	data_sync_task_enqueue(output_task);
+	return SUCCESS;
+}
+
+int IOnode::_send_sync_data(int socket, block* requested_block, file* requested_file)
+{
+	_DEBUG("send sync to %d\n", socket);
+	extended_IO_task* output_task=allocate_data_sync_task();
+	output_task->set_socket(socket);
+	output_task->set_receiver_id(0);
+	output_task->push_back(DATA_SYNC);
+	output_task->push_back(requested_file->file_no);
+	output_task->push_back(requested_block->start_point);
+	output_task->set_send_buffer(requested_block->data, requested_block->data_size);
+	data_sync_task_enqueue(output_task);
+	extended_IO_task* response=get_data_sync_response(output_task);
+	int ret=SUCCESS;
+	response->pop(ret);
+	data_sync_response_dequeue(response);
+	return ret;
+}
+
+int IOnode::_get_sync_data(extended_IO_task* new_task)
+{
+	_LOG("sync data\n");
+	ssize_t file_no=0;
+	int ret=SUCCESS;
+	off64_t start_point=0;
+	new_task->pop(file_no);
+	new_task->pop(start_point);
+	extended_IO_task* output=init_response_task(new_task);
+	try
+	{
+		file& _file=_files.at(file_no);
+		block_info_t &blocks=_file.blocks;
+		block* _block=nullptr;
+		try
+		{
+			_block=blocks.at(start_point);
+		}
+		catch(std::out_of_range &e)
+		{
+			_block=blocks.insert(std::make_pair(start_point, new block(start_point, BLOCK_SIZE, CLEAN, VALID, &_file))).first->second;
+		}
+		if(INVALID == _block->valid)
+		{
+			_block->allocate_memory();
+			_block->valid = VALID;
+		}
+		size_t data_size=new_task->get_received_data(static_cast<unsigned char*>(_block->data));
+		_block->data_size=data_size;
+		_block->dirty_flag=DIRTY;
+		_file.dirty_flag=DIRTY;
+		output->push_back(SUCCESS);
+		ret=SUCCESS;
+	}
+	catch(std::out_of_range& e)
+	{
+		output->push_back(FILE_NOT_FOUND);
+		ret=FAILURE;
+	}
+	output_task_enqueue(output);
+	return ret;
 }

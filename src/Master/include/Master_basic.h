@@ -120,6 +120,8 @@ namespace CBB
 				//node_t IOnodes_set;
 				block_list_t block_list;
 				node_id_pool_t IOnodes_set;
+				//the node stores the main replica
+				ssize_t main_node_id;
 				size_t block_size;
 				int open_count;
 				//open file

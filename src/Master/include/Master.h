@@ -64,7 +64,7 @@ namespace CBB
 
 				//virtual int _parse_new_request(int socketfd,
 				//			const struct sockaddr_in& client_addr);
-				virtual int _parse_request(Common::extended_IO_task* new_task) override;
+				virtual int _parse_request(Common::extended_IO_task* new_task) override final;
 
 				//request parser
 				int _parse_regist_IOnode(Common::extended_IO_task* new_task);
@@ -108,8 +108,11 @@ namespace CBB
 				/*void _send_append_request(ssize_t file_no,
 						const node_block_map_t& append_node_block);*/
 				int _send_open_request_to_IOnodes(struct open_file_info& file,
-						int socket,
-						block_list_t& block_info);
+						ssize_t current_node_id,
+						const block_list_t& block_info,
+						const node_id_pool_t& node_id_set);
+
+				int _create_replicas(block_list_t& block_list, node_id_pool_t& node_id_pool);
 
 				//file operation
 				//void _send_node_info(int socket)const;
@@ -140,7 +143,7 @@ namespace CBB
 				Master_file_stat* _create_new_file_stat(const char* relative_path,
 						int exist_flag)throw(std::invalid_argument);
 
-				int _select_IOnode(int num_of_IOnodes,
+				ssize_t _select_IOnode(int num_of_IOnodes,
 						node_id_pool_t& node_id_pool); 
 
 				int _create_block_list(size_t file_size,
@@ -161,11 +164,11 @@ namespace CBB
 				int _recreate_replicas(node_info* node_info);
 				ssize_t _allocate_new_IOnode();
 
-				virtual std::string _get_real_path(const char* path)const override;
-				virtual std::string _get_real_path(const std::string& path)const override;
-				virtual int remote_task_handler(Common::remote_task* new_task)override;
-				virtual int get_IOnode_socket_map(socket_map_t& map)override;
-				virtual int node_failure_handler(int socket)override;
+				virtual std::string _get_real_path(const char* path)const override final;
+				virtual std::string _get_real_path(const std::string& path)const override final;
+				virtual int remote_task_handler(Common::remote_task* new_task)override final;
+				virtual int get_IOnode_socket_map(socket_map_t& map)override final;
+				virtual int node_failure_handler(int socket)override final;
 
 				ssize_t _select_IOnode_for_IO(open_file_info& file);
 				dir_t _get_file_stat_from_dir(const std::string& path);

@@ -27,11 +27,11 @@ namespace CBB
 				Server(int thread_number, int port)throw(std::runtime_error); 
 				virtual ~Server(); 
 				virtual int input_from_socket(int socket,
-						communication_queue_array_t* output)override;
+						communication_queue_array_t* output)override final;
 
-				virtual int input_from_producer(communication_queue_t* output)override;
-				virtual int output_task_enqueue(extended_IO_task* output_task)override;
-				virtual communication_queue_t* get_communication_queue_from_socket(int socket)override;
+				virtual int input_from_producer(communication_queue_t* output)override final;
+				virtual int output_task_enqueue(extended_IO_task* output_task)override final;
+				virtual communication_queue_t* get_communication_queue_from_socket(int socket)override final;
 				virtual int node_failure_handler(int socket)override;
 
 				void _init_server()throw(std::runtime_error); 
@@ -69,7 +69,9 @@ namespace CBB
 
 		inline extended_IO_task* Server::allocate_output_task(int id)
 		{
-			return _communication_output_queue.at(id).allocate_tmp_node();
+			extended_IO_task* output=_communication_output_queue.at(id).allocate_tmp_node();
+			output->set_receiver_id(0);
+			return output;
 		}
 
 		inline communication_queue_t* Server::get_communication_input_queue(int index)

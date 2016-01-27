@@ -23,11 +23,11 @@ namespace CBB
 				int start_client();
 
 				virtual int input_from_socket(int socket,
-						communication_queue_array_t* output_queue)override;
-				virtual int input_from_producer(communication_queue_t* input_queue)override;
-				virtual int output_task_enqueue(extended_IO_task* output_task)override;
-				virtual communication_queue_t* get_communication_queue_from_socket(int socket)override;
-				virtual int node_failure_handler(int socket)override;
+						communication_queue_array_t* output_queue)override final;
+				virtual int input_from_producer(communication_queue_t* input_queue)override final;
+				virtual int output_task_enqueue(extended_IO_task* output_task)override final;
+				virtual communication_queue_t* get_communication_queue_from_socket(int socket)override final;
+				virtual int node_failure_handler(int socket)override final;
 
 				int reply_with_socket_error(extended_IO_task* input_task);
 				communication_queue_t* get_new_communication_queue();

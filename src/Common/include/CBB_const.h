@@ -15,6 +15,13 @@ const int MAX_BASIC_MESSAGE_SIZE = 1*MB;
 const int SERVER_THREAD_NUM = 1;
 const int CLIENT_THREAD_NUM = 2;
 
+const int MASTER_QUEUE_NUM=SERVER_THREAD_NUM+1;
+const int IONODE_QUEUE_NUM=SERVER_THREAD_NUM+2;
+const int CLIENT_QUEUE_NUM=CLIENT_THREAD_NUM;
+
+const int HEART_BEAT_QUEUE_NUM=SERVER_THREAD_NUM;
+const int DATA_SYNC_QUEUE_NUM = SERVER_THREAD_NUM +1 ;
+
 const int MEMORY = 10000; 
 const int MAX_BLOCK_NUMBER = 1000; 
 const int MAX_FILE_NUMBER = 1000000; 
@@ -67,6 +74,8 @@ const int RENAME_MIGRATING = 23;
 const int HEART_BEAT = 24;
 const int NODE_FAILURE = 25;
 const int OPEN_FILE_RECOVERY = 26;
+const int DATA_SYNC = 27;
+const int NEW_IONODE = 28;
 
 const int SERVER_SHUT_DOWN = 30; 
 const int I_AM_SHUT_DOWN = 31;
@@ -104,5 +113,8 @@ const int CBB_REMOTE_WRITE_BACK = 0;
 const int HEART_BEAT_INTERVAL=1000;
 
 const int NUM_OF_REPLICA = 2;
+
+const int MAIN_REPLICA=0;
+const int SUB_REPLICA=1;
 
 #endif

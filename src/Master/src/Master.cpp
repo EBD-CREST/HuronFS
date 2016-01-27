@@ -21,7 +21,7 @@ const char *Master::MASTER_NUMBER="CBB_MASTER_MY_ID";
 const char *Master::MASTER_TOTAL_NUMBER="CBB_MASTER_TOTAL_NUMBER";
 
 Master::Master()throw(std::runtime_error):
-	Server(SERVER_THREAD_NUM+1, MASTER_PORT), 
+	Server(MASTER_QUEUE_NUM, MASTER_PORT), 
 	CBB_heart_beat(),
 	_registed_IOnodes(IOnode_t()), 
 	_file_stat_pool(),
@@ -56,8 +56,8 @@ Master::Master()throw(std::runtime_error):
 	master_number = atoi(master_number_string);
 	master_total_size = atoi(master_total_size_string);
 	_mount_point=std::string(master_mount_point);
-	set_task_parallel_queue(Server::get_communication_input_queue(SERVER_THREAD_NUM),
-			Server::get_communication_output_queue(SERVER_THREAD_NUM));
+	CBB_heart_beat::set_task_parallel_queue(Server::get_communication_input_queue(HEART_BEAT_QUEUE_NUM),
+			Server::get_communication_output_queue(HEART_BEAT_QUEUE_NUM));
 	try
 	{
 		_init_server();
@@ -161,6 +161,7 @@ int Master::_parse_request(extended_IO_task* new_task)
 		case NODE_FAILURE:
 			_parse_node_failure(new_task);break;
 	}
+	_DEBUG("parsing ends\n");
 	return ans; 
 }
 
@@ -393,17 +394,12 @@ int Master::_parse_flush_file(extended_IO_task* new_task)
 		open_file_info &file=*_buffered_files.at(file_no);
 		output->push_back(SUCCESS);
 		output_task_enqueue(output);
-		//file.nodes.rd_lock();
-		for(auto node_id:file.IOnodes_set)
-		{
-			_DEBUG("write back request to IOnode %ld, file_no %ld\n", node_id, file_no);
-			extended_IO_task* IOnode_output=allocate_output_task(0);
-			IOnode_output->set_socket(_registed_IOnodes.at(node_id)->socket);
-			IOnode_output->push_back(FLUSH_FILE);
-			IOnode_output->push_back(file_no);
-			output_task_enqueue(IOnode_output);
-		}
-		//file.nodes.unlock();
+		_DEBUG("write back request to IOnode %ld, file_no %ld\n", file.main_node_id, file_no);
+		extended_IO_task* IOnode_output=allocate_output_task(0);
+		IOnode_output->set_socket(_registed_IOnodes.at(file.main_node_id)->socket);
+		IOnode_output->push_back(FLUSH_FILE);
+		IOnode_output->push_back(file_no);
+		output_task_enqueue(IOnode_output);
 
 		ret=SUCCESS;
 	}
@@ -447,15 +443,12 @@ int Master::_parse_close_file(extended_IO_task* new_task)
 		output_task_enqueue(output);
 		return FAILURE;
 	}
-	for(auto node_id:file->IOnodes_set)
-	{
-		_DEBUG("write back request to IOnode %ld\n", node_id);
-		extended_IO_task* IOnode_output=allocate_output_task(0);
-		IOnode_output->set_socket(_registed_IOnodes.at(node_id)->socket);
-		IOnode_output->push_back(CLOSE_FILE);
-		IOnode_output->push_back(file_no);
-		output_task_enqueue(IOnode_output);
-	}
+	_DEBUG("write back request to IOnode %ld\n", file->main_node_id);
+	extended_IO_task* IOnode_output=allocate_output_task(0);
+	IOnode_output->set_socket(_registed_IOnodes.at(file->main_node_id)->socket);
+	IOnode_output->push_back(CLOSE_FILE);
+	IOnode_output->push_back(file_no);
+	output_task_enqueue(IOnode_output);
 	return SUCCESS;
 }
 
@@ -946,11 +939,14 @@ void Master::_send_append_request(ssize_t file_no,
 	//S: SUCCESS: int
 	//R: ret
 int Master::_send_open_request_to_IOnodes(struct open_file_info& file,
-		int socket,
-		block_list_t& block_info)
+		ssize_t current_node_id,
+		const block_list_t& block_info,
+		const node_id_pool_t& IOnodes_set)
 {
 	//send read request to each IOnode
 	//buffer requset, file_no, open_flag, exist_flag, file_path, start_point, block_size
+	ssize_t main_node_id=file.main_node_id;
+	int socket=_registed_IOnodes.at(current_node_id)->socket;
 	extended_IO_task* output=allocate_output_task(0);
 	output->set_socket(socket);
 	output->push_back(OPEN_FILE);
@@ -969,6 +965,26 @@ int Master::_send_open_request_to_IOnodes(struct open_file_info& file,
 		output->push_back(block.first);
 		output->push_back(block_size);
 		remaining_size-=block_size;
+	}
+	//send other replicas info to the main replica
+	if(main_node_id == current_node_id)
+	{
+		output->push_back(MAIN_REPLICA);
+		output->push_back(static_cast<int>(IOnodes_set.size())-1);
+		for(auto& node_id:IOnodes_set)
+		{
+			if(node_id != current_node_id)
+			{
+				node_info* node=_registed_IOnodes.at(node_id);
+				output->push_back(node_id);
+				output->push_back_string(node->ip.c_str());
+			}
+		}
+	}
+	else
+	{
+		output->push_back(SUB_REPLICA);
+		output->push_back(static_cast<int>(0));
 	}
 	output_task_enqueue(output);
 	return SUCCESS; 
@@ -1121,12 +1137,13 @@ open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 		_buffered_files.insert(std::make_pair(file_no, new_file));
 		new_file->block_size=get_block_size(stat->get_status().st_size); 
 		stat->opened_file_info=new_file;
-		_select_IOnode(MIN(NUM_OF_REPLICA, _registed_IOnodes.size()), new_file->IOnodes_set);
+		new_file->main_node_id=_select_IOnode(MIN(NUM_OF_REPLICA, _registed_IOnodes.size()), new_file->IOnodes_set);
 		_create_block_list(new_file->get_stat().st_size, new_file->block_size, new_file->block_list, new_file->IOnodes_set);
 		for(auto& IOnode_id:new_file->IOnodes_set)
 		{
-			_send_open_request_to_IOnodes(*new_file, _registed_IOnodes.at(IOnode_id)->socket, new_file->block_list);
+			_send_open_request_to_IOnodes(*new_file, IOnode_id, new_file->block_list, new_file->IOnodes_set);
 		}
+		_create_replicas(new_file->block_list, new_file->IOnodes_set);
 		return new_file;
 	}
 	catch(std::invalid_argument &e)
@@ -1135,6 +1152,28 @@ open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 		_release_file_no(file_no);
 		throw;
 	}
+}
+
+int Master::_create_replicas(block_list_t& block_list,
+		node_id_pool_t& node_id_pool)
+{
+	if(0 == node_id_pool.size())
+	{
+		//no IOnode
+		return SUCCESS;
+	}
+	block_list_t::iterator block_it=begin(block_list);
+	while(end(block_list) != block_it)
+	{
+		node_id_pool_t::iterator node_it=++begin(node_id_pool);
+		while(end(node_id_pool) != node_it)
+		{
+			block_it=block_list.insert(make_pair(block_it->first, *node_it));
+			node_it++;
+		}
+		block_it++;
+	}
+	return SUCCESS;
 }
 
 Master_file_stat* Master::_create_new_file_stat(const char* relative_path,
@@ -1164,13 +1203,13 @@ Master_file_stat* Master::_create_new_file_stat(const char* relative_path,
 	return &new_file_stat;
 }
 
-int Master::_select_IOnode(int num_of_nodes,
+ssize_t Master::_select_IOnode(int num_of_nodes,
 		node_id_pool_t& node_id_pool)
 {
 	if(0 == _registed_IOnodes.size())
 	{
 		//no IOnode
-		return FAILURE;
+		return -1;
 	}
 	for(;0 < num_of_nodes;num_of_nodes--)
 	{
@@ -1180,7 +1219,7 @@ int Master::_select_IOnode(int num_of_nodes,
 		}
 		node_id_pool.insert((_current_IOnode++)->first);
 	}
-	return SUCCESS; 
+	return *begin(node_id_pool); 
 }
 
 int Master::_create_block_list(size_t file_size,
@@ -1190,20 +1229,15 @@ int Master::_create_block_list(size_t file_size,
 {
 	off64_t block_start_point=0;
 	size_t remaining_size=file_size;
+	ssize_t node_id=*begin(node_list);
 	if(0 == remaining_size)
 	{
-		for(auto& node_id:node_list)
-		{
-			block_list.insert(make_pair(0, node_id));
-		}
+		block_list.insert(make_pair(0, node_id));
 	}
 	while(0 != remaining_size)
 	{
 		size_t new_block_size=MIN(block_size, remaining_size);
-		for(auto& node_id:node_list)
-		{
-			block_list.insert(make_pair(block_start_point, node_id));
-		}
+		block_list.insert(make_pair(block_start_point, node_id));
 		block_start_point += new_block_size;
 		remaining_size -= new_block_size;
 	}

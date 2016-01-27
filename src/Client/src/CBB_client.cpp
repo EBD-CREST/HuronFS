@@ -52,7 +52,7 @@ const char *mount_point=nullptr;
 	}while(0)
 
 CBB_client::CBB_client():
-	Client(CLIENT_THREAD_NUM),
+	Client(CLIENT_QUEUE_NUM),
 	_fid_now(0),
 	_file_list(_file_list_t()),
 	_opened_file(_file_t(MAX_FILE)),
