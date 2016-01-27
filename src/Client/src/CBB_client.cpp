@@ -177,8 +177,13 @@ CBB_client::~CBB_client()
 	}
 }
 
-CBB_client::block_info::block_info(ssize_t node_id, off64_t start_point, size_t size):
+/*CBB_client::block_info::block_info(ssize_t node_id, off64_t start_point, size_t size):
 	node_id(node_id),
+	start_point(start_point),
+	size(size)
+{}*/
+
+CBB_client::block_info::block_info(off64_t start_point, size_t size):
 	start_point(start_point),
 	size(size)
 {}
@@ -236,12 +241,14 @@ CBB_client::opened_file_info::opened_file_info(const opened_file_info& src):
 void CBB_client::_get_blocks_from_master(extended_IO_task* response,
 		off64_t start_point,
 		size_t& size,
-		std::vector<block_info> &block, _node_pool_t &node_pool)
+		_block_list_t &block,
+		_node_pool_t &node_pool)
 {
 	char *ip=nullptr;
 	
 	int count=0;
 	ssize_t node_id=0;
+	size_t block_size=0;
 
 	response->pop(count);
 	for(int i=0;i<count;++i)
@@ -254,8 +261,9 @@ void CBB_client::_get_blocks_from_master(extended_IO_task* response,
 	for(int i=0;i<count;++i)
 	{
 		response->pop(start_point);
-		response->pop(node_id);
-		block.push_back(block_info(node_id, start_point, BLOCK_SIZE));
+		//response->pop(node_id);
+		response->pop(block_size);
+		block.push_back(block_info(start_point, block_size));
 	}
 	return;
 }
@@ -394,6 +402,8 @@ ssize_t CBB_client::_read_from_IOnode(int master_number,
 	int ret=0;
 	off64_t current_point=file.current_point;
 	size_t read_size=size;
+	ssize_t node_id=begin(node_pool)->first;
+	const std::string& node_ip=begin(node_pool)->second;
 	if(0 == size)
 	{
 		return size;
@@ -404,13 +414,13 @@ ssize_t CBB_client::_read_from_IOnode(int master_number,
 	{
 
 		off64_t offset = current_point-it->start_point;
-		size_t IO_size = BLOCK_SIZE-offset;
+		size_t IO_size = it->size-offset;
 		if(read_size<IO_size)
 		{
 			IO_size=read_size;
 		}
 
-		int IOnode_socket=_get_IOnode_socket(master_number, it->node_id, node_pool.at(it->node_id));
+		int IOnode_socket=_get_IOnode_socket(master_number, node_id, node_ip);
 		extended_IO_task *response=nullptr;
 		do
 		{
@@ -439,7 +449,7 @@ ssize_t CBB_client::_read_from_IOnode(int master_number,
 			else
 			{
 				_DEBUG("read size=%ld\n", ret_size);
-				_DEBUG("IOnode ip=%s\n", node_pool.at(it->node_id).c_str()); 
+				_DEBUG("IOnode ip=%s\n", node_ip.c_str()); 
 				ans+=ret_size;
 				file.current_point += ret_size;
 				current_point += ret_size;
@@ -465,6 +475,8 @@ ssize_t CBB_client::_write_to_IOnode(int master_number,
 	int ret=0;
 	off64_t current_point=file.current_point;
 	size_t write_size=size;
+	ssize_t node_id=begin(node_pool)->first;
+	const std::string& node_ip=begin(node_pool)->second;
 	if(0 == size)
 	{
 		return size;
@@ -474,13 +486,13 @@ ssize_t CBB_client::_write_to_IOnode(int master_number,
 	{
 
 		off64_t offset = current_point-it->start_point;
-		size_t IO_size = BLOCK_SIZE-offset;
+		size_t IO_size = it->size-offset;
 		if(write_size<IO_size)
 		{
 			IO_size=write_size;
 		}
 
-		int IOnode_socket=_get_IOnode_socket(master_number, it->node_id, node_pool.at(it->node_id));
+		int IOnode_socket=_get_IOnode_socket(master_number, node_id, node_ip);
 		extended_IO_task* response=nullptr;
 		do
 		{
@@ -510,7 +522,7 @@ ssize_t CBB_client::_write_to_IOnode(int master_number,
 			else
 			{
 				_DEBUG("write size=%ld\n", ret_size);
-				_DEBUG("IOnode ip=%s\n", node_pool.at(it->node_id).c_str()); 
+				_DEBUG("IOnode ip=%s\n", node_ip.c_str()); 
 				ans+=ret_size;
 				file.current_point+=ret_size;
 				current_point += ret_size;
@@ -633,7 +645,7 @@ ssize_t CBB_client::_write(int fd, const void *buffer, size_t size)
 		ssize_t file_no=file.file_meta_p->file_no;
 		off64_t &current_point=file.current_point;
 		_write_update_file_size(file, size);
-		_touch(fd);
+		_update_access_time(fd);
 
 		_block_list_t blocks;
 		_node_pool_t node_pool;
@@ -703,7 +715,7 @@ int CBB_client::_update_file_size(int fd, size_t size)
 	}
 }
 
-int CBB_client::_touch(int fd)
+int CBB_client::_update_access_time(int fd)
 {
 	int fid=_fd_to_fid(fd);
 	CHECK_INIT();
@@ -1254,6 +1266,6 @@ int CBB_client::_ftruncate(int fd, off64_t size)
 	CHECK_INIT();
 	opened_file_info& file=_file_list.at(fid);
 	file.file_meta_p->file_stat.st_size=size;
-	_touch(fd);
+	_update_access_time(fd);
 	return _truncate(file.file_meta_p->it->first.c_str(), size);
 }

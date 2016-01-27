@@ -25,8 +25,8 @@ namespace CBB
 		//map start_point, data_size
 		//unused
 		//typedef std::map<off64_t, ssize_t> block_info_t;
-		//map offset:node_id
-		typedef std::multimap<off64_t, ssize_t> block_list_t; 
+		//map offset:size
+		typedef std::map<off64_t, size_t> block_list_t; 
 		//set node_id
 		typedef std::set<ssize_t> node_id_pool_t;
 		typedef std::set<Master_file_stat*> items_set_t;

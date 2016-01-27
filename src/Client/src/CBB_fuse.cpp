@@ -152,8 +152,8 @@ static int CBB_unlink(const char* path)
 {
 	_DEBUG("CBB unlink path=%s\n", path);
 	
-	//int ret=client._unlink(path);
 	int ret=SUCCESS;
+	ret=client._unlink(path);
 	
 	_DEBUG("ret=%d\n", ret);
 	return ret;

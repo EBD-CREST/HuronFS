@@ -369,13 +369,15 @@ int Master::_select_node_block_set(open_file_info& file,
 		block_list_t& block_list)const
 {
 	//only return the main IOnode
+	node_id_pool.insert(file.main_node_id);
 	off64_t block_start_point=get_block_start_point(start_point);
+	auto block=file.block_list.find(block_start_point);
 	for(ssize_t remaining_size=size;0 < remaining_size;remaining_size -= BLOCK_SIZE)
 	{
-		auto block=file.block_list.find(block_start_point);
 		block_list.insert(make_pair(block->first, block->second));
-		node_id_pool.insert(block->second);
+		//node_id_pool.insert(block->second);
 		block_start_point += BLOCK_SIZE;
+		block++;
 	}
 	return SUCCESS;
 }
@@ -814,6 +816,7 @@ int Master::_parse_node_failure(extended_IO_task* new_task)
 int Master::_recreate_replicas(node_info* IOnode_info)
 {
 	_LOG("recreating new replicas\n");
+	ssize_t node_id=IOnode_info->node_id;
 	if(1 == _registed_IOnodes.size())
 	{
 		//only one node remains
@@ -825,8 +828,15 @@ int Master::_recreate_replicas(node_info* IOnode_info)
 	for(auto &file_no:stored_files)
 	{
 		open_file_info* file_info=_buffered_files.at(file_no);	
+		_send_open_request_to_IOnodes(*file_info, replace_IOnode_id, file_info->block_list, file_info->node_id_pool);
 		//remove IOnode no from node list in that file
-		file_info->IOnodes_set.erase(replace_IOnode_id);
+		file_info->IOnodes_set.erase(node_id);
+		if(node_id == file_info->main_node_id)
+		{
+			file_info->main_node_id=*begin(file_info->IOnodes_set);
+
+		}
+		file_info->IOnodes_set.insert(replace_IOnode_id);
 	}
 	return SUCCESS;
 }
@@ -955,19 +965,16 @@ int Master::_send_open_request_to_IOnodes(struct open_file_info& file,
 	output->push_back(file.file_status->exist_flag);
 	output->push_back_string(file.get_path().c_str(), file.get_path().length());
 	_DEBUG("%s\n", file.get_path().c_str());
-	size_t remaining_size=file.get_stat().st_size;
 
 	output->push_back(static_cast<int>(block_info.size()));
 	for(auto& block:block_info)
 	{
-		size_t block_size=MIN(remaining_size, BLOCK_SIZE);
 		_DEBUG("block start_point=%ld\n", block.first);
 		output->push_back(block.first);
-		output->push_back(block_size);
-		remaining_size-=block_size;
+		output->push_back(block.second);
 	}
 	//send other replicas info to the main replica
-	if(main_node_id == current_node_id)
+	if(current_node_id == file.main_node_id)
 	{
 		output->push_back(MAIN_REPLICA);
 		output->push_back(static_cast<int>(IOnodes_set.size())-1);
@@ -1137,13 +1144,12 @@ open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 		_buffered_files.insert(std::make_pair(file_no, new_file));
 		new_file->block_size=get_block_size(stat->get_status().st_size); 
 		stat->opened_file_info=new_file;
-		new_file->main_node_id=_select_IOnode(MIN(NUM_OF_REPLICA, _registed_IOnodes.size()), new_file->IOnodes_set);
+		new_file->main_node_id=_select_IOnode(file_no, MIN(NUM_OF_REPLICA, _registed_IOnodes.size()), new_file->IOnodes_set);
 		_create_block_list(new_file->get_stat().st_size, new_file->block_size, new_file->block_list, new_file->IOnodes_set);
 		for(auto& IOnode_id:new_file->IOnodes_set)
 		{
 			_send_open_request_to_IOnodes(*new_file, IOnode_id, new_file->block_list, new_file->IOnodes_set);
 		}
-		_create_replicas(new_file->block_list, new_file->IOnodes_set);
 		return new_file;
 	}
 	catch(std::invalid_argument &e)
@@ -1152,28 +1158,6 @@ open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 		_release_file_no(file_no);
 		throw;
 	}
-}
-
-int Master::_create_replicas(block_list_t& block_list,
-		node_id_pool_t& node_id_pool)
-{
-	if(0 == node_id_pool.size())
-	{
-		//no IOnode
-		return SUCCESS;
-	}
-	block_list_t::iterator block_it=begin(block_list);
-	while(end(block_list) != block_it)
-	{
-		node_id_pool_t::iterator node_it=++begin(node_id_pool);
-		while(end(node_id_pool) != node_it)
-		{
-			block_it=block_list.insert(make_pair(block_it->first, *node_it));
-			node_it++;
-		}
-		block_it++;
-	}
-	return SUCCESS;
 }
 
 Master_file_stat* Master::_create_new_file_stat(const char* relative_path,
@@ -1203,23 +1187,35 @@ Master_file_stat* Master::_create_new_file_stat(const char* relative_path,
 	return &new_file_stat;
 }
 
-ssize_t Master::_select_IOnode(int num_of_nodes,
+ssize_t Master::_select_IOnode(ssize_t file_no,
+		int num_of_nodes,
 		node_id_pool_t& node_id_pool)
 {
-	if(0 == _registed_IOnodes.size())
+	if(0 == _registed_IOnodes.size() || 0 == num_of_nodes)
 	{
 		//no IOnode
 		return -1;
 	}
+	if(end(_registed_IOnodes) == _current_IOnode)
+	{
+		_current_IOnode=begin(_registed_IOnodes);
+	}
+	//insert main replica
+	ssize_t main_replica=_current_IOnode->first;
+	_current_IOnode->second->stored_files.insert(file_no);
+	node_id_pool.insert((_current_IOnode++)->first);
+	//insert sub replica
+	auto _replica_IOnode=_current_IOnode;
 	for(;0 < num_of_nodes;num_of_nodes--)
 	{
-		if(end(_registed_IOnodes) == _current_IOnode)
+		if(end(_registed_IOnodes) == _replica_IOnode)
 		{
-			_current_IOnode=begin(_registed_IOnodes);
+			_replica_IOnode=begin(_registed_IOnodes);
 		}
-		node_id_pool.insert((_current_IOnode++)->first);
+		_replica_IOnode->second->stored_files.insert(file_no);
+		node_id_pool.insert((_replica_IOnode++)->first);
 	}
-	return *begin(node_id_pool); 
+	return main_replica; 
 }
 
 int Master::_create_block_list(size_t file_size,
@@ -1229,57 +1225,44 @@ int Master::_create_block_list(size_t file_size,
 {
 	off64_t block_start_point=0;
 	size_t remaining_size=file_size;
-	ssize_t node_id=*begin(node_list);
+	//ssize_t node_id=*begin(node_list);
 	if(0 == remaining_size)
 	{
-		block_list.insert(make_pair(0, node_id));
+		block_list.insert(make_pair(0, 0));
 	}
 	while(0 != remaining_size)
 	{
 		size_t new_block_size=MIN(block_size, remaining_size);
-		block_list.insert(make_pair(block_start_point, node_id));
+		block_list.insert(make_pair(block_start_point, new_block_size));
 		block_start_point += new_block_size;
 		remaining_size -= new_block_size;
 	}
 	return SUCCESS;
 }
-		
-/*int Master::_insert_blocks_into_IOnodes(IOnode_t::iterator current_IOnode,
-		int num_blocks,
-		off64_t block_start_point,
-		size_t file_size,
-		size_t block_size,
-		node_t& nodes,
-		node_block_map_t& node_block_map)
-{
-		size_t remaining_size = file_size;
-		for(int i=0;i<num_blocks;++i)
-		{
-			nodes.insert(std::make_pair(block_start_point, current_IOnode->first));
-			node_block_map[current_IOnode->first].insert(std::make_pair(block_start_point, MIN(remaining_size, block_size)));
-			block_start_point += block_size;
-			remaining_size -= block_size;
-		}
-		return SUCCESS;
-}*/
 
 int Master::_allocate_new_blocks_for_writing(open_file_info& file,
 		off64_t start_point,
 		size_t size)
 {
-	block_list_t::iterator current_block=end(file.block_list);
 	off64_t current_point=get_block_start_point(start_point, size);
-	ssize_t remaining_size=size;
-	if(size + start_point < current_block->first + BLOCK_SIZE)
+	block_list_t::iterator current_block=file.block_list.find(current_point); ssize_t remaining_size=size;
+	if(size + start_point < current_block->first + current_block->second)
 	{
 		//no need to append new block
 		return SUCCESS;
 	}
 	for(;remaining_size>0;remaining_size-=BLOCK_SIZE, current_point+=BLOCK_SIZE)
 	{
-		for(auto& node_id: file.IOnodes_set)
+		size_t block_size=MIN(remaining_size, BLOCK_SIZE);
+		if(end(file.block_list) == current_block)
 		{
-			_append_block(file, node_id, current_point);
+			_append_block(file, current_point, block_size);
+			current_block=end(file.block_list);
+		}
+		else
+		{
+			current_block->second=MAX(block_size, current_block->second);
+			current_block++;
 		}
 	}
 	return SUCCESS;
@@ -1307,11 +1290,11 @@ int Master::_allocate_new_blocks_for_writing(open_file_info& file,
 	}
 }*/
 
-void Master::_append_block(struct open_file_info& file, int node_id, off64_t start_point)
+void Master::_append_block(struct open_file_info& file, off64_t start_point, size_t size)
 {
 	_DEBUG("append block=%ld\n", start_point);
-	file.block_list.insert(std::make_pair(start_point, node_id));
-	file.IOnodes_set.insert(node_id);
+	file.block_list.insert(std::make_pair(start_point, size));
+	//file.IOnodes_set.insert(node_id);
 }
 
 int Master::_remove_file(ssize_t file_no)

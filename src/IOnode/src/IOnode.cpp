@@ -382,6 +382,7 @@ int IOnode::_sync_data(file& file_info,
 		off64_t offset,
 		extended_IO_task* new_task)
 {
+	_DEBUG("offset %ld\n", offset);
 	return add_data_sync_task(&file_info, requested_block, offset, new_task);
 }
 
@@ -749,14 +750,13 @@ int IOnode::_remove_file(ssize_t file_no)
 				if(CLEAN == block_it->second->dirty_flag)
 				{
 					block_it->second->TO_BE_DELETED=SET;
-					block_it->second->unlock();
 				}
 				else
 				{
 					block_it->second->write_back_task->set_task_data(nullptr);
-					delete block_it->second;
 				}
 			}
+			block_it->second->unlock();
 		}
 		_files.erase(it);
 	}
@@ -802,15 +802,23 @@ int IOnode::data_sync_parser(data_sync_task* new_task)
 	input_task->get_received_data(static_cast<unsigned char*>(requested_block->data)+offset);
 	requested_block->dirty_flag=DIRTY;
 	requested_file->dirty_flag=DIRTY;
+#ifdef SYNC_REPLICA
 	for(auto& replicas:requested_file->IOnode_pool)
 	{
 		_send_sync_data(replicas.second, requested_block, requested_file);
 	}
+#endif
 	extended_IO_task* output_task=allocate_data_sync_task();
 	output_task->set_socket(input_task->get_socket());
 	output_task->set_receiver_id(input_task->get_receiver_id());
 	output_task->push_back(SUCCESS);
 	data_sync_task_enqueue(output_task);
+#ifndef SYNC_REPLICA
+	for(auto& replicas:requested_file->IOnode_pool)
+	{
+		_send_sync_data(replicas.second, requested_block, requested_file);
+	}
+#endif
 	return SUCCESS;
 }
 
@@ -823,6 +831,7 @@ int IOnode::_send_sync_data(int socket, block* requested_block, file* requested_
 	output_task->push_back(DATA_SYNC);
 	output_task->push_back(requested_file->file_no);
 	output_task->push_back(requested_block->start_point);
+	_DEBUG("data size=%ld\n", requested_block->data_size);
 	output_task->set_send_buffer(requested_block->data, requested_block->data_size);
 	data_sync_task_enqueue(output_task);
 	extended_IO_task* response=get_data_sync_response(output_task);

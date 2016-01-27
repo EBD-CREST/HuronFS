@@ -112,8 +112,6 @@ namespace CBB
 						const block_list_t& block_info,
 						const node_id_pool_t& node_id_set);
 
-				int _create_replicas(block_list_t& block_list, node_id_pool_t& node_id_pool);
-
 				//file operation
 				//void _send_node_info(int socket)const;
 				//void _send_file_info(int socket)const; 
@@ -143,7 +141,8 @@ namespace CBB
 				Master_file_stat* _create_new_file_stat(const char* relative_path,
 						int exist_flag)throw(std::invalid_argument);
 
-				ssize_t _select_IOnode(int num_of_IOnodes,
+				ssize_t _select_IOnode(ssize_t file_no,
+						int num_of_IOnodes,
 						node_id_pool_t& node_id_pool); 
 
 				int _create_block_list(size_t file_size,
@@ -158,8 +157,8 @@ namespace CBB
 						block_list_t& node_set)const;
 				int _allocate_one_block(const struct open_file_info &file)throw(std::bad_alloc);
 				void _append_block(struct open_file_info& file,
-						int node_id,
-						off64_t start_point);
+						off64_t start_point,
+						size_t size);
 				int _remove_file(ssize_t fd);
 				int _recreate_replicas(node_info* node_info);
 				ssize_t _allocate_new_IOnode();

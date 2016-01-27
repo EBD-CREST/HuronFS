@@ -33,9 +33,10 @@ namespace CBB
 				{
 					public:
 						friend class CBB_client;
-						block_info(ssize_t node_id, off64_t start_point, size_t size);
+						//block_info(ssize_t node_id, off64_t start_point, size_t size);
+						block_info(off64_t start_point, size_t size);
 					private:
-						ssize_t node_id;
+						//ssize_t node_id;
 						off64_t start_point;
 						size_t size;
 				};
@@ -113,7 +114,7 @@ namespace CBB
 				int _rename(const char* old_name, const char* new_name);
 				int _mkdir(const char* path, mode_t mode);
 				int _mkmod(const char* path, mode_t mode, dev_t rdev);
-				int _touch(int fd);
+				int _update_access_time(int fd);
 				int _truncate(const char*path, off64_t size);
 				int _ftruncate(int fd, off64_t size);
 				off64_t _tell(int fd);
