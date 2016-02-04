@@ -73,6 +73,7 @@ namespace CBB
 						~opened_file_info();
 					private:
 						const opened_file_info& operator=(const opened_file_info&);
+						//current offset in file
 						off64_t current_point;
 						int fd;
 						int flag;

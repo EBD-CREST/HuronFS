@@ -263,6 +263,13 @@ void CBB_client::_get_blocks_from_master(extended_IO_task* response,
 		response->pop(start_point);
 		//response->pop(node_id);
 		response->pop(block_size);
+#ifdef DEBUG
+		if(start_point%BLOCK_SIZE || BLOCK_SIZE < block_size)
+		{
+			_DEBUG("error!!!!!\n");
+			_DEBUG("start_point=%ld, block_size=%ld\n", start_point, block_size);
+		}
+#endif
 		block.push_back(block_info(start_point, block_size));
 	}
 	return;
@@ -548,11 +555,11 @@ int CBB_client::_get_IOnode_socket(int master_number, int IOnode_id, const std::
 		struct sockaddr_in IOnode_addr;
 		set_server_addr(ip, IOnode_addr);
 		int IOnode_socket=Client::_connect_to_server(_client_addr, IOnode_addr);
+		CBB_communication_thread::_add_socket(IOnode_socket);
 		int ret=FAILURE;
 		extended_IO_task* query=allocate_new_query(IOnode_socket);
 		query->push_back(NEW_CLIENT);
 		send_query(query);
-		CBB_communication_thread::_add_socket(IOnode_socket);
 		extended_IO_task* response=get_query_response(query);
 		response->pop(ret);
 		response_dequeue(response);

@@ -53,11 +53,12 @@ Master::Master()throw(std::runtime_error):
 	{
 		throw std::runtime_error("please set master total number");
 	}
+
+	_setup_queues();
+
 	master_number = atoi(master_number_string);
 	master_total_size = atoi(master_total_size_string);
 	_mount_point=std::string(master_mount_point);
-	CBB_heart_beat::set_task_parallel_queue(Server::get_communication_input_queue(HEART_BEAT_QUEUE_NUM),
-			Server::get_communication_output_queue(HEART_BEAT_QUEUE_NUM));
 	try
 	{
 		_init_server();
@@ -67,6 +68,13 @@ Master::Master()throw(std::runtime_error):
 	{
 		throw; 
 	}
+}
+
+int Master::_setup_queues()
+{
+	CBB_heart_beat::set_queues(Server::get_communication_input_queue(HEART_BEAT_QUEUE_NUM),
+			Server::get_communication_output_queue(HEART_BEAT_QUEUE_NUM));
+	return SUCCESS;
 }
 
 Master::~Master()
@@ -105,14 +113,14 @@ int Master::remote_task_handler(remote_task* new_task)
 	int request=new_task->get_task_id();
 	switch(request)
 	{
-		/*case RENAME:
+		case RENAME:
 			_remote_rename(new_task);break;
 		case RM_DIR:
-			_remote_rm(new_task);break;
+			_remote_rmdir(new_task);break;
 		case UNLINK:
 			_remote_unlink(new_task);break;
 		case MKDIR:
-			_remote_mkdir(new_task);break;*/
+			_remote_mkdir(new_task);break;
 	}
 	return SUCCESS;
 }
@@ -828,7 +836,7 @@ int Master::_recreate_replicas(node_info* IOnode_info)
 	for(auto &file_no:stored_files)
 	{
 		open_file_info* file_info=_buffered_files.at(file_no);	
-		_send_open_request_to_IOnodes(*file_info, replace_IOnode_id, file_info->block_list, file_info->node_id_pool);
+		//_send_open_request_to_IOnodes(*file_info, replace_IOnode_id, file_info->block_list, file_info->node_id_pool);
 		//remove IOnode no from node list in that file
 		file_info->IOnodes_set.erase(node_id);
 		if(node_id == file_info->main_node_id)
@@ -903,6 +911,7 @@ void Master::_send_block_info(Common::extended_IO_task* output,
 
 	for(auto& block:block_list)
 	{
+		_DEBUG("start point %ld, block size=%ld\n", block.first, block.second);
 		output->push_back(block.first);
 		output->push_back(block.second);
 	}
@@ -1246,10 +1255,13 @@ int Master::_allocate_new_blocks_for_writing(open_file_info& file,
 {
 	off64_t current_point=get_block_start_point(start_point, size);
 	block_list_t::iterator current_block=file.block_list.find(current_point); ssize_t remaining_size=size;
-	if(size + start_point < current_block->first + current_block->second)
+	if(end(file.block_list) != current_block)
 	{
-		//no need to append new block
-		return SUCCESS;
+		if(size + start_point < current_block->first + current_block->second)
+		{
+			//no need to append new block
+			return SUCCESS;
+		}
 	}
 	for(;remaining_size>0;remaining_size-=BLOCK_SIZE, current_point+=BLOCK_SIZE)
 	{
@@ -1438,12 +1450,64 @@ int Master::node_failure_handler(int node_socket)
 	_DEBUG("IOnode failed id=%d\n", node_socket);
 	return send_input_for_socket_error(node_socket);
 }
-/*int Master::_remote_rename(CBB::Common::remote_task* new_task)
+
+int Master::_remote_rename(Common::remote_task* new_task)
 {
-	string* old_name=new_task->get_task_data(), *new_name=new_task->get_extended_task_data();
+	string* old_name=static_cast<string*>(new_task->get_task_data()), *new_name=static_cast<string*>(new_task->get_extended_task_data());
 	std::string old_real_path=_get_real_path(*old_name), new_real_path=_get_real_path(*new_name);
+	int ret=SUCCESS;
+
+	_LOG("rename %s to %s\n", old_real_path.c_str(), new_real_path.c_str());
+	if(0 != (ret=rename(old_real_path.c_str(), new_real_path.c_str())))
+	{
+		perror("rename");
+	}
+	delete old_name;
+	return ret;
 }
 
-int _remote_rm(Common::extended_IO_task* new_task);
-int _remote_unlink(Common::extended_IO_task* new_task);
-int _remote_mkdir(Common::extended_IO_task* new_task);*/
+int Master::_remote_rmdir(Common::remote_task* new_task)
+{
+	int ret=SUCCESS;
+	string* dir_name=static_cast<string*>(new_task->get_task_data());
+	std::string real_dir_name=_get_real_path(*dir_name);
+
+	_LOG("rmdir %s\n", real_dir_name.c_str());
+	if(0 != (ret=rmdir(real_dir_name.c_str())))
+	{
+		perror("rmdir");
+	}
+
+	return ret;
+}
+
+int Master::_remote_unlink(Common::remote_task* new_task)
+{
+	int ret=SUCCESS;
+	string* file_name=static_cast<string*>(new_task->get_task_data());
+	std::string real_file_name=_get_real_path(*file_name);
+
+	_LOG("unlink file %s\n", real_file_name.c_str());
+	if(0 != (ret=unlink(real_file_name.c_str())))
+	{
+		perror("unlink");
+	}
+
+	return ret;
+}
+
+int Master::_remote_mkdir(Common::remote_task* new_task)
+{
+	int ret=SUCCESS;
+	string* dir_name=static_cast<string*>(new_task->get_task_data());
+	mode_t* mode=static_cast<mode_t*>(new_task->get_extended_task_data());
+	std::string real_dir_name=_get_real_path(*dir_name);
+
+	_LOG("mkdir %s\n", real_dir_name.c_str());
+	if(0 != (ret=mkdir(real_dir_name.c_str(), *mode)))
+	{
+		perror("mkdir");
+	}
+
+	return ret;
+}

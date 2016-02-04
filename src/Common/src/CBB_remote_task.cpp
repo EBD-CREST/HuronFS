@@ -46,7 +46,6 @@ void CBB_remote_task::stop_listening()
 	if(STARTED == thread_started)
 	{
 		pthread_join(remote_task_thread, &ret);
-		//pthread_join(queue_event_wait_thread, &ret);
 		thread_started = UNSTARTED;
 	}
 	return;
@@ -72,7 +71,7 @@ remote_task* CBB_remote_task::add_remote_task(int task_code, void* task_data)
 	remote_task* new_task = remote_task_queue.allocate_tmp_node();
 	new_task->set_task_id(task_code);
 	new_task->set_task_data(task_data);
-	//remote_task_queue.task_enqueue_signal_notification();
+	remote_task_queue.task_enqueue_signal_notification();
 	return new_task;
 }
 

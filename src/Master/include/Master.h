@@ -88,10 +88,10 @@ namespace CBB
 				int _parse_node_failure(Common::extended_IO_task* new_task);
 
 				//remote request parsar
-				int _remote_rename(Common::extended_IO_task* new_task);
-				int _remote_rm(Common::extended_IO_task* new_task);
-				int _remote_unlink(Common::extended_IO_task* new_task);
-				int _remote_mkdir(Common::extended_IO_task* new_task);
+				int _remote_rename(Common::remote_task* new_task);
+				int _remote_rmdir(Common::remote_task* new_task);
+				int _remote_unlink(Common::remote_task* new_task);
+				int _remote_mkdir(Common::remote_task* new_task);
 
 				int _unregist_IOnode(node_info* IOnode_info);
 				int _remove_IOnode_buffered_file(node_info* IOnode_info);
@@ -112,10 +112,6 @@ namespace CBB
 						const block_list_t& block_info,
 						const node_id_pool_t& node_id_set);
 
-				//file operation
-				//void _send_node_info(int socket)const;
-				//void _send_file_info(int socket)const; 
-				//int _send_file_meta(int socket)const; 
 
 				ssize_t _add_IOnode(const std::string& node_ip,
 						std::size_t avaliable_memory,
@@ -171,6 +167,8 @@ namespace CBB
 
 				ssize_t _select_IOnode_for_IO(open_file_info& file);
 				dir_t _get_file_stat_from_dir(const std::string& path);
+
+				int _setup_queues();
 
 			private:
 				//IOnode info map node_id:node info

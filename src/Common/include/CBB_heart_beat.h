@@ -18,7 +18,7 @@ namespace CBB
 						communication_queue_t* output_queue);	
 				virtual ~CBB_heart_beat() = default;	
 
-				void set_task_parallel_queue(communication_queue_t* input_queue,
+				void set_queues(communication_queue_t* input_queue,
 						communication_queue_t* output_queue);
 				int heart_beat_check();
 

@@ -16,7 +16,7 @@ CBB_heart_beat::CBB_heart_beat():
 	output_queue(nullptr)
 {}
 
-void CBB_heart_beat::set_task_parallel_queue(communication_queue_t* input_queue,
+void CBB_heart_beat::set_queues(communication_queue_t* input_queue,
 		communication_queue_t* output_queue)
 {
 	this->input_queue=input_queue;

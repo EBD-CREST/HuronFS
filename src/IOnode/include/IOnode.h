@@ -146,6 +146,8 @@ namespace CBB
 				int _sync_data(file& file, block* block, off64_t offset, Common::extended_IO_task* input_task);
 				int _send_sync_data(int socket, block* requested_block, file* requested_file);
 
+				int _setup_queues();
+
 				//private member
 			private:
 

@@ -122,8 +122,6 @@ IOnode::IOnode(const std::string& master_ip,
 	_master_conn_addr.sin_family = AF_INET;
 	_master_conn_addr.sin_addr.s_addr = htons(INADDR_ANY);
 	_master_conn_addr.sin_port = htons(MASTER_CONN_PORT);
-
-	CBB_data_sync::set_queues(&_communication_input_queue.at(DATA_SYNC_QUEUE_NUM), &_communication_output_queue.at(DATA_SYNC_QUEUE_NUM));
 	const char *IOnode_mount_point=getenv(IONODE_MOUNT_POINT);
 	if( nullptr == IOnode_mount_point)
 	{
@@ -131,6 +129,9 @@ IOnode::IOnode(const std::string& master_ip,
 	}
 	_master_addr.sin_family = AF_INET;
 	_master_addr.sin_port = htons(master_port);
+
+	_setup_queues();
+
 	if( 0  ==  inet_aton(master_ip.c_str(), &_master_addr.sin_addr))
 	{
 		perror("Server IP Address Error"); 
@@ -146,6 +147,12 @@ IOnode::IOnode(const std::string& master_ip,
 		throw;
 	}
 	_mount_point=std::string(IOnode_mount_point);
+}
+
+int IOnode::_setup_queues()
+{
+	CBB_data_sync::set_queues(&_communication_input_queue.at(DATA_SYNC_QUEUE_NUM), &_communication_output_queue.at(DATA_SYNC_QUEUE_NUM));
+	return SUCCESS;
 }
 
 IOnode::~IOnode()
@@ -771,7 +778,11 @@ int IOnode::remote_task_handler(remote_task* new_task)
 		switch(new_task->get_task_id())
 		{
 			case CBB_REMOTE_WRITE_BACK:
-				_write_to_storage(IO_block);break;
+#ifdef WRITE_BACK
+				_DEBUG("write back\n");
+				_write_to_storage(IO_block);
+#endif
+				break;
 		}
 	}
 	return SUCCESS;
@@ -802,7 +813,7 @@ int IOnode::data_sync_parser(data_sync_task* new_task)
 	input_task->get_received_data(static_cast<unsigned char*>(requested_block->data)+offset);
 	requested_block->dirty_flag=DIRTY;
 	requested_file->dirty_flag=DIRTY;
-#ifdef SYNC_REPLICA
+#ifdef STRICT_SYNC_DATA
 	for(auto& replicas:requested_file->IOnode_pool)
 	{
 		_send_sync_data(replicas.second, requested_block, requested_file);
@@ -813,7 +824,7 @@ int IOnode::data_sync_parser(data_sync_task* new_task)
 	output_task->set_receiver_id(input_task->get_receiver_id());
 	output_task->push_back(SUCCESS);
 	data_sync_task_enqueue(output_task);
-#ifndef SYNC_REPLICA
+#ifndef STRICT_SYNC_DATA
 	for(auto& replicas:requested_file->IOnode_pool)
 	{
 		_send_sync_data(replicas.second, requested_block, requested_file);
@@ -834,10 +845,12 @@ int IOnode::_send_sync_data(int socket, block* requested_block, file* requested_
 	_DEBUG("data size=%ld\n", requested_block->data_size);
 	output_task->set_send_buffer(requested_block->data, requested_block->data_size);
 	data_sync_task_enqueue(output_task);
-	extended_IO_task* response=get_data_sync_response(output_task);
 	int ret=SUCCESS;
+#ifdef SYNC_DATA_WITH_REPLY
+	extended_IO_task* response=get_data_sync_response(output_task);
 	response->pop(ret);
 	data_sync_response_dequeue(response);
+#endif
 	return ret;
 }
 
@@ -849,7 +862,9 @@ int IOnode::_get_sync_data(extended_IO_task* new_task)
 	off64_t start_point=0;
 	new_task->pop(file_no);
 	new_task->pop(start_point);
+#ifdef SYNC_DATA_WITH_REPLY
 	extended_IO_task* output=init_response_task(new_task);
+#endif
 	try
 	{
 		file& _file=_files.at(file_no);
@@ -872,14 +887,20 @@ int IOnode::_get_sync_data(extended_IO_task* new_task)
 		_block->data_size=data_size;
 		_block->dirty_flag=DIRTY;
 		_file.dirty_flag=DIRTY;
+#ifdef SYNC_DATA_WITH_REPLY
 		output->push_back(SUCCESS);
+#endif
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range& e)
 	{
+#ifdef SYNC_DATA_WITH_REPLY
 		output->push_back(FILE_NOT_FOUND);
+#endif
 		ret=FAILURE;
 	}
+#ifdef SYNC_DATA_WITH_REPLY
 	output_task_enqueue(output);
+#endif
 	return ret;
 }
