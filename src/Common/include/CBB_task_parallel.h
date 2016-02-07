@@ -230,7 +230,6 @@ namespace CBB
 		template<class task_type> int task_parallel_queue<task_type>::task_enqueue_signal_notification()
 		{
 			queue_head=queue_tmp_head;
-			_DEBUG("send to queue %p\n",this);
 			pthread_cond_signal(&queue_empty);
 			return SUCCESS;
 		}

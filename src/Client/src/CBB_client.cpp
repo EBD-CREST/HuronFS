@@ -263,13 +263,6 @@ void CBB_client::_get_blocks_from_master(extended_IO_task* response,
 		response->pop(start_point);
 		//response->pop(node_id);
 		response->pop(block_size);
-#ifdef DEBUG
-		if(start_point%BLOCK_SIZE || BLOCK_SIZE < block_size)
-		{
-			_DEBUG("error!!!!!\n");
-			_DEBUG("start_point=%ld, block_size=%ld\n", start_point, block_size);
-		}
-#endif
 		block.push_back(block_info(start_point, block_size));
 	}
 	return;
@@ -873,15 +866,6 @@ int CBB_client::_getattr(const char* path, struct stat* fstat)
 		{
 			_DEBUG("SUCCESS\n");
 			Recv_attr(response, fstat);
-#ifdef DEBUG
-			struct tm *tm;
-			char buf[200];
-			/* convert time_t to broken-down time representation */
-			tm = localtime(&fstat->st_mtime);
-			/* format time days.month.year hour:minute:seconds */
-			strftime(buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", tm);
-			printf("time = %s\n", buf);
-#endif
 		}
 		else
 		{

@@ -683,8 +683,7 @@ int IOnode::_flush_file(extended_IO_task* new_task)
 
 int IOnode::_regist_new_client(extended_IO_task* new_task)
 {
-	_LOG("new client\n");
-	Server::_add_socket(new_task->get_socket());
+	_LOG("new client sockfd=%d\n", new_task->get_socket());
 	extended_IO_task* output=init_response_task(new_task);
 	output->push_back(SUCCESS);
 	output_task_enqueue(output);

@@ -169,7 +169,6 @@ int Master::_parse_request(extended_IO_task* new_task)
 		case NODE_FAILURE:
 			_parse_node_failure(new_task);break;
 	}
-	_DEBUG("parsing ends\n");
 	return ans; 
 }
 
@@ -202,7 +201,6 @@ int Master::_parse_new_client(extended_IO_task* new_task)
 	getpeername(new_task->get_socket(), reinterpret_cast<sockaddr*>(&addr), &len); 
 	std::string ip=std::string(inet_ntoa(addr.sin_addr));
 	_LOG("new client ip=%s\n", ip.c_str());
-	Server::_add_socket(new_task->get_socket()); 
 
 	extended_IO_task* output=init_response_task(new_task);
 
@@ -874,6 +872,10 @@ int Master::_remove_IOnode_buffered_file(node_info* IOnode_info)
 		open_file_info* file_info=_buffered_files.at(file_no);	
 		//remove IOnode no from node list in that file
 		file_info->IOnodes_set.erase(node_id);
+		if(file_info->main_node_id == node_id)
+		{
+			file_info->main_node_id=*begin(file_info->IOnodes_set);
+		}
 	}
 	return SUCCESS;
 }

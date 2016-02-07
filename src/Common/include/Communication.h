@@ -120,7 +120,7 @@ template<class T> size_t Do_recv(int sockfd, T* buffer, size_t count, int flag)t
 	{
 		if(-1 == ret)
 		{
-			if(EINVAL == errno || EAGAIN == errno)
+			if(EINTR == errno || EAGAIN == errno)
 			{
 				continue;
 			}
@@ -153,7 +153,7 @@ template<class T> size_t Do_send(int sockfd, const T* buffer, size_t count, int 
 	{
 		if(-1 == ret)
 		{
-			if(EINVAL == errno || EAGAIN == errno)
+			if(EINTR == errno || EAGAIN == errno)
 			{
 				continue;
 			}

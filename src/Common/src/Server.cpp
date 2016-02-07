@@ -146,31 +146,35 @@ int Server::input_from_socket(int socket, communication_queue_array_t* output_qu
 			return FAILURE; 
 		}
 		_DEBUG("A New Client\n"); 
+		Server::_add_socket(socket);
 	}
-	int from_id=0, to_id=0;
-	communication_queue_t* output_queue=nullptr;
-	extended_IO_task* new_task=nullptr;
-	try
+	else
 	{
-		Recv(socket, from_id);
-		Recv(socket, to_id);
-		output_queue=&output_queue_array->at(to_id);
-		new_task=output_queue->allocate_tmp_node();
-		new_task->set_receiver_id(from_id);
-		CBB_communication_thread::receive_message(socket, new_task);
-		output_queue->task_enqueue_signal_notification();
-	}
-	catch(std::runtime_error &e)
-	{
-		//socket is killed after get to_id;
-		//server won't get response;
-		//since we allocated new task;
-		//we deallocate it;
-		if(nullptr != output_queue)
+		int from_id=0, to_id=0;
+		communication_queue_t* output_queue=nullptr;
+		extended_IO_task* new_task=nullptr;
+		try
 		{
-			output_queue->putback_tmp_node();
+			Recv(socket, from_id);
+			Recv(socket, to_id);
+			output_queue=&output_queue_array->at(to_id);
+			new_task=output_queue->allocate_tmp_node();
+			new_task->set_receiver_id(from_id);
+			CBB_communication_thread::receive_message(socket, new_task);
+			output_queue->task_enqueue_signal_notification();
 		}
-		node_failure_handler(socket);
+		catch(std::runtime_error &e)
+		{
+			//socket is killed after get to_id;
+			//server won't get response;
+			//since we allocated new task;
+			//we deallocate it;
+			if(nullptr != output_queue)
+			{
+				output_queue->putback_tmp_node();
+			}
+			node_failure_handler(socket);
+		}
 	}
 	return SUCCESS; 
 }
