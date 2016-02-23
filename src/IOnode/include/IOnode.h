@@ -38,7 +38,9 @@ namespace CBB
 				virtual ~IOnode();
 				int start_server();
 
+				//map node id: socket
 				typedef std::map<ssize_t, int> node_socket_pool_t;
+				//map node id: ip
 				typedef std::map<ssize_t, std::string> node_ip_t;
 
 				//nested class
@@ -126,23 +128,31 @@ namespace CBB
 				int _heart_beat(Common::extended_IO_task* new_task);
 				int _get_sync_data(Common::extended_IO_task* new_task);
 				int _regist_new_IOnode(Common::extended_IO_task* new_task);
+				int _promoted_to_primary(Common::extended_IO_task* new_task);
+				int _replace_replica(Common::extended_IO_task* new_task);
+				int _remove_IOnode(Common::extended_IO_task* new_task);
+
+				int _get_replica_node_info(Common::extended_IO_task* new_task, file& _file);
+				int _get_IOnode_info(Common::extended_IO_task* new_task, file& _file);
 
 				block *_buffer_block(off64_t start_point,
 						size_t size)throw(std::runtime_error);
 
 				size_t _write_to_storage(block* block_data)throw(std::runtime_error); 
-
 				size_t _read_from_storage(const std::string& path,
 						block* block_data)throw(std::runtime_error);
 				void _append_block(Common::extended_IO_task* new_task,
 						file& file_stat)throw(std::runtime_error);
 				virtual std::string _get_real_path(const char* path)const override final;
-
 				std::string _get_real_path(const std::string& path)const;
-
 				int _remove_file(ssize_t file_no);
 
 				int _connect_to_new_IOnode(ssize_t destination_node_id, ssize_t my_node_id, const char* node_ip);
+
+				//send data to new replica node after IOnode fail over
+				int _sync_init_data(Common::data_sync_task* new_task);
+				int _sync_write_data(Common::data_sync_task* new_task);
+
 				int _sync_data(file& file, block* block, off64_t offset, Common::extended_IO_task* input_task);
 				int _send_sync_data(int socket, block* requested_block, file* requested_file);
 
@@ -152,7 +162,7 @@ namespace CBB
 			private:
 
 				//node id
-				ssize_t _node_id;
+				ssize_t my_node_id;
 				/*block_info _blocks;
 				  file_info _files;*/
 

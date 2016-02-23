@@ -36,7 +36,7 @@ const int MAX_QUERY_LENGTH = 100;
 const int MAX_FILE = 10000;
 const int INIT_FD = 100000;
 const int CONNECT_WAIT_TIME=1000;
-const size_t BLOCK_SIZE = 100*MB;
+const size_t BLOCK_SIZE = 5*MB;
 const int NO_ERROR=0;
 const size_t STREAM_BUFFER_SIZE = 2*BLOCK_SIZE;
 
@@ -76,9 +76,13 @@ const int NODE_FAILURE = 25;
 const int OPEN_FILE_RECOVERY = 26;
 const int DATA_SYNC = 27;
 const int NEW_IONODE = 28;
+const int PROMOTED_TO_PRIMARY_REPLICA = 29;
+const int REPLACE_REPLICA = 30;
+const int REMOVE_IONODE = 31;
+const int IONODE_FAILURE = 32;
 
-const int SERVER_SHUT_DOWN = 30; 
-const int I_AM_SHUT_DOWN = 31;
+const int SERVER_SHUT_DOWN = 40; 
+const int I_AM_SHUT_DOWN = 41;
 
 const int TOO_MANY_FILES =50;
 const int FILE_NOT_FOUND = 51;
@@ -112,9 +116,11 @@ const bool SET = true;
 const int CBB_REMOTE_WRITE_BACK = 0;
 const int HEART_BEAT_INTERVAL=1000;
 
-const int NUM_OF_REPLICA = 2;
+const int NUM_OF_REPLICA = 1;
 
 const int MAIN_REPLICA=0;
 const int SUB_REPLICA=1;
 
+const int DATA_SYNC_INIT=0;
+const int DATA_SYNC_WRITE=1;
 #endif

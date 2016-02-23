@@ -15,6 +15,9 @@ namespace CBB
 			public:
 				data_sync_task()=default;
 				virtual ~data_sync_task()=default;
+
+				int task_id;
+				int socket;
 				extended_IO_task* input_task;
 				void* _file;
 				void* _block;
@@ -30,7 +33,12 @@ namespace CBB
 				int start_listening();
 				void stop_listening();
 				
-				int add_data_sync_task(void* file, void* block, off64_t offset, extended_IO_task* input_queue);
+				int add_data_sync_task(int task_id,
+						void* file,
+						void* block,
+						off64_t offset,
+						extended_IO_task* input_queue,
+						int socket);
 				static void* thread_fun(void* argv);
 				void set_queues(communication_queue_t* input_queue,
 						communication_queue_t* output_queue);

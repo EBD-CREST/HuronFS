@@ -59,6 +59,7 @@ CBB_stream::~CBB_stream()
 bool CBB_stream::_interpret_stream(void* stream)const
 {
 	stream_info_t* stream_info_ptr=static_cast<stream_info_t*>(stream);
+
 	if(_stream_pool.end() == _stream_pool.find(stream_info_ptr))
 	{
 		return false;
@@ -94,7 +95,7 @@ FILE* CBB_stream::_open_stream(const char* path, const char* mode)
 	//pase mode
 	//
 	_parse_open_mode_flag(mode, flag, open_mode);
-	int fd=_open(path, flag, open_mode);
+	int fd=CBB_client::open(path, flag, open_mode);
 	if(-1 == fd)
 	{
 		return nullptr;
@@ -110,7 +111,8 @@ FILE* CBB_stream::_open_stream(const char* path, const char* mode)
 
 FILE* CBB_stream::_open_stream(const char* path, int flag, mode_t mode)
 {
-	int fd=_open(path, flag, mode);
+	int fd=CBB_client::open(path, flag, mode);
+
 	if(-1 == fd)
 	{
 		return nullptr;
@@ -127,9 +129,10 @@ FILE* CBB_stream::_open_stream(const char* path, int flag, mode_t mode)
 int CBB_stream::_close_stream(FILE* file_stream)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
+
 	_flush_stream(file_stream);
 	_DEBUG("close stream, fd=%d\n", stream->fd);
-	_close(stream->fd);
+	CBB_client::close(stream->fd);
 	_stream_pool.erase(stream);
 	delete stream;
 	return SUCCESS;
@@ -139,13 +142,14 @@ int CBB_stream::_flush_stream(FILE* file_stream)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
 	_DEBUG("current offset=%ld\n", stream->_cur_file_off());
+
 	if(stream->buffer_flag && DIRTY == stream->dirty_flag)
 	{
 		_update_file_size(stream->fd, stream->file_size);
-		_lseek(stream->fd, stream->buf_file_off, SEEK_SET);
-		_write(stream->fd, stream->buf, stream->buffered_data_size);
+		CBB_client::lseek(stream->fd, stream->buf_file_off, SEEK_SET);
+		CBB_client::write(stream->fd, stream->buf, stream->buffered_data_size);
 		stream->dirty_flag=CLEAN;
-		_lseek(stream->fd, stream->buffered_data_size, SEEK_CUR);
+		CBB_client::lseek(stream->fd, stream->buffered_data_size, SEEK_CUR);
 	}
 	return SUCCESS;
 }
@@ -153,6 +157,7 @@ int CBB_stream::_flush_stream(FILE* file_stream)
 void CBB_stream::_freebuf_stream(FILE* file_stream)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
+
 	if(stream->buffer_flag)
 	{
 		_flush_stream(file_stream);
@@ -166,6 +171,7 @@ void CBB_stream::_freebuf_stream(FILE* file_stream)
 void CBB_stream::_setbuf_stream(FILE* file_stream, char* buf)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
+
 	if(!stream->buffer_flag)
 	{
 		stream->buf=buf;
@@ -184,7 +190,7 @@ void CBB_stream::stream_info::_update_meta_for_rebuf(bool new_dirty_flag, size_t
 	{
 		file_size=buf_file_off+buffered_data_size;
 	}
-	if(_cur_buf_off() >= buffer_size)
+	if(_cur_buf_off() >= static_cast<ssize_t>(buffer_size))
 	{
 		cur_buf_ptr=buf;
 	}
@@ -226,7 +232,7 @@ inline void CBB_stream::stream_info::_update_file_size(CBB_stream& stream)
 
 inline size_t CBB_stream::stream_info::_remaining_buffer_data_size()const
 {
-	return _cur_buf_off() > buffered_data_size?buffered_data_size:buffered_data_size-_cur_buf_off();
+	return _cur_buf_off() > static_cast<ssize_t>(buffered_data_size)?buffered_data_size:buffered_data_size-_cur_buf_off();
 }
 
 inline size_t CBB_stream::stream_info::_remaining_buffer_size()const
@@ -256,7 +262,7 @@ size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 			//flush data
 			_flush_stream(file_stream);
 			//read from CBB
-			size_t ret=_read(stream->fd, stream->buf, stream->buffer_size);
+			size_t ret=CBB_client::read(stream->fd, stream->buf, stream->buffer_size);
 
 			//updata meta data
 			if(0 == ret)
@@ -276,13 +282,14 @@ size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 	}
 	else
 	{
-		return _read(stream->fd, buffer, size); 
+		return CBB_client::read(stream->fd, buffer, size); 
 	}
 }
 
 int CBB_stream::_update_underlying_file_size(FILE* file_stream)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
+
 	CBB_client::_update_file_size(stream->fd, stream->file_size);
 	return SUCCESS;
 }
@@ -318,6 +325,7 @@ size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t s
 		size_t buffered_size=MIN(remaining_size, size);
 		size_t unbuffered_size=size-buffered_size;
 		size_t total_size=0;;
+
 		_DEBUG("remaining_size=%lu, buffered_size=%lu, unbuffered_size=%lu\n", remaining_size, buffered_size, unbuffered_size);
 		memcpy(stream->cur_buf_ptr, buffer, buffered_size);
 		stream->_write_meta_update(buffered_size);
@@ -342,7 +350,7 @@ size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t s
 	}
 	else
 	{
-		return _write(stream->fd, buffer, size); 
+		return CBB_client::write(stream->fd, buffer, size); 
 	}
 }
 
@@ -368,7 +376,7 @@ off64_t CBB_stream::_seek_stream(FILE* file_stream, off64_t offset, int whence)
 			stream->buf_file_off=new_block_start_point;
 			stream->buffered_data_size=0;
 			stream->cur_buf_ptr=stream->buf+new_pos-new_block_start_point;
-			_lseek(stream->fd, new_block_start_point, SEEK_SET);
+			CBB_client::lseek(stream->fd, new_block_start_point, SEEK_SET);
 		}
 		else
 		{
@@ -378,7 +386,7 @@ off64_t CBB_stream::_seek_stream(FILE* file_stream, off64_t offset, int whence)
 	}
 	else
 	{
-		new_pos=_lseek(stream->fd, offset, whence);
+		new_pos=CBB_client::lseek(stream->fd, offset, whence);
 	}
 	return new_pos;
 }
@@ -397,7 +405,7 @@ off64_t CBB_stream::_tell_stream(FILE* file_stream)
 	}
 	else
 	{
-		return _tell(stream->fd);
+		return CBB_client::tell(stream->fd);
 	}
 }
 
@@ -479,5 +487,5 @@ int CBB_stream::_truncate_stream(FILE* file_stream, off64_t size)
 			}
 		}
 	}
-	return _ftruncate(stream->fd, size);
+	return CBB_client::ftruncate(stream->fd, size);
 }

@@ -86,6 +86,7 @@ namespace CBB
 				virtual ~CBB_communication_thread();
 				int start_communication_server();
 				int stop_communication_server();
+				int _add_event_socket(int socketfd);
 				int _add_socket(int socketfd);
 				int _add_socket(int socketfd, int op);
 				int _delete_socket(int socketfd); 
@@ -97,7 +98,8 @@ namespace CBB
 
 				size_t send(extended_IO_task* new_task)throw(std::runtime_error);
 				size_t receive_message(int socket, extended_IO_task* new_task)throw(std::runtime_error);
-				static void* thread_function(void*);
+				static void* sender_thread_function(void*);
+				static void* receiver_thread_function(void*);
 				//thread wait on queue event;
 				//static void* queue_wait_function(void*);
 				void setup(communication_queue_array_t* input_queues,
@@ -113,13 +115,17 @@ namespace CBB
 
 			private:
 				int keepAlive;
-				int epollfd; 
+				int sender_epollfd;
+				int receiver_epollfd; 
 				socket_pool_t _socket_pool; 
 
 				bool thread_started;
 				communication_queue_array_t* input_queue;
 				communication_queue_array_t* output_queue;
-				pthread_t communication_thread;
+				//to solve both-sending deadlock
+				//we create a sender and a reciver
+				pthread_t sender_thread;
+				pthread_t receiver_thread;
 				fd_queue_map_t fd_queue_map;
 		};
 

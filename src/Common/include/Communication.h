@@ -122,6 +122,7 @@ template<class T> size_t Do_recv(int sockfd, T* buffer, size_t count, int flag)t
 		{
 			if(EINTR == errno || EAGAIN == errno)
 			{
+				perror("do_send");
 				continue;
 			}
 			perror("do_recv");
@@ -155,6 +156,7 @@ template<class T> size_t Do_send(int sockfd, const T* buffer, size_t count, int 
 		{
 			if(EINTR == errno || EAGAIN == errno)
 			{
+				perror("do_send");
 				continue;
 			}
 			perror("do_send");

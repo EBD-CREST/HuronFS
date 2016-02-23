@@ -22,13 +22,16 @@ namespace CBB
 
 		class Master_file_stat; 
 
+		class node_info;
+
 		//map start_point, data_size
 		//unused
 		//typedef std::map<off64_t, ssize_t> block_info_t;
 		//map offset:size
 		typedef std::map<off64_t, size_t> block_list_t; 
 		//set node_id
-		typedef std::set<ssize_t> node_id_pool_t;
+		//typedef std::set<ssize_t> node_id_pool_t;
+		typedef std::set<node_info*> node_info_pool_t;
 		typedef std::set<Master_file_stat*> items_set_t;
 		//map file_path, Master_file_stat
 		typedef std::map<std::string, Master_file_stat> file_stat_pool_t;
@@ -104,7 +107,7 @@ namespace CBB
 
 				open_file_info(ssize_t fileno,
 						size_t block_size,
-						const node_id_pool_t& IOnodes,
+						const node_info_pool_t& IOnodes,
 						int flag,
 						Master_file_stat* file_stat); 
 				open_file_info(ssize_t fileno,
@@ -119,9 +122,9 @@ namespace CBB
 				ssize_t file_no;
 				//node_t IOnodes_set;
 				block_list_t block_list;
-				node_id_pool_t IOnodes_set;
+				node_info_pool_t IOnodes_set;
 				//the node stores the main replica
-				ssize_t main_node_id;
+				node_info* primary_replica_node;
 				size_t block_size;
 				int open_count;
 				//open file

@@ -49,10 +49,12 @@ namespace CBB
 				int unlock_queue();
 				void set_queue_id(int id);
 
+				void flush_queue()const;
+
 			private:
 				task_type* queue_head; 
 				task_type* queue_tail;
-				//resevered nodes which are still under I/O
+				//reserved nodes which are still under I/O
 				task_type* queue_tmp_tail;
 				//used to allocate temp
 				//and make item available later
@@ -178,7 +180,14 @@ namespace CBB
 
 		template<class task_type> inline void task_parallel_queue<task_type>::task_dequeue()
 		{
-			queue_tmp_tail=static_cast<task_type*>(queue_tmp_tail->get_next());
+			if(queue_tmp_tail == queue_tail)
+			{
+				_DEBUG("queue dequeue error!!!!!\n");
+			}
+			else
+			{
+				queue_tmp_tail=static_cast<task_type*>(queue_tmp_tail->get_next());
+			}
 		}
 
 		template<class task_type> bool task_parallel_queue<task_type>::task_wait()
@@ -275,6 +284,20 @@ namespace CBB
 		template<class task_type> void task_parallel_queue<task_type>::putback_tmp_node()
 		{
 			queue_tmp_head=queue_head;
+		}
+
+		template<class task_type> void task_parallel_queue<task_type>::flush_queue()const
+		{
+			basic_task* next=queue_head->get_next();
+			_DEBUG("queue entry %p\n", queue_head);
+			while(queue_head != next)
+			{
+				_DEBUG("queue entry %p\n", next);
+				next=next->get_next();
+			}
+			_DEBUG("end of queue entry\n");
+			_DEBUG("queue head %p, queue tmp head %p, queue tail %p, queue tmp tail %p\n", queue_head, queue_tmp_head, queue_tail, queue_tmp_tail);
+			return;
 		}
 
 	}

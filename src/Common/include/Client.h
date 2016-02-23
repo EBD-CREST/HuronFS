@@ -3,6 +3,7 @@
 
 #include <stdexcept>
 #include <vector>
+#include <stdexcept>
 
 #include "CBB_communication_thread.h"
 #include "CBB_connector.h"
@@ -12,7 +13,7 @@ namespace CBB
 {
 	namespace Common
 	{
-		class Client:public CBB_communication_thread, public CBB_connector, public CBB_fault_tolerance
+		class Client: protected CBB_communication_thread, protected CBB_connector, protected CBB_fault_tolerance
 		{
 			public:
 				Client(int thread_number);
@@ -29,6 +30,8 @@ namespace CBB
 				virtual communication_queue_t* get_communication_queue_from_socket(int socket)override final;
 				virtual int node_failure_handler(int socket)override final;
 
+				virtual int _report_IOnode_failure(int socket)=0;
+
 				int reply_with_socket_error(extended_IO_task* input_task);
 				communication_queue_t* get_new_communication_queue();
 				int release_communication_queue(communication_queue_t* queue);
@@ -36,8 +39,10 @@ namespace CBB
 				extended_IO_task* allocate_new_query(int socket);
 				extended_IO_task* allocate_new_query_preallocated(int socket, int id);
 				int send_query(extended_IO_task* query);
-				extended_IO_task* get_query_response(extended_IO_task* query);
+				extended_IO_task* get_query_response(extended_IO_task* query)throw(std::runtime_error);
 				int response_dequeue(extended_IO_task* response);
+				int dequeue(extended_IO_task* response);
+
 				communication_queue_t* get_input_queue_from_query(extended_IO_task* query);
 				communication_queue_t* get_output_queue_from_query(extended_IO_task* query);
 			private:
@@ -71,19 +76,17 @@ namespace CBB
 			return get_output_queue_from_query(query)->task_enqueue();
 		}
 
-		inline extended_IO_task* Client::get_query_response(extended_IO_task* query)
-		{
-			_threads_socket_map[query->get_id()]=query->get_socket();
-			_DEBUG("wait on query address %p\n", get_input_queue_from_query(query));
-			extended_IO_task* ret=get_input_queue_from_query(query)->get_task();
-			_threads_socket_map[query->get_id()]=-1;
-			return ret;
-		}
-		
 		inline int Client::response_dequeue(extended_IO_task* response)
 		{
-			get_input_queue_from_query(response)->task_dequeue();
+			dequeue(response);
 			release_communication_queue(response);
+			return SUCCESS;
+		}
+
+		inline int Client::dequeue(extended_IO_task* response)
+		{
+			response->set_error(SUCCESS);
+			get_input_queue_from_query(response)->task_dequeue();
 			return SUCCESS;
 		}
 

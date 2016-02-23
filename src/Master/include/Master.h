@@ -23,19 +23,24 @@
 //#include "CBB_set.h"
 #include "Master_basic.h"
 #include "CBB_heart_beat.h"
+#include "CBB_serialization.h"
 
 namespace CBB
 {
 	namespace Master
 	{
 
-		class Master:public Common::Server, public Common::CBB_heart_beat
+		class Master:
+			Common::Server,
+			Common::CBB_heart_beat,
+			Common::CBB_serialization
 		{
 			//API
 			public:
 				Master()throw(std::runtime_error);
 				virtual ~Master();
 				int start_server();
+				void stop_server();
 			private:
 				//map file_no, vector<start_point>
 				//unthread-safe
@@ -86,6 +91,7 @@ namespace CBB
 				int _parse_truncate_file(Common::extended_IO_task* new_task);
 				int _parse_rename_migrating(Common::extended_IO_task* new_task);
 				int _parse_node_failure(Common::extended_IO_task* new_task);
+				int _parse_IOnode_failure(Common::extended_IO_task* new_task);
 
 				//remote request parsar
 				int _remote_rename(Common::remote_task* new_task);
@@ -95,6 +101,7 @@ namespace CBB
 
 				int _unregist_IOnode(node_info* IOnode_info);
 				int _remove_IOnode_buffered_file(node_info* IOnode_info);
+				int _remove_IOnode(node_info* IOnode_info);
 				int _close_client(int socket);
 				int _buffer_all_meta_data_from_remote(const char* mount_point)throw(std::runtime_error);
 				int _dfs_items_in_remote(DIR* current_remote_directory,
@@ -103,21 +110,22 @@ namespace CBB
 						size_t offset)throw(std::runtime_error);
 
 				void _send_block_info(Common::extended_IO_task* new_task,
-						const node_id_pool_t& node_id_pool,
+						const node_info_pool_t& node_info_pool,
 						const block_list_t& block_set)const;
 				/*void _send_append_request(ssize_t file_no,
 						const node_block_map_t& append_node_block);*/
 				int _send_open_request_to_IOnodes(struct open_file_info& file,
-						ssize_t current_node_id,
+						node_info* current_node,
 						const block_list_t& block_info,
-						const node_id_pool_t& node_id_set);
+						const node_info_pool_t& node_info_set);
+				int _send_replica_nodes_info(Common::extended_IO_task* output, const node_info_pool_t& IOnodes_set);
 
 
 				ssize_t _add_IOnode(const std::string& node_ip,
 						std::size_t avaliable_memory,
 						int socket);
 				ssize_t _delete_IOnode(int socket);
-				const node_id_pool_t& _open_file(const char* file_path,
+				const node_info_pool_t& _open_file(const char* file_path,
 						int flag,
 						ssize_t& file_no,
 						int exist_flag)throw(std::runtime_error, std::invalid_argument, std::bad_alloc);
@@ -137,19 +145,19 @@ namespace CBB
 				Master_file_stat* _create_new_file_stat(const char* relative_path,
 						int exist_flag)throw(std::invalid_argument);
 
-				ssize_t _select_IOnode(ssize_t file_no,
+				node_info* _select_IOnode(ssize_t file_no,
 						int num_of_IOnodes,
-						node_id_pool_t& node_id_pool); 
+						node_info_pool_t& node_id_pool); 
 
 				int _create_block_list(size_t file_size,
 						size_t block_size,
 						block_list_t& block_list,
-						node_id_pool_t& node_list);
+						node_info_pool_t& node_list);
 
 				int _select_node_block_set(open_file_info& file,
 						off64_t start_point,
 						size_t size,
-						node_id_pool_t& node_id_pool,
+						node_info_pool_t& node_id_pool,
 						block_list_t& node_set)const;
 				int _allocate_one_block(const struct open_file_info &file)throw(std::bad_alloc);
 				void _append_block(struct open_file_info& file,
@@ -157,7 +165,10 @@ namespace CBB
 						size_t size);
 				int _remove_file(ssize_t fd);
 				int _recreate_replicas(node_info* node_info);
-				ssize_t _allocate_new_IOnode();
+				node_info* _allocate_replace_IOnode(node_info_pool_t& node_info_pool);
+				int _resend_replica_nodes_info_to_new_node(open_file_info* file_info, node_info* primary_replica_node, node_info* new_IOnode);
+				int _replace_replica_nodes_info(open_file_info* file_info, node_info* new_IOnode, node_info* replaced_info);
+				int _send_remove_IOnode_request(node_info* removed_IOnode);
 
 				virtual std::string _get_real_path(const char* path)const override final;
 				virtual std::string _get_real_path(const std::string& path)const override final;
@@ -167,8 +178,11 @@ namespace CBB
 
 				ssize_t _select_IOnode_for_IO(open_file_info& file);
 				dir_t _get_file_stat_from_dir(const std::string& path);
-
 				int _setup_queues();
+				node_info* _get_next_IOnode();	
+				int _get_my_thread_id()const;
+
+				int _IOnode_failure_handler(node_info* IOnode_info);
 
 			private:
 				//IOnode info map node_id:node info
@@ -182,8 +196,8 @@ namespace CBB
 				IOnode_sock_t _IOnode_socket; 
 
 				ssize_t _file_number; 
-				bool *_node_id_pool; 
-				bool *_file_no_pool; 
+				bool* _node_id_pool; 
+				bool* _file_no_pool; 
 				ssize_t _current_node_number; 
 				ssize_t _current_file_no; 
 				std::string _mount_point;
@@ -201,6 +215,11 @@ namespace CBB
 		inline std::string Master::_get_real_path(const std::string& path)const
 		{
 			return _mount_point+path;
+		}
+
+		inline int Master::_get_my_thread_id()const
+		{
+			return 0;
 		}
 	}
 }

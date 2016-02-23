@@ -125,7 +125,7 @@ static int CBB_getattr(const char* path, struct stat* stbuf)
 {
 	_DEBUG("CBB getattr path=%s\n", path);
 	
-	int ret=client._getattr(path, stbuf);
+	int ret=client.getattr(path, stbuf);
 	
 	_DEBUG("ret=%d path=%s file_size=%lu\n", ret,path,stbuf->st_size);
 	return ret;
@@ -135,7 +135,7 @@ static int CBB_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_
 {
 	CBB_client::dir_t dir;
 	
-	client._readdir(path,dir);
+	client.readdir(path,dir);
 	
 	for(CBB_client::dir_t::const_iterator it=dir.begin();
 			it!=dir.end();++it)
@@ -153,7 +153,7 @@ static int CBB_unlink(const char* path)
 	_DEBUG("CBB unlink path=%s\n", path);
 	
 	int ret=SUCCESS;
-	ret=client._unlink(path);
+	ret=client.unlink(path);
 	
 	_DEBUG("ret=%d\n", ret);
 	return ret;
@@ -163,7 +163,7 @@ static int CBB_rmdir(const char* path)
 {
 	_DEBUG("CBB rmdir path=%s\n", path);
 	
-	int ret=client._rmdir(path);
+	int ret=client.rmdir(path);
 	
 	_DEBUG("ret=%d\n", ret);
 	return ret;
@@ -173,7 +173,7 @@ static int CBB_access(const char* path, int mode)
 {
 	_DEBUG("CBB access path=%s\n", path);
 	
-	int ret=client._access(path, mode);
+	int ret=client.access(path, mode);
 	
 	_DEBUG("ret=%d path=%s\n", ret, path);
 	return ret;
@@ -195,7 +195,7 @@ static int CBB_mkdir(const char* path, mode_t mode)
 {
 	_DEBUG("CBB mkdir path=%s\n", path);
 	
-	int ret=client._mkdir(path, mode);
+	int ret=client.mkdir(path, mode);
 	
 	_DEBUG("ret=%d\n", ret);
 	return ret;
@@ -205,7 +205,7 @@ static int CBB_rename(const char* old_name, const char* new_name)
 {
 	_DEBUG("CBB rename path=%s\n", old_name);
 	
-	int ret=client._rename(old_name, new_name);
+	int ret=client.rename(old_name, new_name);
 	
 	_DEBUG("ret=%d\n", ret);
 	return ret;
@@ -224,7 +224,7 @@ static int CBB_truncate(const char* path, off_t size)
 {
 	_DEBUG("CBB truncate path=%s\n", path);
 	
-	int ret=client._truncate(path, size);
+	int ret=client.truncate(path, size);
 	
 	return ret;
 }

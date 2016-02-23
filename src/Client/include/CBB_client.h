@@ -16,7 +16,7 @@ namespace CBB
 {
 	namespace Client
 	{
-		class CBB_client:public Common::Client
+		class CBB_client:Common::Client
 		{
 			private:
 				class block_info;
@@ -88,7 +88,7 @@ namespace CBB
 				typedef std::map<ssize_t, std::string> _node_pool_t;
 				typedef std::set<std::string> dir_t;
 				//map IOnode id: fd
-				typedef std::map<int, int> IOnode_fd_map_t;
+				typedef std::map<ssize_t, int> IOnode_fd_map_t;
 				typedef std::vector<int> master_list_t;
 
 				static const char *CLIENT_MOUNT_POINT;
@@ -100,26 +100,46 @@ namespace CBB
 				virtual ~CBB_client();
 				void start_threads();
 				//posix API
-				int _open(const char *path, int flag, mode_t mode);
-				ssize_t _read(int fd, void *buffer, size_t size);
-				ssize_t _write(int fd,const void *buffer, size_t size);
-				int _close(int fd);
-				int _flush(int fd);
+			public:
+				int open(const char *path, int flag, mode_t mode);
+				ssize_t read(int fd, void *buffer, size_t size);
+				ssize_t write(int fd,const void *buffer, size_t size);
+				int close(int fd);
+				int flush(int fd);
+				off64_t lseek(int fd, off64_t offset, int whence);
+				int getattr(const char *path, struct stat* fstat);
+				int readdir(const char* path, dir_t& dir);
+				int unlink(const char* path);
+				int rmdir(const char* path);
+				int access(const char* path, int mode);
+				int stat(const char* path, struct stat* buf);
+				int rename(const char* old_name, const char* new_name);
+				int mkdir(const char* path, mode_t mode);
+				int truncate(const char*path, off64_t size);
+				int ftruncate(int fd, off64_t size);
+				off64_t tell(int fd);
+
+			private:
+				int _open(const char *path, int flag, mode_t mode)throw(std::runtime_error);
+				ssize_t _read(int fd, void *buffer, size_t size)throw(std::runtime_error);
+				ssize_t _write(int fd,const void *buffer, size_t size)throw(std::runtime_error);
+				int _close(int fd)throw(std::runtime_error);
+				int _flush(int fd)throw(std::runtime_error);
 				off64_t _lseek(int fd, off64_t offset, int whence);
-				int _getattr(const char *path, struct stat* fstat);
-				int _readdir(const char* path, dir_t& dir);
-				int _unlink(const char* path);
-				int _rmdir(const char* path);
-				int _access(const char* path, int mode);
-				int _stat(const char* path, struct stat* buf);
-				int _rename(const char* old_name, const char* new_name);
-				int _mkdir(const char* path, mode_t mode);
-				int _mkmod(const char* path, mode_t mode, dev_t rdev);
-				int _update_access_time(int fd);
-				int _truncate(const char*path, off64_t size);
-				int _ftruncate(int fd, off64_t size);
+				int _getattr(const char *path, struct stat* fstat)throw(std::runtime_error);
+				int _readdir(const char* path, dir_t& dir)throw(std::runtime_error);
+				int _unlink(const char* path)throw(std::runtime_error);
+				int _rmdir(const char* path)throw(std::runtime_error);
+				int _access(const char* path, int mode)throw(std::runtime_error);
+				int _stat(const char* path, struct stat* buf)throw(std::runtime_error);
+				int _rename(const char* old_name, const char* new_name)throw(std::runtime_error);
+				int _mkdir(const char* path, mode_t mode)throw(std::runtime_error);
+				int _truncate(const char*path, off64_t size)throw(std::runtime_error);
+				int _ftruncate(int fd, off64_t size)throw(std::runtime_error);
 				off64_t _tell(int fd);
 
+			public:
+				int _update_access_time(int fd);
 				static bool _interpret_path(const char* path);
 				static bool _interpret_fd(int fd);
 				static void _format_path(const char* path, std::string &formatted_path);
@@ -151,7 +171,7 @@ namespace CBB
 
 				int _get_fid();
 				int _regist_to_master();
-				int _get_IOnode_socket(int master_number, int IOnode_id, const std::string& ip);
+				int _get_IOnode_socket(int master_number, ssize_t IOnode_id, const std::string& ip);
 
 				static inline int _fd_to_fid(int fd);
 				static inline int _fid_to_fd(int fid);
@@ -164,7 +184,11 @@ namespace CBB
 				int _get_master_number_from_path(const std::string& path)const;
 				int _get_master_socket_from_fd(int fd)const;
 				int _get_master_number_from_fd(int fd)const;
-				int _get_IOnode_id(int master_number, int IOnode_id)const;
+				ssize_t _get_IOnode_id(int master_number, ssize_t IOnode_id)const;
+				virtual int _report_IOnode_failure(int socket)override final;
+				void _parse_master_IOnode_id(ssize_t master_IOnode, int& master_number, ssize_t& IOnode_id);
+				ssize_t _find_master_IOnode_id_by_socket(int socket);
+
 			private:
 				int _fid_now;
 				_file_list_t _file_list;
@@ -212,10 +236,17 @@ namespace CBB
 			return file_path_hash(path, size);
 		}
 
-		inline int CBB_client::_get_IOnode_id(int master_number, int IOnode_id)const
+		inline ssize_t CBB_client::_get_IOnode_id(int master_number, ssize_t IOnode_id)const
 		{
 			return master_number*MAX_IONODE+IOnode_id;
 		}
+
+		inline void CBB_client::_parse_master_IOnode_id(ssize_t master_IOnode, int& master_number, ssize_t& IOnode_id)
+		{
+			IOnode_id=master_IOnode%MAX_IONODE;
+			master_number=master_IOnode/MAX_IONODE;
+		}
+
 	}
 }
 

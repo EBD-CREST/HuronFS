@@ -60,7 +60,7 @@ extern "C" int CBB_WRAP(open64)(const char* path, int flag, ...)
 	{
 		CBB_client::_get_relative_path(formatted_path, relative_path);
 		_DEBUG("open with CBB\n");
-		return client._open(relative_path.c_str(), flag, mode);
+		return client.open(relative_path.c_str(), flag, mode);
 	}
 	else
 	{
@@ -82,7 +82,7 @@ extern "C" ssize_t CBB_WRAP(read)(int fd, void *buffer, size_t size)
 	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("read from CBB, fd=%d, size=%lu\n", fd, size);
-		return client._read(fd, buffer, size);
+		return client.read(fd, buffer, size);
 	}
 	else
 	{
@@ -100,7 +100,7 @@ extern "C" ssize_t CBB_WRAP(readv)(int fd, const struct iovec *iov, int iovcnt)
 		for(int i=0;i<iovcnt;++i)
 		{
 			_DEBUG("read from CBB, fd=%d, size=%lu\n", fd, iov[i].iov_len);
-			ssize_t ret=client._read(fd, iov[i].iov_base, iov[i].iov_len);
+			ssize_t ret=client.read(fd, iov[i].iov_base, iov[i].iov_len);
 			if( -1 == ret)
 			{
 				return ret;
@@ -125,7 +125,7 @@ extern "C" ssize_t CBB_WRAP(write)(int fd, const void *buffer, size_t size)
 	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("write to CBB, fd=%d, size=%lu\n", fd, size);
-		return client._write(fd, buffer, size);
+		return client.write(fd, buffer, size);
 	}
 	else
 	{
@@ -143,7 +143,7 @@ extern "C" ssize_t CBB_WRAP(writev)(int fd, const struct iovec *iov, int iovcnt)
 		for(int i=0;i<iovcnt;++i)
 		{
 			_DEBUG("write to CBB, fd=%d, size=%lu\n", fd, iov[i].iov_len);
-			ssize_t ret=client._write(fd, iov[i].iov_base, iov[i].iov_len);
+			ssize_t ret=client.write(fd, iov[i].iov_base, iov[i].iov_len);
 			if( -1 == ret)
 			{
 				return ret;
@@ -168,7 +168,7 @@ extern "C" int CBB_WRAP(close)(int fd)
 	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("CBB close file fd=%d\n", fd);
-		return client._close(fd);
+		return client.close(fd);
 	}
 	else
 	{
@@ -184,7 +184,7 @@ extern "C" int CBB_WRAP(flush)(int fd)
 	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("CBB flush file fd=%d\n", fd);
-		return client._flush(fd);
+		return client.flush(fd);
 	}
 	else
 	{
@@ -204,7 +204,7 @@ extern "C" off64_t CBB_WRAP(lseek64)(int fd, off64_t offset, int whence)
 	if(CBB_client::_interpret_fd(fd))
 	{
 		_DEBUG("CBB lseek file fd=%d, offset=%lu\n", fd, offset);
-		return client._lseek(fd, offset, whence);
+		return client.lseek(fd, offset, whence);
 	}
 	else
 	{
@@ -228,7 +228,7 @@ extern "C" int CBB_WRAP(creat64)(const char * path, mode_t mode)
 	{
 		CBB_client::_get_relative_path(formatted_path, relative_path);
 		_DEBUG("CBB create file path=%s\n", path);
-		return client._open(relative_path.c_str(), O_CREAT, mode);
+		return client.open(relative_path.c_str(), O_CREAT, mode);
 	}
 	else
 	{
@@ -247,11 +247,11 @@ extern "C" ssize_t CBB_WRAP(pread64)(int fd, void *buffer, size_t count, off64_t
 	CBB_FUNC_P(ssize_t, pread64, (int fd, void *buffer, size_t count, off64_t offset));
 	if(CBB_client::_interpret_fd(fd))
 	{
-		if(-1 == client._lseek(fd, offset, SEEK_SET))
+		if(-1 == client.lseek(fd, offset, SEEK_SET))
 		{
 			return -1;
 		}
-		return client._read(fd, buffer, count);
+		return client.read(fd, buffer, count);
 	}
 	else
 	{
@@ -270,11 +270,11 @@ extern "C" ssize_t CBB_WRAP(pwrite64)(int fd, const void *buffer, size_t count, 
 	CBB_FUNC_P(ssize_t, pwrite64, (int fd, const void *buffer, size_t count, off64_t offset));
 	if(CBB_client::_interpret_fd(fd))
 	{
-		if(-1 == client._lseek(fd, offset, SEEK_SET))
+		if(-1 == client.lseek(fd, offset, SEEK_SET))
 		{
 			return -1;
 		}
-		return client._write(fd, buffer, count);
+		return client.write(fd, buffer, count);
 	}
 	else
 	{
@@ -302,7 +302,7 @@ extern "C" int CBB_WRAP(ftruncate)(int fd, off_t length)throw()
 	CBB_FUNC_P(int, ftruncate, (int fd, off_t length));
 	if(CBB_client::_interpret_fd(fd))
 	{
-		return client._lseek(fd, length, SEEK_SET);
+		return client.lseek(fd, length, SEEK_SET);
 	}
 	else
 	{
@@ -320,7 +320,7 @@ extern "C" int CBB_WRAP(stat)(const char* path, struct stat* buf)
 	if(CBB_client::_interpret_path(formatted_path.c_str()))
 	{
 		_DEBUG("CBB stat path=%s\n", path);
-		return client._stat(path, buf);
+		return client.stat(path, buf);
 	}
 	else
 	{

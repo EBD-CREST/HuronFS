@@ -45,6 +45,7 @@ int Client::input_from_socket(int socket,
 		Recv(socket, to_id);
 		output_queue=&output_queue_array->at(to_id);
 		new_task=output_queue->allocate_tmp_node();
+		new_task->set_socket(socket);
 		new_task->set_receiver_id(from_id);
 		CBB_communication_thread::receive_message(socket, new_task);
 	}
@@ -56,6 +57,7 @@ int Client::input_from_socket(int socket,
 		{
 			output_queue=get_communication_queue_from_socket(socket);
 			new_task=output_queue->allocate_tmp_node();
+			new_task->set_socket(socket);
 		}
 		new_task->set_error(SOCKET_KILLED);
 		node_failure_handler(socket);
@@ -122,7 +124,7 @@ communication_queue_t* Client::get_new_communication_queue()
 
 communication_queue_t* Client::get_communication_queue_from_socket(int socket)
 {
-	for(threads_socket_map_t::iterator it=begin(_threads_socket_map);
+	/*for(threads_socket_map_t::iterator it=begin(_threads_socket_map);
 			end(_threads_socket_map) != it; ++it)
 	{
 		if(socket == *it)
@@ -130,7 +132,8 @@ communication_queue_t* Client::get_communication_queue_from_socket(int socket)
 			return &_communication_input_queue.at(distance(begin(_threads_socket_map), it));
 		}
 	}
-	return nullptr;
+	_DEBUG("return nullptr socket=%d\n", socket);*/
+	return &_communication_input_queue.at(0);
 }
 
 int Client::reply_with_socket_error(extended_IO_task* input_task)
@@ -146,6 +149,35 @@ int Client::reply_with_socket_error(extended_IO_task* input_task)
 int Client::node_failure_handler(int node_socket)
 {
 	//dummy code
-	_DEBUG("IOnode failed id=%d\n", node_socket);
+	_DEBUG("IOnode failed socket=%d\n", node_socket);
 	return SUCCESS;
+}
+
+extended_IO_task* Client::get_query_response(extended_IO_task* query)throw(std::runtime_error)
+{
+	extended_IO_task* ret=nullptr;
+	_threads_socket_map[query->get_id()]=query->get_socket();
+	_DEBUG("wait on query address %p\n", get_input_queue_from_query(query));
+
+	do
+	{
+		ret=get_input_queue_from_query(query)->get_task();
+	}while((query->get_socket() != ret->get_socket()) &&
+			(SUCCESS == dequeue(ret)) && 
+			_DEBUG("error socket=%d\n", ret->get_socket()));
+
+	//socket killed
+	if(SOCKET_KILLED == ret->get_error())
+	{
+		response_dequeue(ret);
+		_DEBUG("socket killed, queue=%p\n", ret);
+
+		get_input_queue_from_query(query)->flush_queue();
+		_report_IOnode_failure(query->get_socket());
+
+		throw std::runtime_error("socket killed\n");
+	}
+	_threads_socket_map[query->get_id()]=-1;
+	_DEBUG("end of get query response\n");
+	return ret;
 }
