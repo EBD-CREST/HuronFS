@@ -116,7 +116,7 @@ const bool SET = true;
 const int CBB_REMOTE_WRITE_BACK = 0;
 const int HEART_BEAT_INTERVAL=1000;
 
-const int NUM_OF_REPLICA = 1;
+const int NUM_OF_REPLICA = 0;
 
 const int MAIN_REPLICA=0;
 const int SUB_REPLICA=1;

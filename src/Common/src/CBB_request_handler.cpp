@@ -24,7 +24,7 @@ CBB_request_handler::~CBB_request_handler()
 	void *ret=nullptr;
 	if(STARTED == thread_started)
 	{
-		pthread_join(handler_thread, &ret);
+		stop_handler();
 	}
 }
 

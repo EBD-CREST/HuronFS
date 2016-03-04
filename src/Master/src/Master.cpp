@@ -19,6 +19,7 @@ using namespace std;
 const char *Master::MASTER_MOUNT_POINT="CBB_MASTER_MOUNT_POINT";
 const char *Master::MASTER_NUMBER="CBB_MASTER_MY_ID";
 const char *Master::MASTER_TOTAL_NUMBER="CBB_MASTER_TOTAL_NUMBER";
+const char *Master::MASTER_BACKUP_POINT="CBB_MASTER_BACKUP_POINT";
 
 Master::Master()throw(std::runtime_error):
 	Server(MASTER_QUEUE_NUM, MASTER_PORT), 
@@ -40,6 +41,7 @@ Master::Master()throw(std::runtime_error):
 	const char *master_mount_point=getenv(MASTER_MOUNT_POINT);
 	const char *master_number_string = getenv(MASTER_NUMBER);
 	const char *master_total_size_string= getenv(MASTER_TOTAL_NUMBER);
+	const char *master_backup_point_string = getenv(MASTER_BACKUP_POINT);
 	
 	if(nullptr == master_mount_point)
 	{
@@ -53,12 +55,18 @@ Master::Master()throw(std::runtime_error):
 	{
 		throw std::runtime_error("please set master total number");
 	}
-
-	_setup_queues();
+	if(nullptr == master_backup_point_string)
+	{
+		throw std::runtime_error("please set master backup point");
+	}
 
 	master_number = atoi(master_number_string);
 	master_total_size = atoi(master_total_size_string);
 	_mount_point=std::string(master_mount_point);
+	metadata_backup_point=std::string(master_backup_point_string);
+
+	_setup_queues();
+
 	try
 	{
 		_init_server();
@@ -186,6 +194,7 @@ int Master::_parse_regist_IOnode(extended_IO_task* new_task)
 	struct sockaddr_in addr;
 	socklen_t len=sizeof(addr);
 	size_t total_memory=0;
+
 	getpeername(new_task->get_socket(), reinterpret_cast<sockaddr*>(&addr), &len); 
 	std::string ip=std::string(inet_ntoa(addr.sin_addr));
 	_LOG("regist IOnode\nip=%s\n",ip.c_str());
@@ -341,7 +350,7 @@ int Master::_parse_write_file(extended_IO_task* new_task)
 {
 	_LOG("request for writing\n");
 	ssize_t file_no=0;
-	size_t size=0;
+	size_t size=0;//, original_size=0;
 	int ret=0;
 	off64_t start_point=0;
 	new_task->pop(file_no);
@@ -351,7 +360,13 @@ int Master::_parse_write_file(extended_IO_task* new_task)
 	{
 		open_file_info &file=*_buffered_files.at(file_no);
 		std::string real_path=_get_real_path(file.get_path());
+		//original_size=file.get_stat().st_size;
 		Recv_attr(new_task, &file.get_stat());
+		/*if(original_size != file.get_stat().st_size)
+		{
+			_update_backup_file_size(file.get_path(), file.get_stat().st_size);
+		}*/
+
 		new_task->pop(start_point);
 		new_task->pop(size);
 		_DEBUG("real_path=%s, file_size=%ld\n", real_path.c_str(), file.get_stat().st_size);
@@ -547,16 +562,10 @@ int Master::_parse_unlink(extended_IO_task* new_task)
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
 	extended_IO_task* output=nullptr;
 	_LOG("path=%s\n", real_path.c_str());
-	file_stat_pool_t::iterator it=_file_stat_pool.find(relative_path);
-	if(_file_stat_pool.end() != it)
+	if(SUCCESS == _remove_file(relative_path))
 	{
-		Master_file_stat& file_stat=it->second;
-		ssize_t fd=file_stat.get_fd();
-		_remove_file(fd);
 		output=init_response_task(new_task);
-		_file_stat_pool.erase(it);
 		output->push_back(SUCCESS);
-
 		ret=SUCCESS;
 	}
 	else
@@ -565,6 +574,7 @@ int Master::_parse_unlink(extended_IO_task* new_task)
 		output->push_back(-ENOENT);
 		ret=FAILURE;
 	}
+
 	output_task_enqueue(output);
 	return ret;
 }
@@ -658,6 +668,30 @@ int Master::_parse_mkdir(extended_IO_task* new_task)
 	return SUCCESS;
 }
 
+int Master::_remove_file(const std::string& file_path)
+{
+	file_stat_pool_t::iterator file_stat=_file_stat_pool.find(file_path);
+
+	//if file exists
+	if(end(_file_stat_pool) != file_stat)
+	{
+		open_file_info* opened_file=file_stat->second.opened_file_info;
+		//if the file has been opened
+		if(NULL != opened_file)
+		{
+			_remove_open_file(opened_file);
+		}
+
+		_file_stat_pool.erase(file_stat);
+		return SUCCESS;
+	}
+	//if not
+	else
+	{
+		return FAILURE;
+	}
+}
+
 //R: file path: char[]
 //R: file path: char[]
 //S: SUCCESS				errno: int
@@ -671,38 +705,24 @@ int Master::_parse_rename(extended_IO_task* new_task)
 	_LOG("old file path=%s, new file path=%s\n", old_real_path.c_str(), new_real_path.c_str());
 	//unpaired
 	new_task->pop(new_master);
-	file_stat_pool_t::iterator it=_file_stat_pool.find(old_relative_path);
-	if( MYSELF == new_master)
+	file_stat_pool_t::iterator required_file=_file_stat_pool.find(old_relative_path);
+	if(MYSELF == new_master)
 	{
-		_file_stat_pool.erase(new_relative_path);
-		if((it != _file_stat_pool.end()))
+		//remove the file which has the same name as the new file name
+		_remove_file(new_relative_path);
+		if(end(_file_stat_pool) != required_file)
 		{
-			Master_file_stat& file_stat=it->second;
-			file_stat_pool_t::iterator new_it=_file_stat_pool.insert(std::make_pair(new_relative_path, file_stat)).first;
-			_file_stat_pool.erase(it);
-			new_it->second.full_path=new_it;
-			if(nullptr != new_it->second.opened_file_info)
-			{
-				open_file_info* opened_file = new_it->second.opened_file_info;
-				opened_file->file_status=&(new_it->second);
-				for(auto node:opened_file->IOnodes_set)
-				{
-					extended_IO_task* output=allocate_output_task(_get_my_thread_id());
-					output->set_socket(node->socket);
-					output->push_back(RENAME);
-					output->push_back(opened_file->file_no);
-					output->push_back_string(new_relative_path.c_str(), new_relative_path.size());
-					output_task_enqueue(output);
-				}
-			}
+			_rename_local_file(required_file->second, new_relative_path);
+			//remove local file_stat
+			_file_stat_pool.erase(required_file);
 		}
 	}
 	else
 	{
-		if( _file_stat_pool.end() != it)
+		if( end(_file_stat_pool) != required_file)
 		{
-			it->second.external_flag = RENAMED;
-			it->second.external_name = new_relative_path;
+			required_file->second.external_flag = RENAMED;
+			required_file->second.external_name = new_relative_path;
 		}
 	}
 	extended_IO_task* output=init_response_task(new_task);
@@ -711,6 +731,38 @@ int Master::_parse_rename(extended_IO_task* new_task)
 
 	return SUCCESS;
 }
+
+int Master::_rename_local_file(Master_file_stat& file_stat, const std::string& new_relative_path)
+{
+	_DEBUG("rename local file\n");
+
+	file_stat_pool_t::iterator new_file=_file_stat_pool.insert(std::make_pair(new_relative_path, file_stat)).first;
+	new_file->second.full_path=new_file;
+
+	if(nullptr != new_file->second.opened_file_info)
+	{
+		open_file_info* opened_file = new_file->second.opened_file_info;
+		opened_file->file_status=&(new_file->second);
+
+		_send_rename_request(opened_file->primary_replica_node, opened_file->file_no, new_relative_path);
+		for(auto node:opened_file->IOnodes_set)
+		{
+			_send_rename_request(node, opened_file->file_no, new_relative_path);
+		}
+	}
+	return SUCCESS;
+}
+
+void Master::_send_rename_request(node_info* node, ssize_t file_no, const std::string& new_relative_path)
+{
+	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
+	output->set_socket(node->socket);
+	output->push_back(RENAME);
+	output->push_back(file_no);
+	output->push_back_string(new_relative_path.c_str(), new_relative_path.size());
+	output_task_enqueue(output);
+}
+
 
 int Master::_parse_close_client(extended_IO_task* new_task)
 {
@@ -728,12 +780,13 @@ int Master::_parse_truncate_file(extended_IO_task* new_task)
 {
 	_LOG("request for truncate file\n");
 	int ret;
-	off64_t size;
+	ssize_t size;
 	extended_IO_task* output=nullptr;
 	std::string real_path, relative_path;
 	_recv_real_relative_path(new_task, real_path, relative_path);
 	new_task->pop(size);
 	_LOG("path=%s\n", real_path.c_str());
+
 	try
 	{
 		Master_file_stat& file_stat=_file_stat_pool.at(relative_path);
@@ -751,15 +804,11 @@ int Master::_parse_truncate_file(extended_IO_task* new_task)
 			{
 				//send free to IOnode;
 				off64_t block_start_point=get_block_start_point(size);
-				for(auto& node_info:file->IOnodes_set)
+
+				_send_truncate_request(file->primary_replica_node, fd, block_start_point, size);
+				for(auto& node:file->IOnodes_set)
 				{
-					output=allocate_output_task(_get_my_thread_id());
-					output->set_socket(node_info->socket);
-					output->push_back(TRUNCATE);
-					output->push_back(fd);
-					output->push_back(block_start_point);
-					output->push_back(size-block_start_point);
-					output_task_enqueue(output);
+					_send_truncate_request(node, fd, block_start_point, size);
 				}
 				block_start_point += BLOCK_SIZE;
 				while(static_cast<ssize_t>(block_start_point + BLOCK_SIZE) <= size)
@@ -770,6 +819,7 @@ int Master::_parse_truncate_file(extended_IO_task* new_task)
 				}
 			}
 			file->get_stat().st_size=size;
+			//_update_backup_file_size(relative_path, size);
 			output=init_response_task(new_task);
 			output->push_back(master_number);
 			output->push_back(SUCCESS);
@@ -785,6 +835,19 @@ int Master::_parse_truncate_file(extended_IO_task* new_task)
 	}
 	output_task_enqueue(output);
 	return ret;
+}
+
+void Master::_send_truncate_request(node_info* node, ssize_t fd, off64_t block_start_point, ssize_t size)
+{
+	extended_IO_task* output=nullptr;
+
+	output=allocate_output_task(_get_my_thread_id());
+	output->set_socket(node->socket);
+	output->push_back(TRUNCATE);
+	output->push_back(fd);
+	output->push_back(block_start_point);
+	output->push_back(size-block_start_point);
+	output_task_enqueue(output);
 }
 
 int Master::_parse_rename_migrating(extended_IO_task* new_task)
@@ -1296,6 +1359,8 @@ Master_file_stat* Master::_create_new_file_stat(const char* relative_path,
 	new_file_stat.full_path=it;
 	new_file_stat.exist_flag=exist_flag;
 	memcpy(&new_file_stat.get_status(), &file_status, sizeof(file_status));
+
+	_create_new_backup_file(relative_path_string, S_IFREG|0664);
 	return &new_file_stat;
 }
 
@@ -1303,7 +1368,7 @@ node_info* Master::_select_IOnode(ssize_t file_no,
 		int num_of_nodes,
 		node_info_pool_t& node_info_pool)
 {
-	if(0 == _registed_IOnodes.size() || 0 == num_of_nodes)
+	if(0 == _registed_IOnodes.size())
 	{
 		//no IOnode
 		return nullptr;
@@ -1313,6 +1378,11 @@ node_info* Master::_select_IOnode(ssize_t file_no,
 	node_info* main_replica=_get_next_IOnode();
 	main_replica->stored_files.insert(file_no);
 	//insert sub replica
+	if(_registed_IOnodes.size()-1 < num_of_nodes)
+	{
+		num_of_nodes=_registed_IOnodes.size()-1;
+	}
+
 	auto _replica_IOnode=_current_IOnode;
 	for(;0 < num_of_nodes;num_of_nodes--)
 	{
@@ -1408,30 +1478,47 @@ void Master::_append_block(struct open_file_info& file, off64_t start_point, siz
 	//file.IOnodes_set.insert(node_id);
 }
 
-int Master::_remove_file(ssize_t file_no)
+int Master::_remove_open_file(ssize_t file_no)
 {
 	File_t::iterator it=_buffered_files.find(file_no);
 	if(_buffered_files.end() != it)
 	{
-		open_file_info &file=*(it->second);
-		for(auto IOnode:file.IOnodes_set)
-		{
-			extended_IO_task* output=allocate_output_task(_get_my_thread_id());
-			output->set_socket(IOnode->socket);
-			output->push_back(UNLINK);
-			_DEBUG("unlink file no=%ld\n", file_no);
-			output->push_back(file_no);
-			output_task_enqueue(output);
-			//remove file_no from stored files list
-			IOnode->stored_files.erase(file_no);
-		}
-		_buffered_files.erase(file_no);
-		delete &file;
-		_release_file_no(file_no);
+		open_file_info* file=it->second;
+		_remove_open_file(file);
 	}
 	return SUCCESS;
 }
 
+int Master::_remove_open_file(open_file_info* file_info)
+{
+	ssize_t file_no=file_info->file_no;
+
+	_send_remove_request(file_info->primary_replica_node, file_no);
+	//remove file_no from stored files list
+	file_info->primary_replica_node->stored_files.erase(file_no);
+
+	for(auto IOnode:file_info->IOnodes_set)
+	{
+		_send_remove_request(IOnode, file_no);
+		//remove file_no from stored files list
+		IOnode->stored_files.erase(file_no);
+	}
+
+	_buffered_files.erase(file_no);
+	delete file_info;
+	_release_file_no(file_no);
+	return SUCCESS;
+}
+
+void Master::_send_remove_request(node_info* IOnode, ssize_t file_no)
+{
+	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
+	output->set_socket(IOnode->socket);
+	output->push_back(UNLINK);
+	_DEBUG("unlink file no=%ld\n", file_no);
+	output->push_back(file_no);
+	output_task_enqueue(output);
+}
 //low performance
 Master::dir_t Master::_get_file_stat_from_dir(const std::string& dir)
 {
@@ -1637,4 +1724,47 @@ int Master::_parse_IOnode_failure(extended_IO_task* new_task)
 		_IOnode_failure_handler(it->second);
 	}
 	return SUCCESS;
+}
+
+void Master::flush_file_stat()
+{
+	for(auto& file_stat:_file_stat_pool)
+	{
+		_DEBUG("file path %s, address %p\n", file_stat.first.c_str(), &file_stat);
+	}
+}
+
+int Master::_create_new_backup_file(const std::string& path, mode_t mode)
+{
+	std::string file_path=_get_backup_path(path);
+	_DEBUG("create new backup file %s\n", file_path.c_str());
+
+	int fd=creat(file_path.c_str(), mode);
+	if( -1 == fd)
+	{
+		perror("create backup file");
+		return FAILURE;
+	}
+	else
+	{
+		close(fd);
+		return SUCCESS;
+	}
+}
+
+int Master::_update_backup_file_size(const std::string& path, size_t size)
+{
+	std::string file_path=_get_backup_path(path);
+	_DEBUG("update backup file %s size %lu\n", file_path.c_str(), size);
+	
+	int ret=truncate(file_path.c_str(), size);
+	if(-1 == ret)
+	{
+		perror("update backup file");
+		return FAILURE;
+	}
+	else
+	{
+		return SUCCESS;
+	}
 }

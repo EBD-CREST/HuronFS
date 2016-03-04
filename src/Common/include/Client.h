@@ -72,7 +72,6 @@ namespace CBB
 
 		inline int Client::send_query(extended_IO_task* query)
 		{
-			_DEBUG("send query to master\n");
 			return get_output_queue_from_query(query)->task_enqueue();
 		}
 
@@ -85,7 +84,6 @@ namespace CBB
 
 		inline int Client::dequeue(extended_IO_task* response)
 		{
-			response->set_error(SUCCESS);
 			get_input_queue_from_query(response)->task_dequeue();
 			return SUCCESS;
 		}

@@ -770,7 +770,11 @@ int IOnode::_flush_file(extended_IO_task* new_task)
 
 int IOnode::_regist_new_client(extended_IO_task* new_task)
 {
-	_LOG("new client sockfd=%d\n", new_task->get_socket());
+	struct sockaddr_in addr;
+	socklen_t len=sizeof(addr);
+
+	getpeername(new_task->get_socket(), reinterpret_cast<sockaddr*>(&addr), &len); 
+	_LOG("new client sockfd=%d ip=%s\n", new_task->get_socket(), inet_ntoa(addr.sin_addr));
 	extended_IO_task* output=init_response_task(new_task);
 	output->push_back(SUCCESS);
 	output_task_enqueue(output);

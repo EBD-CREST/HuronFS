@@ -170,11 +170,9 @@ extended_IO_task* Client::get_query_response(extended_IO_task* query)throw(std::
 	if(SOCKET_KILLED == ret->get_error())
 	{
 		response_dequeue(ret);
-		_DEBUG("socket killed, queue=%p\n", ret);
+		_DEBUG("socket killed, entry=%p\n", ret);
 
-		get_input_queue_from_query(query)->flush_queue();
 		_report_IOnode_failure(query->get_socket());
-
 		throw std::runtime_error("socket killed\n");
 	}
 	_threads_socket_map[query->get_id()]=-1;

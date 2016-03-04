@@ -27,7 +27,7 @@ namespace CBB
 		inline int CBB_rwlocker::rd_lock()
 		{
 #ifdef MUTIPLE_THREAD
-			return pthread_rwlock_rdlock(&locker);
+			return pthread_rwlock_rdlock(&(this->locker));
 #else
 			return SUCCESS;
 #endif
@@ -36,7 +36,7 @@ namespace CBB
 		inline int CBB_rwlocker::tryrd_lock()
 		{
 #ifdef MUTIPLE_THREAD
-			return pthread_rwlock_tryrdlock(&locker);
+			return pthread_rwlock_tryrdlock(&(this->locker));
 #else
 			return SUCCESS;
 #endif

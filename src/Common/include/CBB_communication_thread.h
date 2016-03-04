@@ -143,7 +143,7 @@ namespace CBB
 		inline size_t basic_IO_task::do_push(const void* value, size_t num)
 		{
 			memcpy(basic_message + message_size, value, num);
-			message_size += num;
+			this->message_size += num;
 			return num;
 		}
 
@@ -160,7 +160,7 @@ namespace CBB
 		template<typename T> inline size_t basic_IO_task::do_pop(T** var, size_t num)
 		{
 			*var=reinterpret_cast<T*>(basic_message + current_point);
-			current_point += num;
+			this->current_point += num;
 			return num;
 		}
 
@@ -199,7 +199,7 @@ namespace CBB
 
 		inline size_t basic_IO_task::pop_string(unsigned char** var)
 		{
-			size_t len;
+			size_t len=0;
 			pop(len);
 			do_pop(var, len*sizeof(unsigned char));
 			return len;
@@ -212,19 +212,19 @@ namespace CBB
 
 		inline unsigned char* basic_IO_task::get_message()
 		{
-			return basic_message;
+			return this->basic_message;
 		}
 
 		inline int basic_IO_task::get_socket()const
 		{
-			return socket;
+			return this->socket;
 		}
 
 		inline void basic_IO_task::reset()
 		{
-			message_size=0;
-			current_point=0;
-			errno=SUCCESS;
+			this->message_size=0;
+			this->current_point=0;
+			this->error=SUCCESS;
 		}
 
 		inline void basic_IO_task::set_socket(int socket)
@@ -265,35 +265,35 @@ namespace CBB
 		inline size_t extended_IO_task::get_received_data(void* buffer)
 		{
 			memcpy(buffer, receive_buffer, extended_size);
-			return extended_size;
+			return this->extended_size;
 		}
 
 		inline void extended_IO_task::reset()
 		{
 			basic_IO_task::reset();
-			extended_size = 0;
-			send_buffer = nullptr;
+			this->extended_size = 0;
+			this->send_buffer = nullptr;
 		}
 
 		inline size_t extended_IO_task::get_extended_data_size()const
 		{
-			return extended_size;
+			return this->extended_size;
 		}
 
 		inline void extended_IO_task::set_extended_data_size(size_t size)
 		{
-			extended_size = size;
+			this->extended_size = size;
 		}
 
 		inline void extended_IO_task::set_send_buffer(const void*buffer, size_t size)
 		{
-			send_buffer = static_cast<const unsigned char*>(buffer);
-			extended_size = size;
+			this->send_buffer = static_cast<const unsigned char*>(buffer);
+			this->extended_size = size;
 		}
 
 		inline const unsigned char* extended_IO_task::get_send_buffer()const
 		{
-			return send_buffer;
+			return this->send_buffer;
 		}
 
 		inline unsigned char* extended_IO_task::get_receive_buffer(size_t size)

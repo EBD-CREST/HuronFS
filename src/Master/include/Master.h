@@ -64,6 +64,7 @@ namespace CBB
 				static const char* MASTER_MOUNT_POINT;
 				static const char* MASTER_NUMBER;
 				static const char* MASTER_TOTAL_NUMBER;
+				static const char* MASTER_BACKUP_POINT;
 
 			private:
 
@@ -163,7 +164,15 @@ namespace CBB
 				void _append_block(struct open_file_info& file,
 						off64_t start_point,
 						size_t size);
-				int _remove_file(ssize_t fd);
+
+				int _remove_open_file(ssize_t fd);
+				int _remove_open_file(open_file_info* file_info);
+				int _remove_file(const std::string& file_path);
+				int _rename_local_file(Master_file_stat& file_stat, const std::string& new_relative_path);
+				void _send_rename_request(node_info* node, ssize_t file_no, const std::string& new_relative_path);
+				void _send_remove_request(node_info* IOnode, ssize_t file_no);
+				void _send_truncate_request(node_info* node, ssize_t fd, off64_t block_start_point, ssize_t size);
+
 				int _recreate_replicas(node_info* node_info);
 				node_info* _allocate_replace_IOnode(node_info_pool_t& node_info_pool);
 				int _resend_replica_nodes_info_to_new_node(open_file_info* file_info, node_info* primary_replica_node, node_info* new_IOnode);
@@ -183,7 +192,12 @@ namespace CBB
 				int _get_my_thread_id()const;
 
 				int _IOnode_failure_handler(node_info* IOnode_info);
+				
+				void flush_file_stat();
 
+				std::string _get_backup_path(const std::string& path)const;
+				int _create_new_backup_file(const std::string& path, mode_t mode);
+				int _update_backup_file_size(const std::string& path, size_t size);
 			private:
 				//IOnode info map node_id:node info
 				IOnode_t _registed_IOnodes;
@@ -201,6 +215,7 @@ namespace CBB
 				ssize_t _current_node_number; 
 				ssize_t _current_file_no; 
 				std::string _mount_point;
+				std::string metadata_backup_point;
 				int master_number;
 				int master_total_size;
 
@@ -215,6 +230,11 @@ namespace CBB
 		inline std::string Master::_get_real_path(const std::string& path)const
 		{
 			return _mount_point+path;
+		}
+
+		inline std::string Master::_get_backup_path(const std::string& path)const
+		{
+			return metadata_backup_point+path;
 		}
 
 		inline int Master::_get_my_thread_id()const

@@ -1582,7 +1582,7 @@ int CBB_client::_report_IOnode_failure(int socket)
 	ssize_t IOnode_id=0;
 	_parse_master_IOnode_id(master_IOnode_id, master_number, IOnode_id);
 	int master_socket=master_socket_list.at(master_number);
-	_DEBUG("report IOnode failure to master %d, IOnode id %ld", master_number, IOnode_id);
+	_DEBUG("report IOnode failure to master %d, IOnode id %ld\n", master_number, IOnode_id);
 
 	extended_IO_task* query=allocate_new_query(master_socket);
 	query->push_back(IONODE_FAILURE);
