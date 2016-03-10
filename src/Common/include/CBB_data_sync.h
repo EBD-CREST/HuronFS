@@ -18,7 +18,7 @@ namespace CBB
 
 				int task_id;
 				int socket;
-				extended_IO_task* input_task;
+				int receiver_id;
 				void* _file;
 				void* _block;
 				off64_t offset;
@@ -37,9 +37,9 @@ namespace CBB
 						void* file,
 						void* block,
 						off64_t offset,
-						extended_IO_task* input_queue,
+						int receiver_id,
 						int socket);
-				static void* thread_fun(void* argv);
+				static void* data_sync_thread_fun(void* argv);
 				void set_queues(communication_queue_t* input_queue,
 						communication_queue_t* output_queue);
 				virtual int data_sync_parser(data_sync_task* new_task)=0;
@@ -59,11 +59,14 @@ namespace CBB
 
 		inline extended_IO_task* CBB_data_sync::allocate_data_sync_task()
 		{
-			return communication_output_queue_ptr->allocate_tmp_node();
+			extended_IO_task* ret=communication_output_queue_ptr->allocate_tmp_node();
+			_DEBUG("data sync element %p\n", ret);
+			return ret;
 		}
 
 		inline int CBB_data_sync::data_sync_task_enqueue(extended_IO_task* output_task)
 		{
+			_DEBUG("task enqueue %p, socket=%d\n", output_task->get_socket());
 			return communication_output_queue_ptr->task_enqueue();
 		}
 

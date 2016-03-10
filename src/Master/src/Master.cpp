@@ -201,9 +201,7 @@ int Master::_parse_regist_IOnode(extended_IO_task* new_task)
 	new_task->pop(total_memory);
 
 	extended_IO_task* output=init_response_task(new_task);
-
-	output->push_back(_add_IOnode(ip, total_memory, output->get_socket()));
-
+	output->push_back(_add_IOnode(ip, total_memory, new_task->get_socket()));
 	output_task_enqueue(output);
 	_DEBUG("total memory %lu\n", total_memory);
 	return SUCCESS;

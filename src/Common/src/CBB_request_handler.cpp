@@ -21,7 +21,6 @@ CBB_request_handler::CBB_request_handler():
 
 CBB_request_handler::~CBB_request_handler()
 {
-	void *ret=nullptr;
 	if(STARTED == thread_started)
 	{
 		stop_handler();
@@ -58,7 +57,7 @@ void* CBB_request_handler::handle_routine(void* args)
 	while(KEEP_ALIVE == this_obj->keepAlive)
 	{
 		extended_IO_task* new_task=input_queue.get_task();
-		_DEBUG("new task\n");
+		_DEBUG("new task element %p\n", new_task);
 		this_obj->_parse_request(new_task);
 		input_queue.task_dequeue();
 		_DEBUG("task ends\n");

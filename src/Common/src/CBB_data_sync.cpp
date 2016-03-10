@@ -21,7 +21,7 @@ CBB_data_sync::~CBB_data_sync()
 int CBB_data_sync::start_listening()
 {
 	int ret=0;
-	if(0 == (ret=pthread_create(&pthread_id, nullptr, thread_fun, this)))
+	if(0 == (ret=pthread_create(&pthread_id, nullptr, data_sync_thread_fun, this)))
 	{
 		thread_started=STARTED;
 	}
@@ -45,7 +45,7 @@ void CBB_data_sync::stop_listening()
 	return;
 }
 
-void* CBB_data_sync::thread_fun(void* args)
+void* CBB_data_sync::data_sync_thread_fun(void* args)
 {
 	CBB_data_sync* this_obj=static_cast<CBB_data_sync*>(args);
 
@@ -67,13 +67,13 @@ void CBB_data_sync::set_queues(communication_queue_t* input_queue,
 	this->communication_output_queue_ptr=output_queue;
 }
 
-int CBB_data_sync::add_data_sync_task(int task_id, void* file, void* block, off64_t offset, extended_IO_task* input_task, int socket)
+int CBB_data_sync::add_data_sync_task(int task_id, void* file, void* block, off64_t offset, int receiver_id, int socket)
 {
 	data_sync_task* new_data_sync_task=data_sync_queue.allocate_tmp_node();
 	new_data_sync_task->task_id=task_id;
 	new_data_sync_task->_file=file;
 	new_data_sync_task->_block=block;
-	new_data_sync_task->input_task=input_task;
+	new_data_sync_task->receiver_id=receiver_id;
 	new_data_sync_task->offset=offset;
 	new_data_sync_task->socket=socket;
 	return data_sync_queue.task_enqueue_signal_notification();

@@ -163,8 +163,7 @@ extended_IO_task* Client::get_query_response(extended_IO_task* query)throw(std::
 	{
 		ret=get_input_queue_from_query(query)->get_task();
 	}while((query->get_socket() != ret->get_socket()) &&
-			(SUCCESS == dequeue(ret)) && 
-			_DEBUG("error socket=%d\n", ret->get_socket()));
+			(SUCCESS == dequeue(ret)));	
 
 	//socket killed
 	if(SOCKET_KILLED == ret->get_error())

@@ -178,11 +178,11 @@ int IOnode::start_server()
 
 int IOnode::_unregist()
 {
-	//extended_IO_task* output=output_queue->allocate_tmp_node();
-	//output->set_socket(_master_socket);
-	//output->push_back(CLOSE_CLIENT);
-	//output->queue_enqueue();
-	//close(_master_socket);
+	/*extended_IO_task* output=output_queue->allocate_tmp_node();
+	output->set_socket(_master_socket);
+	output->push_back(CLOSE_CLIENT);
+	output->queue_enqueue();*/
+	close(_master_socket);
 	return SUCCESS;
 }
 
@@ -296,10 +296,8 @@ int IOnode::_promoted_to_primary(extended_IO_task* new_task)
 		file& file_info=_files.at(file_no);
 		_get_replica_node_info(new_task, file_info);
 
-		add_data_sync_task(DATA_SYNC_INIT, &file_info, nullptr, 0, nullptr, IOnode_socket_pool.at(new_node_id));
-	}
-	catch(std::runtime_error&e)
-	{
+		add_data_sync_task(DATA_SYNC_INIT, &file_info, nullptr, 0, 0, IOnode_socket_pool.at(new_node_id));
+	} catch(std::runtime_error&e) {
 		_DEBUG("out of range !!\n");
 		ret=FAILURE;
 	}
@@ -365,6 +363,7 @@ int IOnode::_send_data(extended_IO_task* new_task)
 	off64_t offset=0;
 	size_t size=0;
 	int ret=SUCCESS;
+
 	new_task->pop(file_no);
 	new_task->pop(start_point);
 	new_task->pop(offset);
@@ -443,7 +442,12 @@ int IOnode::_receive_data(extended_IO_task* new_task)
 		{
 			_block->data_size = offset+size;
 		}
-		_sync_data(_file, _block, offset, new_task);
+
+		new_task->get_received_data(static_cast<unsigned char*>(_block->data)+offset);
+		_block->dirty_flag=DIRTY;
+		_file.dirty_flag=DIRTY;
+
+		_sync_data(_file, _block, offset, new_task->get_receiver_id(), new_task->get_socket());
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -459,10 +463,11 @@ int IOnode::_receive_data(extended_IO_task* new_task)
 int IOnode::_sync_data(file& file_info, 
 		block* requested_block,
 		off64_t offset,
-		extended_IO_task* new_task)
+		int receiver_id,
+		int socket)
 {
 	_DEBUG("offset %ld\n", offset);
-	return add_data_sync_task(DATA_SYNC_WRITE, &file_info, requested_block, offset, new_task, new_task->get_socket());
+	return add_data_sync_task(DATA_SYNC_WRITE, &file_info, requested_block, offset, receiver_id, socket);
 }
 
 int IOnode::_open_file(extended_IO_task* new_task)
@@ -587,6 +592,7 @@ int IOnode::_rename(extended_IO_task* new_task)
 	new_task->pop(file_no);
 	new_task->pop_string(&new_path);
 	_DEBUG("rename file_no =%ld, new_path=%s\n", file_no, new_path);
+
 	try{
 		file& _file=_files.at(file_no);
 		_file.file_path=std::string(new_path);
@@ -603,9 +609,10 @@ void IOnode::_append_block(extended_IO_task* new_task,
 {
 	off64_t start_point=0;
 	size_t data_size=0;
+	block* new_block=nullptr;
+
 	new_task->pop(start_point); 
 	new_task->pop(data_size); 
-	block* new_block=nullptr;
 	_DEBUG("append request from Master\n");
 	_DEBUG("start_point=%lu, data_size=%lu\n", start_point, data_size);
 	if(nullptr == (new_block=new block(start_point, data_size, CLEAN, INVALID, &file_stat)))
@@ -798,7 +805,6 @@ int IOnode::_unlink(extended_IO_task* new_task)
 	_LOG("file no=%ld\n", file_no);
 	int ret=_remove_file(file_no);	
 	return ret;
-
 }
 
 inline std::string IOnode::_get_real_path(const char* path)const
@@ -817,6 +823,7 @@ int IOnode::_truncate_file(extended_IO_task* new_task)
 	off64_t start_point=0;
 	ssize_t fd=0;
 	size_t avaliable_size=0;
+
 	new_task->pop(fd);
 	new_task->pop(start_point);
 	new_task->pop(avaliable_size);
@@ -947,22 +954,20 @@ int IOnode::_sync_write_data(data_sync_task* new_task)
 {
 	block* requested_block=static_cast<block*>(new_task->_block);
 	file* requested_file=static_cast<file*>(new_task->_file);
-	extended_IO_task* input_task=new_task->input_task;
+	int socket=new_task->socket;
+	int receiver_id=new_task->receiver_id;
 	_LOG("send sync data file_no = %ld\n", requested_file->file_no);
-	off64_t offset=new_task->offset;
 
-	input_task->get_received_data(static_cast<unsigned char*>(requested_block->data)+offset);
-	requested_block->dirty_flag=DIRTY;
-	requested_file->dirty_flag=DIRTY;
 #ifdef STRICT_SYNC_DATA
 	for(auto& replicas:requested_file->IOnode_pool)
 	{
 		_send_sync_data(replicas.second, requested_block, requested_file);
 	}
 #endif
+	_DEBUG("send response to socket %d\n", socket);
 	extended_IO_task* output_task=allocate_data_sync_task();
-	output_task->set_socket(input_task->get_socket());
-	output_task->set_receiver_id(input_task->get_receiver_id());
+	output_task->set_socket(socket);
+	output_task->set_receiver_id(receiver_id);
 	output_task->push_back(SUCCESS);
 	data_sync_task_enqueue(output_task);
 #ifndef STRICT_SYNC_DATA
