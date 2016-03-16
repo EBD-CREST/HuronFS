@@ -12,6 +12,15 @@ const int MAX_IONODE = 1000;
 const int MAX_BASIC_MESSAGE_SIZE = 1*MB;
 //const int CLIENT_PORT = 8001;
 //const int IO_CLIENT_PORT = 8002;
+const int SERVER_THREAD_NUM = 1;
+const int CLIENT_THREAD_NUM = 1;
+
+const int MASTER_QUEUE_NUM=SERVER_THREAD_NUM+1;
+const int IONODE_QUEUE_NUM=SERVER_THREAD_NUM+1;
+const int CLIENT_QUEUE_NUM=CLIENT_THREAD_NUM;
+
+const int HEART_BEAT_QUEUE_NUM = SERVER_THREAD_NUM;
+const int DATA_SYNC_QUEUE_NUM = SERVER_THREAD_NUM;
 
 const int MEMORY = 10000; 
 const int MAX_BLOCK_NUMBER = 1000; 
@@ -62,9 +71,18 @@ const int NEW_CLIENT = 20;
 const int CLOSE_CLIENT = 21;
 const int TRUNCATE = 22;
 const int RENAME_MIGRATING = 23;
+const int HEART_BEAT = 24;
+const int NODE_FAILURE = 25;
+const int OPEN_FILE_RECOVERY = 26;
+const int DATA_SYNC = 27;
+const int NEW_IONODE = 28;
+const int PROMOTED_TO_PRIMARY_REPLICA = 29;
+const int REPLACE_REPLICA = 30;
+const int REMOVE_IONODE = 31;
+const int IONODE_FAILURE = 32;
 
-const int SERVER_SHUT_DOWN = 30; 
-const int I_AM_SHUT_DOWN = 31;
+const int SERVER_SHUT_DOWN = 40; 
+const int I_AM_SHUT_DOWN = 41;
 
 const int TOO_MANY_FILES =50;
 const int FILE_NOT_FOUND = 51;
@@ -74,10 +92,11 @@ const int OUT_OF_DATE = 54;
 const int SEND_META = 55;
 const int RECV_META = 56;
 const int NO_NEED_META = 57;
+const int SOCKET_KILLED = 58;
 const int EXISTING = 1;
 const int NOT_EXIST = 0;
 
-const int OUT_OF_RANGE=100;//"out of range\n"; 
+const int OUT_OF_RANGE=100;
 
 const int EXTERNAL = 0;
 const int INTERNAL = -1;
@@ -95,5 +114,13 @@ const bool UNSTARTED = false;
 const bool SET = true;
 
 const int CBB_REMOTE_WRITE_BACK = 0;
+const int HEART_BEAT_INTERVAL=1000;
 
+const int NUM_OF_REPLICA = 2;
+
+const int MAIN_REPLICA=0;
+const int SUB_REPLICA=1;
+
+const int DATA_SYNC_INIT=0;
+const int DATA_SYNC_WRITE=1;
 #endif

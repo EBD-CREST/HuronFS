@@ -3,7 +3,7 @@ SRC_DIR = src
 HEADER_DIR = include
 INCLUDE_PATH = -I./include -I../Common/include
 LINK_PATH = -L./
-COMMON = ../Common/Server.o ../Common/CBB_request_handler.o ../Common/CBB_task_parallel.o ../Common/CBB_communication_thread.o ../Common/CBB_rwlocker.o ../Common/CBB_remote_task.o
+COMMON = ../Common/Server.o ../Common/CBB_request_handler.o ../Common/CBB_communication_thread.o ../Common/CBB_rwlocker.o ../Common/CBB_remote_task.o ../Common/CBB_heart_beat.o ../Common/CBB_serialization.o
 
 SRC = Master.cpp master_main.cpp Master_basic.cpp
 OBJ = $(SRC:.cpp=.o)

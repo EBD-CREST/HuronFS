@@ -3,6 +3,8 @@
 
 #include <pthread.h>
 #include <set>
+#include <vector>
+#include <map>
 
 #include "CBB_task_parallel.h"
 
@@ -15,7 +17,7 @@ namespace CBB
 		{
 			public:
 				basic_IO_task();
-				virtual ~basic_IO_task();
+				virtual ~basic_IO_task()=default;
 				template<typename T> size_t push_back(const T& value);
 				template<typename T> size_t push_backv(const T& value, size_t num);
 				size_t push_back_string(const unsigned char* string);
@@ -35,9 +37,15 @@ namespace CBB
 				unsigned char* get_message();
 				void set_message_size(size_t message_size);
 				size_t get_message_size()const;
-
+				int get_receiver_id()const;
+				void set_receiver_id(int id);
+				int get_error()const;
+				void set_error(int error);
 			private:
 				int socket;
+				//remote id refers to the queue which communicates with
+				int receiver_id;
+				int error;
 				size_t message_size;
 				unsigned char basic_message[MAX_BASIC_MESSAGE_SIZE];
 				size_t current_point;
@@ -64,49 +72,63 @@ namespace CBB
 
 		int Send_attr(extended_IO_task* output_task, const struct stat* file_stat);
 		int Recv_attr(extended_IO_task* new_task, struct stat* file_stat);
-
-		inline extended_IO_task* init_response_task(extended_IO_task* input_task, task_parallel_queue<extended_IO_task>* output_queue)
-		{
-			extended_IO_task* output=output_queue->allocate_tmp_node();
-			output->set_socket(input_task->get_socket());
-			return output;
-		}
+		typedef task_parallel_queue<extended_IO_task> communication_queue_t;
+		typedef std::vector<communication_queue_t> communication_queue_array_t;
+		//each thread set the socket which it is waiting on
+		typedef std::vector<int> threads_socket_map_t;
 
 		class CBB_communication_thread
 		{
+			public:
+				typedef std::map<int, communication_queue_t*> fd_queue_map_t;
 			protected:
 				CBB_communication_thread()throw(std::runtime_error);
 				virtual ~CBB_communication_thread();
 				int start_communication_server();
 				int stop_communication_server();
+				int _add_event_socket(int socketfd);
 				int _add_socket(int socketfd);
 				int _add_socket(int socketfd, int op);
 				int _delete_socket(int socketfd); 
-				virtual int input_from_socket(int socket, task_parallel_queue<extended_IO_task>* output_queue)=0;
-				virtual int input_from_producer(task_parallel_queue<extended_IO_task>* input_queue)=0;
-				size_t send(extended_IO_task* new_task);
-				size_t receive_message(int socket, extended_IO_task* new_task);
-				static void* thread_function(void*);
+
+				virtual int input_from_socket(int socket, communication_queue_array_t* output_queue)=0;
+				virtual int input_from_producer(communication_queue_t* input_queue)=0;
+				virtual int output_task_enqueue(extended_IO_task* output_task)=0;
+				virtual communication_queue_t* get_communication_queue_from_socket(int socket)=0;
+
+				size_t send(extended_IO_task* new_task)throw(std::runtime_error);
+				size_t receive_message(int socket, extended_IO_task* new_task)throw(std::runtime_error);
+				static void* sender_thread_function(void*);
+				static void* receiver_thread_function(void*);
 				//thread wait on queue event;
-				static void* queue_wait_function(void*);
-				void set_queue(task_parallel_queue<extended_IO_task>* input_queue, task_parallel_queue<extended_IO_task>* output_queue);
+				//static void* queue_wait_function(void*);
+				void setup(communication_queue_array_t* input_queues,
+						communication_queue_array_t* output_queues);
+			private:
+
+				void set_queues(communication_queue_array_t* input_queues,
+						communication_queue_array_t* output_queues);
 			private:
 				//map: socketfd
 				typedef std::set<int> socket_pool_t; 
+				int set_event_fd()throw(std::runtime_error);
 
 			private:
 				int keepAlive;
-				int epollfd; 
+				int sender_epollfd;
+				int receiver_epollfd; 
 				socket_pool_t _socket_pool; 
 
 				bool thread_started;
-				task_parallel_queue<extended_IO_task>* input_queue;
-				task_parallel_queue<extended_IO_task>* output_queue;
-				pthread_t communication_thread;
-				int queue_event_fd;
+				communication_queue_array_t* input_queue;
+				communication_queue_array_t* output_queue;
+				//to solve both-sending deadlock
+				//we create a sender and a reciver
+				pthread_t sender_thread;
+				pthread_t receiver_thread;
+				fd_queue_map_t fd_queue_map;
 		};
 
-		basic_IO_task* init_response_task(basic_IO_task* input_task, task_parallel_queue<basic_IO_task>* output_queue);
 
 		template<typename T> size_t basic_IO_task::push_back(const T& value)
 		{
@@ -121,7 +143,7 @@ namespace CBB
 		inline size_t basic_IO_task::do_push(const void* value, size_t num)
 		{
 			memcpy(basic_message + message_size, value, num);
-			message_size += num;
+			this->message_size += num;
 			return num;
 		}
 
@@ -138,7 +160,7 @@ namespace CBB
 		template<typename T> inline size_t basic_IO_task::do_pop(T** var, size_t num)
 		{
 			*var=reinterpret_cast<T*>(basic_message + current_point);
-			current_point += num;
+			this->current_point += num;
 			return num;
 		}
 
@@ -149,7 +171,7 @@ namespace CBB
 
 		template<typename T> inline size_t basic_IO_task::popv(T* var, size_t num)
 		{
-			T* tmp=NULL;
+			T* tmp=nullptr;
 			size_t ret=popv_uncopy(&tmp, num);
 			memcpy(var, tmp, ret);
 			return ret;
@@ -177,7 +199,7 @@ namespace CBB
 
 		inline size_t basic_IO_task::pop_string(unsigned char** var)
 		{
-			size_t len;
+			size_t len=0;
 			pop(len);
 			do_pop(var, len*sizeof(unsigned char));
 			return len;
@@ -190,18 +212,19 @@ namespace CBB
 
 		inline unsigned char* basic_IO_task::get_message()
 		{
-			return basic_message;
+			return this->basic_message;
 		}
 
 		inline int basic_IO_task::get_socket()const
 		{
-			return socket;
+			return this->socket;
 		}
 
 		inline void basic_IO_task::reset()
 		{
-			message_size=0;
-			current_point=0;
+			this->message_size=0;
+			this->current_point=0;
+			this->error=SUCCESS;
 		}
 
 		inline void basic_IO_task::set_socket(int socket)
@@ -219,49 +242,80 @@ namespace CBB
 			this->message_size=message_size;
 		}
 
+		inline int basic_IO_task::get_receiver_id()const
+		{
+			return this->receiver_id;
+		}
+
+		inline void basic_IO_task::set_receiver_id(int id)
+		{
+			this->receiver_id=id;
+		}
+
+		inline int basic_IO_task::get_error()const
+		{
+			return this->error;
+		}
+
+		inline void basic_IO_task::set_error(int error)
+		{
+			this->error=error;
+		}
+
 		inline size_t extended_IO_task::get_received_data(void* buffer)
 		{
 			memcpy(buffer, receive_buffer, extended_size);
-			return extended_size;
+			return this->extended_size;
 		}
 
 		inline void extended_IO_task::reset()
 		{
 			basic_IO_task::reset();
-			extended_size = 0;
-			send_buffer = NULL;
+			this->extended_size = 0;
+			this->send_buffer = nullptr;
 		}
 
 		inline size_t extended_IO_task::get_extended_data_size()const
 		{
-			return extended_size;
+			return this->extended_size;
 		}
 
 		inline void extended_IO_task::set_extended_data_size(size_t size)
 		{
-			extended_size = size;
+			this->extended_size = size;
 		}
 
 		inline void extended_IO_task::set_send_buffer(const void*buffer, size_t size)
 		{
-			send_buffer = static_cast<const unsigned char*>(buffer);
-			extended_size = size;
+			this->send_buffer = static_cast<const unsigned char*>(buffer);
+			this->extended_size = size;
 		}
 
 		inline const unsigned char* extended_IO_task::get_send_buffer()const
 		{
-			return send_buffer;
+			return this->send_buffer;
 		}
 
 		inline unsigned char* extended_IO_task::get_receive_buffer(size_t size)
 		{
-			if(NULL == receive_buffer)
+			if(nullptr == this->receive_buffer)
 			{
-				receive_buffer = new unsigned char[size];
+				this->receive_buffer = new unsigned char[size];
 			}
-			return receive_buffer;
+			return this->receive_buffer;
 		}
 
+		/*inline void communication_thread::set_threads_socket_map(threads_socket_map_t* threads_socket_map)
+		{
+			this->threads_socket_map=threads_socket_map;
+		}*/
+
+		inline void CBB_communication_thread::setup(communication_queue_array_t* input_queues,
+				communication_queue_array_t* output_queues)
+		{
+			set_queues(input_queues, output_queues);
+			//set_threads_socket_map(threads_socket_map);
+		}
 	}
 }
 

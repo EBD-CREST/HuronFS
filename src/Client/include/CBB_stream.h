@@ -2,6 +2,7 @@
 #define CBB_STREAM_H_
 
 #include "CBB_client.h"
+#include <linux/limits.h>
 
 namespace CBB
 {

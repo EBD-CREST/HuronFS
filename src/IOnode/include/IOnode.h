@@ -17,17 +17,19 @@
 #include <stdexcept>
 #include <exception>
 #include <stdlib.h>
+#include <map>
 
 #include "Server.h"
-#include "CBB_map.h"
 #include "CBB_connector.h"
+#include "CBB_data_sync.h"
 
 namespace CBB
 {
 	namespace IOnode
 	{
-		class IOnode:public CBB::Common::Server,
-		CBB::Common::CBB_connector
+		class IOnode:public Common::Server,
+		Common::CBB_connector,
+		public Common::CBB_data_sync
 		{
 			//API
 			public:
@@ -35,6 +37,11 @@ namespace CBB
 						int master_port) throw(std::runtime_error);
 				virtual ~IOnode();
 				int start_server();
+
+				//map node id: socket
+				typedef std::map<ssize_t, int> node_socket_pool_t;
+				//map node id: ip
+				typedef std::map<ssize_t, std::string> node_ip_t;
 
 				//nested class
 			private:
@@ -68,7 +75,7 @@ namespace CBB
 					bool TO_BE_DELETED;
 				};
 				//map: start_point : block*
-				typedef CBB::Common::CBB_map<off64_t, block*> block_info_t; 
+				typedef std::map<off64_t, block*> block_info_t; 
 
 				struct file
 				{
@@ -78,12 +85,15 @@ namespace CBB
 					std::string file_path;
 					int exist_flag;
 					bool dirty_flag;
+					//main replica indicator
+					int main_flag;
 					ssize_t file_no;
 					block_info_t blocks;
+					node_socket_pool_t IOnode_pool;
 				};
 
 				//map: file_no: struct file
-				typedef CBB::Common::CBB_map<ssize_t, file> file_t; 
+				typedef std::map<ssize_t, file> file_t; 
 
 				static const char * IONODE_MOUNT_POINT;
 
@@ -94,57 +104,65 @@ namespace CBB
 				//unregist IOnode from master
 				int _unregist();
 				//regist IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
-				ssize_t _regist(CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* input_queue) throw(std::runtime_error);
+				ssize_t _regist(Common::communication_queue_array_t* output_queue,
+						Common::communication_queue_array_t* input_queue) throw(std::runtime_error);
 				//virtual int _parse_new_request(int sockfd,
 				//		const struct sockaddr_in& client_addr); 
-				virtual int _parse_request(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue); 
+				virtual int _parse_request(Common::extended_IO_task* new_task)override final;
 
-				virtual int remote_task_handler(CBB::Common::remote_task* new_task);
+				virtual int remote_task_handler(Common::remote_task* new_task)override final;
+				virtual int data_sync_parser(Common::data_sync_task* new_task)override final;
 
-				int _send_data(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
-				int _receive_data(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
-				int _open_file(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
-				int _close_file(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
-				int _flush_file(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
-				int _rename(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
-				int _truncate_file(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
-				int _append_new_block(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
-				int _regist_new_client(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
-				int _close_client(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
-				int _unlink(CBB::Common::extended_IO_task* new_task,
-						CBB::Common::task_parallel_queue<CBB::Common::extended_IO_task>* output_queue);
+				int _send_data(Common::extended_IO_task* new_task);
+				int _receive_data(Common::extended_IO_task* new_task);
+				int _open_file(Common::extended_IO_task* new_task);
+				int _close_file(Common::extended_IO_task* new_task);
+				int _flush_file(Common::extended_IO_task* new_task);
+				int _rename(Common::extended_IO_task* new_task);
+				int _truncate_file(Common::extended_IO_task* new_task);
+				int _append_new_block(Common::extended_IO_task* new_task);
+				int _regist_new_client(Common::extended_IO_task* new_task);
+				int _close_client(Common::extended_IO_task* new_task);
+				int _unlink(Common::extended_IO_task* new_task);
+				int _node_failure(Common::extended_IO_task* new_task);
+				int _heart_beat(Common::extended_IO_task* new_task);
+				int _get_sync_data(Common::extended_IO_task* new_task);
+				int _regist_new_IOnode(Common::extended_IO_task* new_task);
+				int _promoted_to_primary(Common::extended_IO_task* new_task);
+				int _replace_replica(Common::extended_IO_task* new_task);
+				int _remove_IOnode(Common::extended_IO_task* new_task);
+
+				int _get_replica_node_info(Common::extended_IO_task* new_task, file& _file);
+				int _get_IOnode_info(Common::extended_IO_task* new_task, file& _file);
+
 				block *_buffer_block(off64_t start_point,
 						size_t size)throw(std::runtime_error);
 
 				size_t _write_to_storage(block* block_data)throw(std::runtime_error); 
-
 				size_t _read_from_storage(const std::string& path,
 						block* block_data)throw(std::runtime_error);
-				void _append_block(CBB::Common::extended_IO_task* new_task,
+				void _append_block(Common::extended_IO_task* new_task,
 						file& file_stat)throw(std::runtime_error);
-				virtual std::string _get_real_path(const char* path)const;
-
+				virtual std::string _get_real_path(const char* path)const override final;
 				std::string _get_real_path(const std::string& path)const;
-
 				int _remove_file(ssize_t file_no);
+
+				int _connect_to_new_IOnode(ssize_t destination_node_id, ssize_t my_node_id, const char* node_ip);
+
+				//send data to new replica node after IOnode fail over
+				int _sync_init_data(Common::data_sync_task* new_task);
+				int _sync_write_data(Common::data_sync_task* new_task);
+
+				int _sync_data(file& file, block* block, off64_t offset, int receiver_id, int socket);
+				int _send_sync_data(int socket, block* requested_block, file* requested_file);
+
+				int _setup_queues();
 
 				//private member
 			private:
 
 				//node id
-				ssize_t _node_id;
+				ssize_t my_node_id;
 				/*block_info _blocks;
 				  file_info _files;*/
 
@@ -160,6 +178,7 @@ namespace CBB
 				struct sockaddr_in _master_addr;
 				std::string _mount_point;
 				int _master_socket;
+				node_socket_pool_t IOnode_socket_pool;
 		};
 		inline int IOnode::block::lock()
 		{
