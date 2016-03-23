@@ -67,14 +67,21 @@ void CBB_data_sync::set_queues(communication_queue_t* input_queue,
 	this->communication_output_queue_ptr=output_queue;
 }
 
-int CBB_data_sync::add_data_sync_task(int task_id, void* file, void* block, off64_t offset, int receiver_id, int socket)
+int CBB_data_sync::add_data_sync_task(int task_id,
+		void* file,
+		off64_t start_point,
+		off64_t offset,
+		ssize_t size,
+		int receiver_id,
+		int socket)
 {
 	data_sync_task* new_data_sync_task=data_sync_queue.allocate_tmp_node();
 	new_data_sync_task->task_id=task_id;
 	new_data_sync_task->_file=file;
-	new_data_sync_task->_block=block;
+	new_data_sync_task->start_point=start_point;
 	new_data_sync_task->receiver_id=receiver_id;
 	new_data_sync_task->offset=offset;
+	new_data_sync_task->size=size;
 	new_data_sync_task->socket=socket;
 	return data_sync_queue.task_enqueue_signal_notification();
 }

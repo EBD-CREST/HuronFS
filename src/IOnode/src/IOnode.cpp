@@ -296,7 +296,7 @@ int IOnode::_promoted_to_primary(extended_IO_task* new_task)
 		file& file_info=_files.at(file_no);
 		_get_replica_node_info(new_task, file_info);
 
-		add_data_sync_task(DATA_SYNC_INIT, &file_info, nullptr, 0, 0, IOnode_socket_pool.at(new_node_id));
+		add_data_sync_task(DATA_SYNC_INIT, &file_info, 0, 0, -1, 0, IOnode_socket_pool.at(new_node_id));
 	} catch(std::runtime_error&e) {
 		_DEBUG("out of range !!\n");
 		ret=FAILURE;
@@ -362,6 +362,7 @@ int IOnode::_send_data(extended_IO_task* new_task)
 	off64_t start_point=0;
 	off64_t offset=0;
 	size_t size=0;
+	ssize_t remaining_size=0;
 	int ret=SUCCESS;
 
 	new_task->pop(file_no);
@@ -376,24 +377,42 @@ int IOnode::_send_data(extended_IO_task* new_task)
 	{
 		file& _file=_files.at(file_no);
 		const std::string& path = _file.file_path;
+		remaining_size=size+offset;
+		size_t IO_size=offset+size>BLOCK_SIZE?BLOCK_SIZE-offset:size;
 		_DEBUG("file path=%s\n", path.c_str());
-		block* requested_block=_file.blocks.at(start_point);
-		requested_block->file_stat=&_file;
-		if(INVALID == requested_block->valid)
-		{
-			requested_block->allocate_memory();
-			if(EXISTING == _file.exist_flag)
-			{
-				_read_from_storage(path, requested_block);
-			}
-		}
+
 		output->push_back(SUCCESS);
-		output->set_send_buffer(reinterpret_cast<unsigned char*>(requested_block->data)+offset, size);
+		while(remaining_size > 0)
+		{
+			_DEBUG("remaining_size=%ld, start_point=%ld\n", remaining_size, start_point);
+			block* requested_block=nullptr;
+			try{
+				requested_block=_file.blocks.at(start_point);
+			}catch(std::out_of_range&e )
+			{
+				_DEBUG("out of range\n");
+				break;
+			}
+			requested_block->file_stat=&_file;
+			if(INVALID == requested_block->valid)
+			{
+				requested_block->allocate_memory();
+				if(EXISTING == _file.exist_flag)
+				{
+					_read_from_storage(path, requested_block);
+				}
+			}
+			start_point+=BLOCK_SIZE;
+			output->push_send_buffer(reinterpret_cast<char*>(requested_block->data)+offset, IO_size);
+			remaining_size-=IO_size;
+			IO_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));
+			offset=0;
+		}
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
-		_DEBUG("out of range\n");
+		_DEBUG("file not found\n");
 		output->push_back(FILE_NOT_FOUND);
 		ret=FAILURE;
 	}
@@ -408,6 +427,7 @@ int IOnode::_receive_data(extended_IO_task* new_task)
 	off64_t start_point=0;
 	off64_t offset=0;
 	size_t size=0;
+	ssize_t remaining_size=0;
 	int ret=SUCCESS;
 	new_task->pop(file_no);
 	new_task->pop(start_point);
@@ -418,36 +438,23 @@ int IOnode::_receive_data(extended_IO_task* new_task)
 
 	try
 	{
+		remaining_size=size;
 		file& _file=_files.at(file_no);
 		block_info_t &blocks=_file.blocks;
-		block* _block=nullptr;
-		try
-		{
-			_block=blocks.at(start_point);
-		}
-		catch(std::out_of_range &e)
-		{
-			_block=blocks.insert(std::make_pair(start_point, new block(start_point, size, CLEAN, INVALID, &_file))).first->second;
-		}
-		if(INVALID == _block->valid)
-		{
-			_block->allocate_memory();
-			if(EXISTING == _file.exist_flag)
-			{
-				_block->data_size=_read_from_storage(_file.file_path, _block);
-			}
-			_block->valid = VALID;
-		}
-		if(_block->data_size < offset+size)
-		{
-			_block->data_size = offset+size;
-		}
+		size_t receive_size=(offset + size) > BLOCK_SIZE?BLOCK_SIZE-offset:size;
+		off64_t tmp_offset=offset;
 
-		new_task->get_received_data(static_cast<unsigned char*>(_block->data)+offset);
-		_block->dirty_flag=DIRTY;
+		while(0 < remaining_size)
+		{
+			_DEBUG("receive_data start point %ld, offset %ld, receive size %ld, remaining size %ld\n", start_point, tmp_offset, receive_size, remaining_size);
+			ssize_t IOsize=update_block_data(blocks, _file, start_point, tmp_offset, receive_size, new_task);
+			remaining_size-=IOsize;
+			receive_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));
+			start_point+=IOsize;
+			tmp_offset=0;
+		}
 		_file.dirty_flag=DIRTY;
-
-		_sync_data(_file, _block, offset, new_task->get_receiver_id(), new_task->get_socket());
+		_sync_data(_file, start_point, offset, size, new_task->get_socket());
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -460,14 +467,51 @@ int IOnode::_receive_data(extended_IO_task* new_task)
 	return ret;
 }
 
-int IOnode::_sync_data(file& file_info, 
-		block* requested_block,
+size_t IOnode::update_block_data(block_info_t& blocks,
+		file& file,
+		off64_t start_point,
 		off64_t offset,
-		int receiver_id,
+		size_t size,
+		extended_IO_task* new_task)
+{
+	size_t ret=0;
+	block* _block=nullptr;
+
+	try
+	{
+		_block=blocks.at(start_point);
+	}
+	catch(std::out_of_range &e)
+	{
+		_block=blocks.insert(std::make_pair(start_point, new block(start_point, size, CLEAN, INVALID, &file))).first->second;
+	}
+	if(INVALID == _block->valid)
+	{
+		_block->allocate_memory();
+		if(EXISTING == file.exist_flag)
+		{
+			_block->data_size=_read_from_storage(file.file_path, _block);
+		}
+		_block->valid = VALID;
+	}
+	if(_block->data_size < offset+size)
+	{
+		_block->data_size = offset+size;
+	}
+
+	ret=new_task->get_received_data(static_cast<unsigned char*>(_block->data)+offset, size);
+	_block->dirty_flag=DIRTY;
+	return ret;
+}
+
+int IOnode::_sync_data(file& file_info, 
+		off64_t start_point,
+		off64_t offset,
+		ssize_t size,
 		int socket)
 {
 	_DEBUG("offset %ld\n", offset);
-	return add_data_sync_task(DATA_SYNC_WRITE, &file_info, requested_block, offset, receiver_id, socket);
+	return add_data_sync_task(DATA_SYNC_WRITE, &file_info, start_point, offset, size, 0, socket);
 }
 
 int IOnode::_open_file(extended_IO_task* new_task)
@@ -938,13 +982,7 @@ int IOnode::_sync_init_data(data_sync_task* new_task)
 	//only sync dirty data
 	if(DIRTY == requested_file->dirty_flag)
 	{
-		for(auto& block:requested_file->blocks)
-		{
-			if(DIRTY == block.second->dirty_flag)
-			{
-				_send_sync_data(new_task->socket, block.second, requested_file);
-			}
-		}
+		_send_sync_data(new_task->socket, requested_file, 0, 0, MAX_FILE_SIZE);
 	}
 
 	return SUCCESS;
@@ -952,7 +990,6 @@ int IOnode::_sync_init_data(data_sync_task* new_task)
 
 int IOnode::_sync_write_data(data_sync_task* new_task)
 {
-	block* requested_block=static_cast<block*>(new_task->_block);
 	file* requested_file=static_cast<file*>(new_task->_file);
 	int socket=new_task->socket;
 	int receiver_id=new_task->receiver_id;
@@ -961,7 +998,7 @@ int IOnode::_sync_write_data(data_sync_task* new_task)
 #ifdef STRICT_SYNC_DATA
 	for(auto& replicas:requested_file->IOnode_pool)
 	{
-		_send_sync_data(replicas.second, requested_block, requested_file);
+		_send_sync_data(replicas.second, requested_file, new_task->start_point, new_task->offset, new_task->size);
 	}
 #endif
 	_DEBUG("send response to socket %d\n", socket);
@@ -973,23 +1010,35 @@ int IOnode::_sync_write_data(data_sync_task* new_task)
 #ifndef STRICT_SYNC_DATA
 	for(auto& replicas:requested_file->IOnode_pool)
 	{
-		_send_sync_data(replicas.second, requested_block, requested_file);
+		_send_sync_data(replicas.second, requested_file, new_task->start_point, new_task->offset, new_task->size);
 	}
 #endif
 	return SUCCESS;
 }
 
-int IOnode::_send_sync_data(int socket, block* requested_block, file* requested_file)
+int IOnode::_send_sync_data(int socket, file* requested_file, off64_t start_point, off64_t offset, ssize_t size)
 {
+	ssize_t ret_size=0;
 	_DEBUG("send sync to %d\n", socket);
 	extended_IO_task* output_task=allocate_data_sync_task();
 	output_task->set_socket(socket);
 	output_task->set_receiver_id(0);
 	output_task->push_back(DATA_SYNC);
 	output_task->push_back(requested_file->file_no);
-	output_task->push_back(requested_block->start_point);
-	_DEBUG("data size=%ld\n", requested_block->data_size);
-	output_task->set_send_buffer(requested_block->data, requested_block->data_size);
+	output_task->push_back(start_point);
+	output_task->push_back(offset);
+
+	auto block_it=requested_file->blocks.find(start_point);
+	while(end(requested_file->blocks) != block_it && 0 < size)
+	{
+		block* requested_block=block_it->second;
+		output_task->push_send_buffer(static_cast<char*>(requested_block->data), requested_block->data_size);
+		size-=requested_block->data_size;
+		ret_size+=requested_block->data_size;
+		block_it++;
+	}
+	output_task->push_back(ret_size);
+	_DEBUG("data size=%ld\n", ret_size);
 	data_sync_task_enqueue(output_task);
 	int ret=SUCCESS;
 #ifdef SYNC_DATA_WITH_REPLY
@@ -1006,8 +1055,12 @@ int IOnode::_get_sync_data(extended_IO_task* new_task)
 	ssize_t file_no=0;
 	int ret=SUCCESS;
 	off64_t start_point=0;
+	off64_t offset=0;
+	ssize_t size=0;
 	new_task->pop(file_no);
 	new_task->pop(start_point);
+	new_task->pop(offset);
+	new_task->pop(size);
 #ifdef SYNC_DATA_WITH_REPLY
 	extended_IO_task* output=init_response_task(new_task);
 #endif
@@ -1015,24 +1068,11 @@ int IOnode::_get_sync_data(extended_IO_task* new_task)
 	{
 		file& _file=_files.at(file_no);
 		block_info_t &blocks=_file.blocks;
-		block* _block=nullptr;
-		try
+		while(0 != size)
 		{
-			_block=blocks.at(start_point);
+			ssize_t IO_size=MIN(size, static_cast<ssize_t>(BLOCK_SIZE));
+			size-=update_block_data(blocks, _file, start_point, 0, IO_size, new_task);
 		}
-		catch(std::out_of_range &e)
-		{
-			_block=blocks.insert(std::make_pair(start_point, new block(start_point, BLOCK_SIZE, CLEAN, VALID, &_file))).first->second;
-		}
-		if(INVALID == _block->valid)
-		{
-			_block->allocate_memory();
-			_block->valid = VALID;
-		}
-		size_t data_size=new_task->get_received_data(static_cast<unsigned char*>(_block->data));
-		_block->data_size=data_size;
-		_block->dirty_flag=DIRTY;
-		_file.dirty_flag=DIRTY;
 #ifdef SYNC_DATA_WITH_REPLY
 		output->push_back(SUCCESS);
 #endif

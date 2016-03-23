@@ -403,32 +403,26 @@ ssize_t CBB_client::_read_from_IOnode(int master_number,
 	off64_t current_point=file.current_point;
 	size_t read_size=size;
 	ssize_t node_id=begin(node_pool)->first;
+	off64_t start_point=begin(blocks)->start_point;
 	const std::string& node_ip=begin(node_pool)->second;
+	extended_IO_task *response=nullptr;
+	int IOnode_socket=_get_IOnode_socket(master_number, node_id, node_ip);
 
-	if(0 == size)
+	while(0 < read_size)
 	{
-		return size;
-	}
-	
-	for(_block_list_t::const_iterator it=blocks.begin();
-			it!=blocks.end();++it)
-	{
-
-		off64_t offset = current_point-it->start_point;
-		size_t IO_size = it->size-offset;
+		off64_t offset = current_point-start_point;
+		size_t IO_size = MAX_TRANSFER_SIZE;
 		if(read_size<IO_size)
 		{
 			IO_size=read_size;
 		}
 
-		int IOnode_socket=_get_IOnode_socket(master_number, node_id, node_ip);
-		extended_IO_task *response=nullptr;
 		do
 		{
 			extended_IO_task* query=allocate_new_query(IOnode_socket);
 			query->push_back(READ_FILE);
 			query->push_back(file.file_meta_p->file_no);
-			query->push_back(it->start_point);
+			query->push_back(start_point);
 			query->push_back(offset);
 			query->push_back(IO_size);
 			send_query(query);
@@ -439,9 +433,9 @@ ssize_t CBB_client::_read_from_IOnode(int master_number,
 		while(FILE_NOT_FOUND == ret && 0 == response_dequeue(response));
 		if(SUCCESS == ret)
 		{
-			ssize_t ret_size=response->get_received_data(buffer);
-			_DEBUG("IO_size=%lu, start_point=%ld, file_no=%ld, ret_size=%ld\n", IO_size, it->start_point, file.file_meta_p->file_no, ret_size);
+			ssize_t ret_size=response->get_received_data_all(buffer);
 
+			_DEBUG("IO_size=%lu, start_point=%ld, file_no=%ld, ret_size=%ld\n", IO_size, start_point, file.file_meta_p->file_no, ret_size);
 			if(-1 == ret_size)
 			{
 				response_dequeue(response);
@@ -449,14 +443,13 @@ ssize_t CBB_client::_read_from_IOnode(int master_number,
 			}
 			else
 			{
-				_DEBUG("read size=%ld\n", ret_size);
-				_DEBUG("IOnode ip=%s\n", node_ip.c_str()); 
+				_DEBUG("read size=%ld IOnode ip=%s current point=%ld\n", ret_size, node_ip.c_str(), file.current_point);
 				ans+=ret_size;
 				file.current_point += ret_size;
 				current_point += ret_size;
+				start_point=find_start_point(blocks, start_point, ret_size);
 				read_size -= ret_size;
 				buffer+=ret_size;
-				_DEBUG("current point=%ld\n", file.current_point);
 			}
 		}
 		*buffer=0;
@@ -477,33 +470,31 @@ ssize_t CBB_client::_write_to_IOnode(int master_number,
 	off64_t current_point=file.current_point;
 	size_t write_size=size;
 	ssize_t node_id=begin(node_pool)->first;
+	off64_t start_point=begin(blocks)->start_point;
 	const std::string& node_ip=begin(node_pool)->second;
-	if(0 == size)
-	{
-		return size;
-	}
-	for(_block_list_t::const_iterator it=blocks.begin();
-			it!=blocks.end();++it)
+	int IOnode_socket=_get_IOnode_socket(master_number, node_id, node_ip);
+	extended_IO_task* response=nullptr;
+
+	while(0 < write_size)
 	{
 
-		off64_t offset = current_point-it->start_point;
-		size_t IO_size = it->size-offset;
+		off64_t offset = current_point-start_point;
+		size_t IO_size = MAX_TRANSFER_SIZE;
 		if(write_size<IO_size)
 		{
 			IO_size=write_size;
 		}
 
-		int IOnode_socket=_get_IOnode_socket(master_number, node_id, node_ip);
-		extended_IO_task* response=nullptr;
+		_DEBUG("IO_size=%lu, start_point=%ld, file_no=%ld\n", IO_size, start_point, file.file_meta_p->file_no);
 		do
 		{
 			extended_IO_task* query=allocate_new_query(IOnode_socket);
 			query->push_back(WRITE_FILE);
 			query->push_back(file.file_meta_p->file_no);
-			query->push_back(it->start_point);
+			query->push_back(start_point);
 			query->push_back(offset);
 			query->push_back(IO_size);
-			query->set_send_buffer(buffer, IO_size);
+			query->push_send_buffer(buffer, IO_size);
 			send_query(query);
 
 			response=get_query_response(query);
@@ -512,8 +503,6 @@ ssize_t CBB_client::_write_to_IOnode(int master_number,
 		while(FILE_NOT_FOUND == ret && 0 == response_dequeue(response));
 		if(SUCCESS == ret)
 		{
-			_DEBUG("IO_size=%lu, start_point=%ld, file_no=%ld\n", IO_size, it->start_point, file.file_meta_p->file_no);
-			//ssize_t ret_size=Sendv_pre_alloc_flush(IOnode_socket, buffer, IO_size);
 			ssize_t ret_size=IO_size;
 			if(-1 == ret_size)
 			{
@@ -522,14 +511,13 @@ ssize_t CBB_client::_write_to_IOnode(int master_number,
 			}
 			else
 			{
-				_DEBUG("write size=%ld\n", ret_size);
-				_DEBUG("IOnode ip=%s\n", node_ip.c_str()); 
+				_DEBUG("write size=%ld IOnode ip=%s current point=%ld\n", ret_size, node_ip.c_str(), file.current_point);
 				ans+=ret_size;
 				file.current_point+=ret_size;
 				current_point += ret_size;
+				start_point=find_start_point(blocks, start_point, ret_size);
 				buffer+=ret_size;
 				write_size -= ret_size;
-				_DEBUG("current point=%ld\n", file.current_point);
 			}
 		}
 		response_dequeue(response);
@@ -595,7 +583,7 @@ ssize_t CBB_client::_read(int fd, void *buffer, size_t size)throw(std::runtime_e
 			}
 			else
 			{
-				size=0;
+				return 0;
 			}
 		}
 		int master_socket=_get_master_socket_from_fd(fid);
@@ -1602,4 +1590,22 @@ ssize_t CBB_client::_find_master_IOnode_id_by_socket(int socket)
 		}
 	}
 	return -1;
+}
+
+off64_t CBB_client::find_start_point(const _block_list_t& blocks, off64_t start_point, ssize_t update_size)
+{
+	off64_t ret=begin(blocks)->start_point;
+	off64_t end_start_point=start_point + update_size;
+	for(const auto& block:blocks)
+	{
+		if( end_start_point < block.start_point )
+		{
+			return ret;
+		}
+		else
+		{
+			ret=block.start_point;
+		}
+	}
+	return ret;
 }

@@ -20,8 +20,9 @@ namespace CBB
 				int socket;
 				int receiver_id;
 				void* _file;
-				void* _block;
+				off64_t start_point;
 				off64_t offset;
+				ssize_t size;
 		};
 		typedef task_parallel_queue<data_sync_task> data_sync_queue_t;
 
@@ -35,8 +36,9 @@ namespace CBB
 				
 				int add_data_sync_task(int task_id,
 						void* file,
-						void* block,
+						off64_t start_point,
 						off64_t offset,
+						ssize_t size,
 						int receiver_id,
 						int socket);
 				static void* data_sync_thread_fun(void* argv);
@@ -66,7 +68,7 @@ namespace CBB
 
 		inline int CBB_data_sync::data_sync_task_enqueue(extended_IO_task* output_task)
 		{
-			_DEBUG("task enqueue %p, socket=%d\n", output_task->get_socket());
+			_DEBUG("task enqueue %p, socket=%d\n", communication_output_queue_ptr, output_task->get_socket());
 			return communication_output_queue_ptr->task_enqueue();
 		}
 

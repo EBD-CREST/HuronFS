@@ -51,23 +51,27 @@ namespace CBB
 				size_t current_point;
 		};
 
+		typedef std::map<const char*, size_t> send_buffer_t;
 		class extended_IO_task:public basic_IO_task
 		{
 			public:
 				extended_IO_task();
 				virtual ~extended_IO_task();
 
-				size_t get_received_data(void* buffer);
+				size_t get_received_data(void* buffer, size_t size);
+				size_t get_received_data_all(void* buffer);
 				void set_extended_data_size(size_t size);
 				size_t get_extended_data_size()const;
-				void set_send_buffer(const void* buffer, size_t size);
 				virtual void reset();
-				const unsigned char* get_send_buffer()const;
+				const send_buffer_t* get_send_buffer()const;
 				unsigned char* get_receive_buffer(size_t size);
+				void push_send_buffer(const char* buf, size_t size);
 			private:
+
 				size_t extended_size;
-				const unsigned char* send_buffer;
+				send_buffer_t send_buffer;
 				unsigned char* receive_buffer;
+				unsigned char* current_receive_buffer_ptr;
 		};
 
 		int Send_attr(extended_IO_task* output_task, const struct stat* file_stat);
@@ -262,17 +266,29 @@ namespace CBB
 			this->error=error;
 		}
 
-		inline size_t extended_IO_task::get_received_data(void* buffer)
+		inline size_t extended_IO_task::get_received_data(void* buffer, size_t size)
 		{
-			memcpy(buffer, receive_buffer, extended_size);
-			return this->extended_size;
+			memcpy(buffer, current_receive_buffer_ptr, size);
+			current_receive_buffer_ptr+=size;
+			extended_size-=size;
+			return size;
+		}
+
+		inline size_t extended_IO_task::get_received_data_all(void* buffer)
+		{
+			size_t ret=extended_size;
+			_DEBUG("receive size %ld\n", extended_size);
+			memcpy(buffer, current_receive_buffer_ptr, extended_size);
+			extended_size=0;
+			return ret;
 		}
 
 		inline void extended_IO_task::reset()
 		{
 			basic_IO_task::reset();
 			this->extended_size = 0;
-			this->send_buffer = nullptr;
+			this->send_buffer.clear();
+			this->current_receive_buffer_ptr=this->receive_buffer;
 		}
 
 		inline size_t extended_IO_task::get_extended_data_size()const
@@ -282,18 +298,12 @@ namespace CBB
 
 		inline void extended_IO_task::set_extended_data_size(size_t size)
 		{
-			this->extended_size = size;
+			this->extended_size=size;
 		}
 
-		inline void extended_IO_task::set_send_buffer(const void*buffer, size_t size)
+		inline const send_buffer_t* extended_IO_task::get_send_buffer()const
 		{
-			this->send_buffer = static_cast<const unsigned char*>(buffer);
-			this->extended_size = size;
-		}
-
-		inline const unsigned char* extended_IO_task::get_send_buffer()const
-		{
-			return this->send_buffer;
+			return &this->send_buffer;
 		}
 
 		inline unsigned char* extended_IO_task::get_receive_buffer(size_t size)
@@ -302,7 +312,13 @@ namespace CBB
 			{
 				this->receive_buffer = new unsigned char[size];
 			}
+			this->current_receive_buffer_ptr=this->receive_buffer;
 			return this->receive_buffer;
+		}
+		inline void extended_IO_task::push_send_buffer(const char* buf,	size_t size)
+		{
+			send_buffer.insert(std::make_pair(buf, size));
+			this->extended_size+=size;
 		}
 
 		/*inline void communication_thread::set_threads_socket_map(threads_socket_map_t* threads_socket_map)

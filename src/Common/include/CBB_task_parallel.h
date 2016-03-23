@@ -3,6 +3,8 @@
 
 #include <pthread.h>
 #include <atomic>
+#include <sched.h>
+#include <unistd.h>
 
 #include "CBB_mutex_locker.h"
 #include "CBB_const.h"
@@ -14,6 +16,14 @@ namespace CBB
 	namespace Common
 	{
 
+		inline void yield()
+		{
+#ifdef SLEEP_YIELD
+			usleep(0);
+#else
+			sched_yield();
+#endif
+		}
 		class basic_task
 		{
 			public:
@@ -194,7 +204,14 @@ namespace CBB
 			
 			if(previous_head == current_head || is_empty())
 			{
+#ifdef BUSY_WAIT
+				while(is_empty())
+				{
+					yield();
+				}
+#else
 				pthread_cond_wait(&queue_empty, &lock);
+#endif
 				previous_head=current_head;
 			}
 			return true;
@@ -204,7 +221,12 @@ namespace CBB
 		{
 			while(is_empty())
 			{
+#ifdef BUSY_WAIT
+				yield();
+#else
 				pthread_cond_wait(&queue_empty, &lock);
+#endif
+				
 			}
 			task_type* new_task=static_cast<task_type*>(queue_tail.load()->get_next());
 			this->queue_tail.store(new_task);
@@ -238,7 +260,9 @@ namespace CBB
 		template<class task_type> int task_parallel_queue<task_type>::task_enqueue_signal_notification()
 		{
 			this->queue_head.store(this->queue_tmp_head.load());
+#ifndef BUSY_WAIT
 			pthread_cond_signal(&queue_empty);
+#endif
 			return SUCCESS;
 		}
 
