@@ -21,9 +21,9 @@ export DEP_FLAG = -MMD -MP
 #export WRITE_BACK = -DWRITE_BACK
 #export SYNC_FLAG = -DSTRICT_SYNC_DATA -DSYNC_DATA_WITH_REPLY
 export SYNC_FLAG = -DSTRICT_SYNC_DATA -DSYNC_DATA_WITH_REPLY
-#export FLAG=-O3 -g -Wall -std=c++0x -DLOG
-#export FLAG=-O3 -g -Wall -std=c++0x -DDEBUG -DLOG
-export FLAG=-O0 -g -Wall -std=c++0x -DDEBUG -DLOG
+export FLAG=-O3 -g -Wall -std=c++0x -DLOG -DBUSY_WAIT
+#export FLAG=-O3 -g -Wall -std=c++0x -DDEBUG -DLOG -DBUSY_WAIT
+#export FLAG=-O0 -g -Wall -std=c++0x -DDEBUG -DLOG -DBUSY_WAIT
 
 run:
 	@echo 'run'

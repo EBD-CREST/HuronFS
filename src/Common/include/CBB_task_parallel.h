@@ -3,6 +3,7 @@
 
 #include <pthread.h>
 #include <atomic>
+#include <sched.h>
 
 #include "CBB_mutex_locker.h"
 #include "CBB_const.h"
@@ -194,7 +195,11 @@ namespace CBB
 			
 			if(previous_head == current_head || is_empty())
 			{
+#ifdef BUSY_WAIT
+				sched_yield();
+#else
 				pthread_cond_wait(&queue_empty, &lock);
+#endif
 				previous_head=current_head;
 			}
 			return true;
@@ -204,7 +209,11 @@ namespace CBB
 		{
 			while(is_empty())
 			{
+#ifdef BUSY_WAIT
+				sched_yield();
+#else
 				pthread_cond_wait(&queue_empty, &lock);
+#endif
 			}
 			task_type* new_task=static_cast<task_type*>(queue_tail.load()->get_next());
 			this->queue_tail.store(new_task);
