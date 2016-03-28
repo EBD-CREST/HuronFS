@@ -39,7 +39,7 @@ const int INIT_FD = 100000;
 const int CONNECT_WAIT_TIME=1000;
 const size_t BLOCK_SIZE = 5*MB;
 const int NO_ERROR=0;
-const size_t STREAM_BUFFER_SIZE = 2*BLOCK_SIZE;
+const size_t STREAM_BUFFER_SIZE = 100*MB;//2*BLOCK_SIZE;
 const size_t MAX_TRANSFER_SIZE = STREAM_BUFFER_SIZE;
 
 const bool CLEAN = false;

@@ -17,6 +17,11 @@ basic_IO_task::basic_IO_task():
 	current_point(0)
 {}
 
+send_buffer_element::send_buffer_element(const char* buffer, size_t size):
+	buffer(buffer),
+	size(size)
+{}
+
 extended_IO_task::extended_IO_task():
 	basic_IO_task(),
 	extended_size(0),
@@ -225,8 +230,8 @@ size_t CBB_communication_thread::send(extended_IO_task* new_task)throw(std::runt
 		const send_buffer_t* send_buffer=new_task->get_send_buffer();
 		for(auto& buf:*send_buffer)
 		{
-			_DEBUG("send size=%ld\n", buf.second);
-			ret+=Sendv_flush(socket, buf.first, buf.second);
+			_DEBUG("send size=%ld\n", buf.size);
+			ret+=Sendv_flush(socket, buf.buffer, buf.size);
 		}
 	}
 	else

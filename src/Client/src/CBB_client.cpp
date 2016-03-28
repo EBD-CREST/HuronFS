@@ -411,11 +411,7 @@ ssize_t CBB_client::_read_from_IOnode(int master_number,
 	while(0 < read_size)
 	{
 		off64_t offset = current_point-start_point;
-		size_t IO_size = MAX_TRANSFER_SIZE;
-		if(read_size<IO_size)
-		{
-			IO_size=read_size;
-		}
+		size_t IO_size = MAX_TRANSFER_SIZE > read_size? read_size : MAX_TRANSFER_SIZE;
 
 		do
 		{
@@ -452,7 +448,7 @@ ssize_t CBB_client::_read_from_IOnode(int master_number,
 				buffer+=ret_size;
 			}
 		}
-		*buffer=0;
+		//*buffer=0;
 		response_dequeue(response);
 	}
 	return ans;
@@ -479,11 +475,7 @@ ssize_t CBB_client::_write_to_IOnode(int master_number,
 	{
 
 		off64_t offset = current_point-start_point;
-		size_t IO_size = MAX_TRANSFER_SIZE;
-		if(write_size<IO_size)
-		{
-			IO_size=write_size;
-		}
+		size_t IO_size = MAX_TRANSFER_SIZE > write_size? write_size: MAX_TRANSFER_SIZE;
 
 		_DEBUG("IO_size=%lu, start_point=%ld, file_no=%ld\n", IO_size, start_point, file.file_meta_p->file_no);
 		do

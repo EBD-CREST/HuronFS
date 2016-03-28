@@ -51,7 +51,15 @@ namespace CBB
 				size_t current_point;
 		};
 
-		typedef std::map<const char*, size_t> send_buffer_t;
+		struct send_buffer_element
+		{
+			const char* buffer;
+			size_t size;
+
+			send_buffer_element(const char* buffer, size_t size);
+		};
+
+		typedef std::vector<send_buffer_element> send_buffer_t;
 		class extended_IO_task:public basic_IO_task
 		{
 			public:
@@ -317,7 +325,7 @@ namespace CBB
 		}
 		inline void extended_IO_task::push_send_buffer(const char* buf,	size_t size)
 		{
-			send_buffer.insert(std::make_pair(buf, size));
+			send_buffer.push_back(std::move(send_buffer_element(buf, size)));
 			this->extended_size+=size;
 		}
 

@@ -377,7 +377,7 @@ int IOnode::_send_data(extended_IO_task* new_task)
 	{
 		file& _file=_files.at(file_no);
 		const std::string& path = _file.file_path;
-		remaining_size=size+offset;
+		remaining_size=size;
 		size_t IO_size=offset+size>BLOCK_SIZE?BLOCK_SIZE-offset:size;
 		_DEBUG("file path=%s\n", path.c_str());
 
@@ -450,7 +450,7 @@ int IOnode::_receive_data(extended_IO_task* new_task)
 			ssize_t IOsize=update_block_data(blocks, _file, start_point, tmp_offset, receive_size, new_task);
 			remaining_size-=IOsize;
 			receive_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));
-			start_point+=IOsize;
+			start_point+=IOsize+tmp_offset;
 			tmp_offset=0;
 		}
 		_file.dirty_flag=DIRTY;
@@ -1072,6 +1072,7 @@ int IOnode::_get_sync_data(extended_IO_task* new_task)
 		{
 			ssize_t IO_size=MIN(size, static_cast<ssize_t>(BLOCK_SIZE));
 			size-=update_block_data(blocks, _file, start_point, 0, IO_size, new_task);
+			start_point+=IO_size;
 		}
 #ifdef SYNC_DATA_WITH_REPLY
 		output->push_back(SUCCESS);
