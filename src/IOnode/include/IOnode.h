@@ -153,8 +153,14 @@ namespace CBB
 				int _sync_init_data(Common::data_sync_task* new_task);
 				int _sync_write_data(Common::data_sync_task* new_task);
 
-				int _sync_data(file& file, block* block, off64_t offset, int receiver_id, int socket);
-				int _send_sync_data(int socket, block* requested_block, file* requested_file);
+				int _sync_data(file& file, off64_t start_point, off64_t offset, ssize_t size, int socket);
+				int _send_sync_data(int socket, file* requested_file, off64_t start_point, off64_t offset, ssize_t size);
+				size_t update_block_data(block_info_t& blocks,
+						file& file,
+						off64_t start_point,
+						off64_t offset,
+						size_t size,
+						Common::extended_IO_task* new_task);
 
 				int _setup_queues();
 

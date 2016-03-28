@@ -1376,7 +1376,7 @@ node_info* Master::_select_IOnode(ssize_t file_no,
 	node_info* main_replica=_get_next_IOnode();
 	main_replica->stored_files.insert(file_no);
 	//insert sub replica
-	if(_registed_IOnodes.size()-1 < num_of_nodes)
+	if(static_cast<int>(_registed_IOnodes.size()-1) <num_of_nodes)
 	{
 		num_of_nodes=_registed_IOnodes.size()-1;
 	}

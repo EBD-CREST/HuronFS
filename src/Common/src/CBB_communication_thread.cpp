@@ -17,11 +17,17 @@ basic_IO_task::basic_IO_task():
 	current_point(0)
 {}
 
+send_buffer_element::send_buffer_element(const char* buffer, size_t size):
+	buffer(buffer),
+	size(size)
+{}
+
 extended_IO_task::extended_IO_task():
 	basic_IO_task(),
 	extended_size(0),
-	send_buffer(nullptr),
-	receive_buffer(nullptr)
+	send_buffer(),
+	receive_buffer(nullptr),
+	current_receive_buffer_ptr(nullptr)
 {}
 
 extended_IO_task::~extended_IO_task()
@@ -210,7 +216,7 @@ size_t CBB_communication_thread::send(extended_IO_task* new_task)throw(std::runt
 {
 	size_t ret=0;
 	int socket=new_task->get_socket();
-	_DEBUG("send message socket=%d, size=%ld\n", socket, new_task->get_message_size());
+	_DEBUG("send message socket=%d, size=%ld, element=%p\n", socket, new_task->get_message_size(), new_task);
 
 	ret+=Send(socket, new_task->get_id());
 	ret+=Send(socket, new_task->get_receiver_id());
@@ -220,8 +226,13 @@ size_t CBB_communication_thread::send(extended_IO_task* new_task)throw(std::runt
 	if(0 != new_task->get_extended_data_size())
 	{
 		ret+=Sendv(socket, new_task->get_message(), new_task->get_message_size());
-		//_DEBUG("send extended message size=%ld\n", new_task->get_extended_data_size());
-		ret+=Sendv_flush(socket, new_task->get_send_buffer(), new_task->get_extended_data_size());
+		_DEBUG("send extended message size=%ld\n", new_task->get_extended_data_size());
+		const send_buffer_t* send_buffer=new_task->get_send_buffer();
+		for(auto& buf:*send_buffer)
+		{
+			_DEBUG("send size=%ld\n", buf.size);
+			ret+=Sendv_flush(socket, buf.buffer, buf.size);
+		}
 	}
 	else
 	{
@@ -233,7 +244,7 @@ size_t CBB_communication_thread::send(extended_IO_task* new_task)throw(std::runt
 size_t CBB_communication_thread::receive_message(int socket, extended_IO_task* new_task)throw(std::runtime_error)
 {
 	size_t basic_size=0, extended_size;
-	int ret=0;
+	size_t ret=0;
 
 	ret+=Recv(socket, basic_size);
 	ret+=Recv(socket, extended_size);
@@ -246,8 +257,9 @@ size_t CBB_communication_thread::receive_message(int socket, extended_IO_task* n
 
 	if(0 != extended_size)
 	{
-		ret+=Recvv_pre_alloc(socket, new_task->get_receive_buffer(BLOCK_SIZE), extended_size);
-		_DEBUG("receive extended message size=%ld, block_size=%ld\n", extended_size, BLOCK_SIZE);
+		size_t tmp_size=Recvv_pre_alloc(socket, new_task->get_receive_buffer(MAX_TRANSFER_SIZE), extended_size);
+		_DEBUG("receive extended message size=%ld, ret=%ld\n", extended_size, tmp_size);
+		ret+=tmp_size;
 	}
 	return ret;
 }

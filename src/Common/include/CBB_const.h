@@ -5,6 +5,7 @@ const size_t KB=1000;
 const size_t MB=KB*1000;
 const size_t GB=MB*1000;
 
+const size_t MAX_FILE_SIZE = 10*GB;
 const int MASTER_PORT = 9000; 
 const int MASTER_CONN_PORT = 7001; 
 const int IONODE_PORT = 7000; 
@@ -38,7 +39,8 @@ const int INIT_FD = 100000;
 const int CONNECT_WAIT_TIME=1000;
 const size_t BLOCK_SIZE = 5*MB;
 const int NO_ERROR=0;
-const size_t STREAM_BUFFER_SIZE = 2*BLOCK_SIZE;
+const size_t STREAM_BUFFER_SIZE = 100*MB;//2*BLOCK_SIZE;
+const size_t MAX_TRANSFER_SIZE = STREAM_BUFFER_SIZE;
 
 const bool CLEAN = false;
 const bool DIRTY = true;
