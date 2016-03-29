@@ -325,7 +325,7 @@ namespace CBB
 		}
 		inline void extended_IO_task::push_send_buffer(const char* buf,	size_t size)
 		{
-			send_buffer.push_back(std::move(send_buffer_element(buf, size)));
+			send_buffer.push_back(send_buffer_element(buf, size));
 			this->extended_size+=size;
 		}
 
