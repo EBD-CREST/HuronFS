@@ -239,6 +239,7 @@ int Master::_parse_open_file(extended_IO_task* new_task)
 	int flag=0,ret=SUCCESS;
 	ssize_t file_no=0;
 	int exist_flag=EXISTING;
+	mode_t mode=S_IFREG|0660;
 	extended_IO_task* output=nullptr;
 	std::string str_file_path=std::string(file_path);
 	file_stat_pool_t::iterator it=_file_stat_pool.find(str_file_path);
@@ -247,7 +248,6 @@ int Master::_parse_open_file(extended_IO_task* new_task)
 
 	if(flag & O_CREAT)
 	{
-		mode_t mode;
 		new_task->pop(mode);
 		exist_flag=NOT_EXIST;
 		flag &= ~(O_CREAT | O_TRUNC);
@@ -265,7 +265,7 @@ int Master::_parse_open_file(extended_IO_task* new_task)
 	}
 	try
 	{
-		_open_file(file_path, flag, file_no, exist_flag); 
+		_open_file(file_path, flag, file_no, exist_flag, mode); 
 		open_file_info *opened_file=_buffered_files.at(file_no);
 		size_t block_size=opened_file->block_size;
 		_DEBUG("file path= %s, file no=%ld\n", file_path, file_no);
@@ -325,7 +325,7 @@ int Master::_parse_read_file(extended_IO_task* new_task)
 		//_get_blocks_for_IO(start_point, size, *file, IO_blocks);
 		_select_node_block_set(*file, start_point, size, node_pool, block_list);
 		output=init_response_task(new_task);
-		_send_block_info(output, node_pool, block_list);
+		_send_block_info(output, file->get_stat().st_size, node_pool, block_list);
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -358,16 +358,17 @@ int Master::_parse_write_file(extended_IO_task* new_task)
 	{
 		open_file_info &file=*_buffered_files.at(file_no);
 		std::string real_path=_get_real_path(file.get_path());
-		//original_size=file.get_stat().st_size;
+		struct stat& file_status=file.get_stat();
+		//original_size=file_status.st_size;
 		Recv_attr(new_task, &file.get_stat());
-		/*if(original_size != file.get_stat().st_size)
+		/*if(original_size > file_status.st_size)
 		{
-			_update_backup_file_size(file.get_path(), file.get_stat().st_size);
+			file_status.st_size=original_size;
 		}*/
 
 		new_task->pop(start_point);
 		new_task->pop(size);
-		_DEBUG("real_path=%s, file_size=%ld\n", real_path.c_str(), file.get_stat().st_size);
+		_DEBUG("real_path=%s, file_size=%ld\n", real_path.c_str(), file_status.st_size);
 
 		block_list_t block_list;
 		node_info_pool_t node_pool;
@@ -375,7 +376,7 @@ int Master::_parse_write_file(extended_IO_task* new_task)
 		_allocate_new_blocks_for_writing(file, start_point, size);
 		_select_node_block_set(file, start_point, size, node_pool, block_list);
 		output=init_response_task(new_task);
-		_send_block_info(output, node_pool, block_list);
+		_send_block_info(output, file_status.st_size, node_pool, block_list);
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -582,12 +583,24 @@ int Master::_parse_unlink(extended_IO_task* new_task)
 int Master::_parse_rmdir(extended_IO_task* new_task)
 {
 	_LOG("request for rmdir\n");
-	std::string file_path;
-	Server::_recv_real_path(new_task, file_path);
+	std::string file_path, relative_path_string;
+	Server::_recv_real_relative_path(new_task, file_path, relative_path_string);
 	int ret;
 	_LOG("path=%s\n", file_path.c_str());
 	extended_IO_task* output=init_response_task(new_task);
-	if(-1 != rmdir(file_path.c_str()))
+
+	if(SUCCESS == _remove_file(relative_path_string))
+	{
+		output->push_back(SUCCESS);
+		ret=SUCCESS;
+	}
+	else
+	{
+		output->push_back(-ENOENT);
+		ret=FAILURE;
+	}
+	
+	/*if(-1 != rmdir(file_path.c_str()))
 	{
 		output->push_back(SUCCESS);
 		ret=SUCCESS;
@@ -596,7 +609,7 @@ int Master::_parse_rmdir(extended_IO_task* new_task)
 	{
 		output->push_back(-errno);
 		ret=FAILURE;
-	}
+	}*/
 	output_task_enqueue(output);
 	return ret;
 }
@@ -649,19 +662,21 @@ int Master::_parse_mkdir(extended_IO_task* new_task)
 	_LOG("request for mkdir\n");
 	mode_t mode=0;
 	extended_IO_task* output=init_response_task(new_task);
-	std::string real_path;
-	_recv_real_path(new_task, real_path);
+	std::string real_path, relative_path_string;
+	_recv_real_relative_path(new_task, real_path, relative_path_string);
 	new_task->pop(mode);
 	_LOG("path=%s\n", real_path.c_str());
 	//make internal dir
-	if(-1 == mkdir(real_path.c_str(), mode))
+	mode|=S_IFDIR;
+	_create_new_file_stat(relative_path_string.c_str(), NOT_EXIST, mode);
+	/*if(-1 == mkdir(real_path.c_str(), mode))
 	{
 		output->push_back(-errno);
 	}
 	else
 	{
 		output->push_back(SUCCESS);
-	}
+	}*/
 	output_task_enqueue(output);
 	return SUCCESS;
 }
@@ -1054,10 +1069,12 @@ int Master::_close_client(int socket)
 	//S: node id: ssize_t
 //S: SUCCESS: int
 void Master::_send_block_info(Common::extended_IO_task* output,
+		size_t file_size,
 		const node_info_pool_t& node_info_pool,
 		const block_list_t& block_list)const
 {
 	output->push_back(SUCCESS);
+	output->push_back(file_size);
 	output->push_back(static_cast<int>(node_info_pool.size()));
 	for(auto& node_info:node_info_pool)
 	{
@@ -1202,7 +1219,8 @@ ssize_t Master::_delete_IOnode(int socket)
 const node_info_pool_t& Master::_open_file(const char* file_path,
 		int flag,
 		ssize_t& file_no,
-		int exist_flag)throw(std::runtime_error, std::invalid_argument, std::bad_alloc)
+		int exist_flag,
+		mode_t mode)throw(std::runtime_error, std::invalid_argument, std::bad_alloc)
 {
 	file_stat_pool_t::iterator it; 
 	open_file_info *file=nullptr; 
@@ -1212,7 +1230,7 @@ const node_info_pool_t& Master::_open_file(const char* file_path,
 		file_no=_get_file_no(); 
 		if(-1 != file_no)
 		{
-			Master_file_stat* file_status=_create_new_file_stat(file_path, exist_flag);
+			Master_file_stat* file_status=_create_new_file_stat(file_path, exist_flag, S_IFREG|mode);
 			file=_create_new_open_file_info(file_no, flag, file_status);
 		}
 		else
@@ -1334,7 +1352,8 @@ open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 }
 
 Master_file_stat* Master::_create_new_file_stat(const char* relative_path,
-		int exist_flag)throw(std::invalid_argument)
+		int exist_flag,
+		mode_t mode)throw(std::invalid_argument)
 {
 	std::string relative_path_string = std::string(relative_path);
 	std::string real_path=_get_real_path(relative_path_string);
@@ -1350,7 +1369,7 @@ Master_file_stat* Master::_create_new_file_stat(const char* relative_path,
 	file_status.st_size=0;
 	file_status.st_uid=getuid();
 	file_status.st_gid=getgid();
-	file_status.st_mode=S_IFREG|0664;
+	file_status.st_mode=mode;
 	_DEBUG("add new file states\n");
 	file_stat_pool_t::iterator it=_file_stat_pool.insert(std::make_pair(relative_path_string, Master_file_stat())).first;
 	Master_file_stat& new_file_stat=it->second;
@@ -1358,7 +1377,7 @@ Master_file_stat* Master::_create_new_file_stat(const char* relative_path,
 	new_file_stat.exist_flag=exist_flag;
 	memcpy(&new_file_stat.get_status(), &file_status, sizeof(file_status));
 
-	_create_new_backup_file(relative_path_string, S_IFREG|0664);
+	_create_new_backup_file(relative_path_string, mode);
 	return &new_file_stat;
 }
 
@@ -1737,17 +1756,34 @@ int Master::_create_new_backup_file(const std::string& path, mode_t mode)
 	std::string file_path=_get_backup_path(path);
 	_DEBUG("create new backup file %s\n", file_path.c_str());
 
-	int fd=creat(file_path.c_str(), mode);
-	if( -1 == fd)
+	if(S_IFREG & mode)
 	{
-		perror("create backup file");
-		return FAILURE;
+		int fd=creat(file_path.c_str(), mode);
+		if( -1 == fd)
+		{
+			perror("create backup file");
+			return FAILURE;
+		}
+		else
+		{
+			close(fd);
+			return SUCCESS;
+		}
 	}
-	else
+	else if(S_IFDIR & mode)
 	{
-		close(fd);
-		return SUCCESS;
+		int ret=mkdir(file_path.c_str(), mode);
+		if( -1 == ret)
+		{
+			perror("create backup dir");
+			return FAILURE;
+		}
+		else
+		{
+			return SUCCESS;
+		}
 	}
+	return FAILURE;
 }
 
 int Master::_update_backup_file_size(const std::string& path, size_t size)

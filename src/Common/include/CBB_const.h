@@ -39,7 +39,7 @@ const int INIT_FD = 100000;
 const int CONNECT_WAIT_TIME=1000;
 const size_t BLOCK_SIZE = 5*MB;
 const int NO_ERROR=0;
-const size_t STREAM_BUFFER_SIZE = 100*MB;//2*BLOCK_SIZE;
+const size_t STREAM_BUFFER_SIZE = 2*BLOCK_SIZE;
 const size_t MAX_TRANSFER_SIZE = STREAM_BUFFER_SIZE;
 
 const bool CLEAN = false;
@@ -114,6 +114,7 @@ const int RECV_EXTENDED_MESSAGE = 1;
 const bool STARTED = true;
 const bool UNSTARTED = false;
 const bool SET = true;
+const bool STREAM_BUFFER_FLAG = true;
 
 const int CBB_REMOTE_WRITE_BACK = 0;
 const int HEART_BEAT_INTERVAL=1000;

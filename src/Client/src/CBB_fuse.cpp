@@ -24,6 +24,22 @@ static CBB_stream client;
 struct fuse_operations CBB_oper;
 extern char* mount_point;
 
+static int CBB_dump(const char* buf, size_t size, off64_t offset)
+{
+	int fd=0;
+	char filePath[PATH_MAX];
+	static int diff=0;
+	sprintf(filePath, "/tmp/cbbfs_dump%d%d", offset, diff++);
+	if( -1 == (fd=open(filePath, O_CREAT|O_WRONLY, 0600)))
+	{
+		perror("open");
+	}
+	_DEBUG("offset %ld , size %ld\n", offset, size);
+	pwrite(fd, buf, size, offset);
+	close(fd);
+	return SUCCESS;
+}
+
 static int CBB_open(const char* path, struct fuse_file_info *fi)
 {
 	mode_t mode=0600;
@@ -38,8 +54,7 @@ static int CBB_open(const char* path, struct fuse_file_info *fi)
 	{
 		return -errno;
 	}
-	else
-	{
+	else {
 		return 0;
 	}
 }
@@ -85,7 +100,7 @@ static int CBB_read(const char* path, char *buffer, size_t count, off_t offset, 
 		}
 		ret=client._read_stream(stream, buffer, count);
 		_DEBUG("ret=%d path=%s\n", ret,path);
-		
+		//CBB_dump(buffer, ret, offset);
 
 		return ret;
 	}

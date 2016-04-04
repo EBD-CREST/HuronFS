@@ -103,7 +103,7 @@ FILE* CBB_stream::_open_stream(const char* path, const char* mode)
 	else
 	{
 		size_t file_size=_get_file_size(fd);
-		stream_info* new_stream=new stream_info(CLEAN, true, fd, file_size, 0, flag, open_mode);
+		stream_info* new_stream=new stream_info(CLEAN, STREAM_BUFFER_FLAG, fd, file_size, 0, flag, open_mode);
 		_stream_pool.insert(std::make_pair(new_stream, fd));
 		return reinterpret_cast<FILE*>(new_stream);
 	}
@@ -120,7 +120,7 @@ FILE* CBB_stream::_open_stream(const char* path, int flag, mode_t mode)
 	else
 	{
 		size_t file_size=_get_file_size(fd);
-		stream_info* new_stream=new stream_info(CLEAN, true, fd, file_size, 0, flag, mode);
+		stream_info* new_stream=new stream_info(CLEAN, STREAM_BUFFER_FLAG, fd, file_size, 0, flag, mode);
 		_stream_pool.insert(std::make_pair(new_stream, fd));
 		return reinterpret_cast<FILE*>(new_stream);
 	}
@@ -270,7 +270,7 @@ size_t CBB_stream::_read_stream(FILE* file_stream, void* buffer, size_t size)
 				return total_size;
 			}
 			stream->_update_meta_for_rebuf(CLEAN, ret);
-			size_t current_IO_size=MIN(unbuffered_size, stream->buffered_data_size);
+			size_t current_IO_size=MIN(unbuffered_size, stream->_remaining_buffer_data_size());
 			memcpy(buffer, stream->cur_buf_ptr, current_IO_size);
 			stream->_update_cur_buf_ptr(*this, current_IO_size);
 			buffer=static_cast<char*>(buffer)+current_IO_size;
@@ -311,7 +311,6 @@ size_t CBB_stream::stream_info::_write_meta_update(size_t write_size)
 size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t size)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
-	//use buffer
 
 	if(!(stream->open_flag & O_WRONLY || stream->open_flag & O_RDWR))
 	{
@@ -319,30 +318,32 @@ size_t CBB_stream::_write_stream(FILE* file_stream, const void* buffer, size_t s
 		return 0;
 	}
 
+	//use buffer
 	if(stream->buffer_flag)
 	{
 		size_t remaining_size=stream->_remaining_buffer_size();
-		size_t buffered_size=MIN(remaining_size, size);
-		size_t unbuffered_size=size-buffered_size;
+		size_t bufferable_size=MIN(remaining_size, size);
+		size_t unbufferable_size=size-bufferable_size;
 		size_t total_size=0;;
 
-		_DEBUG("remaining_size=%lu, buffered_size=%lu, unbuffered_size=%lu\n", remaining_size, buffered_size, unbuffered_size);
-		memcpy(stream->cur_buf_ptr, buffer, buffered_size);
-		stream->_write_meta_update(buffered_size);
-		total_size+=buffered_size;
+		_init_buffer_for_writing(stream);
+		_DEBUG("remaining_size=%lu, bufferable_size=%lu, unbufferable_size=%lu\n", remaining_size, bufferable_size, unbufferable_size);
+		memcpy(stream->cur_buf_ptr, buffer, bufferable_size);
+		stream->_write_meta_update(bufferable_size);
+		total_size+=bufferable_size;
 		stream->dirty_flag=DIRTY;
-		buffer=static_cast<const char*>(buffer)+buffered_size;
+		buffer=static_cast<const char*>(buffer)+bufferable_size;
 
-		while(0 != unbuffered_size)
+		while(0 != unbufferable_size)
 		{
 			_flush_stream(file_stream);
 
 			stream->_update_meta_for_rebuf(DIRTY, 0);
-			size_t current_IO_size=MIN(unbuffered_size, stream->buffer_size);
+			size_t current_IO_size=MIN(unbufferable_size, stream->_remaining_buffer_size());
 			memcpy(stream->buf, buffer, current_IO_size);
 			stream->_write_meta_update(current_IO_size);
 			buffer=static_cast<const char*>(buffer)+current_IO_size;
-			unbuffered_size-=current_IO_size;
+			unbufferable_size-=current_IO_size;
 
 			total_size+=current_IO_size;
 		}
@@ -488,4 +489,24 @@ int CBB_stream::_truncate_stream(FILE* file_stream, off64_t size)
 		}
 	}
 	return CBB_client::ftruncate(stream->fd, size);
+}
+
+int CBB_stream::_init_buffer_for_writing(stream_info_t* stream)
+{
+	//if there is data remaining in file (current offset < total file size)
+	//and we will write beyond end of current buffered space
+	//then we need to retrive data from remote
+	if(stream->_cur_buf_off() > stream->buffered_data_size &&
+		stream->buf_file_off < stream->file_size)
+	{
+		_DEBUG("fill buffer before writing buffer offset=%ld, buffered_data_size=%ld", stream->_cur_buf_off(), stream->buffered_data_size);
+		_DEBUG("file offset=%ld, file size=%ld\n", stream->buf_file_off, stream->file_size);
+
+		return CBB_client::read(stream->fd, stream->buf, stream->buffer_size);
+	}
+	else
+	{
+		_DEBUG("no need to fill buffer\n");
+		return SUCCESS;
+	}
 }

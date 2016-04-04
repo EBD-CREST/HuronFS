@@ -189,6 +189,7 @@ namespace CBB
 				void _parse_master_IOnode_id(ssize_t master_IOnode, int& master_number, ssize_t& IOnode_id);
 				ssize_t _find_master_IOnode_id_by_socket(int socket);
 				off64_t find_start_point(const _block_list_t& blocks, off64_t start_point, ssize_t update_size);
+				size_t _update_file_size_from_master(Common::extended_IO_task* response, opened_file_info& file);
 
 			private:
 				int _fid_now;

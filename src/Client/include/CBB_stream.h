@@ -71,6 +71,8 @@ namespace CBB
 				int _fileno_stream(FILE* stream);
 				int _update_underlying_file_size(FILE* file_stream);
 				int _truncate_stream(FILE* stream, off64_t size);
+			private:
+				int _init_buffer_for_writing(stream_info_t* file_stream);
 
 				//const FILE* _get_stream_from_path(const char* path)const;
 				//FILE* _get_stream_from_path(const char* path);

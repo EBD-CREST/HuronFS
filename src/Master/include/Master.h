@@ -111,6 +111,7 @@ namespace CBB
 						size_t offset)throw(std::runtime_error);
 
 				void _send_block_info(Common::extended_IO_task* new_task,
+						size_t file_size,
 						const node_info_pool_t& node_info_pool,
 						const block_list_t& block_set)const;
 				/*void _send_append_request(ssize_t file_no,
@@ -129,7 +130,8 @@ namespace CBB
 				const node_info_pool_t& _open_file(const char* file_path,
 						int flag,
 						ssize_t& file_no,
-						int exist_flag)throw(std::runtime_error, std::invalid_argument, std::bad_alloc);
+						int exist_flag,
+						mode_t mode)throw(std::runtime_error, std::invalid_argument, std::bad_alloc);
 				ssize_t _get_node_id(); 
 				ssize_t _get_file_no(); 
 				void _release_file_no(ssize_t fileno);
@@ -144,7 +146,8 @@ namespace CBB
 						int flag,
 						Master_file_stat* file_status)throw(std::invalid_argument);
 				Master_file_stat* _create_new_file_stat(const char* relative_path,
-						int exist_flag)throw(std::invalid_argument);
+						int exist_flag,
+						mode_t mode)throw(std::invalid_argument);
 
 				node_info* _select_IOnode(ssize_t file_no,
 						int num_of_IOnodes,

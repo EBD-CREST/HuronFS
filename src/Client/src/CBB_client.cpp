@@ -591,6 +591,7 @@ ssize_t CBB_client::_read(int fd, void *buffer, size_t size)throw(std::runtime_e
 		response->pop(ret);
 		if(SUCCESS == ret)
 		{
+			_update_file_size_from_master(response, file);
 			_get_blocks_from_master(response, file.current_point, size, blocks, node_pool);
 			response_dequeue(response);
 			ret=_read_from_IOnode(master_number, file, blocks, node_pool, static_cast<char *>(buffer), size);
@@ -646,6 +647,8 @@ ssize_t CBB_client::_write(int fd, const void *buffer, size_t size)throw(std::ru
 		response->pop(ret);
 		if(SUCCESS == ret)
 		{
+			_update_file_size_from_master(response, file);
+
 			_get_blocks_from_master(response, current_point, size, blocks, node_pool);
 			response_dequeue(response);
 			ret=_write_to_IOnode(master_number, file, blocks, node_pool,  static_cast<const char *>(buffer), size);
@@ -664,6 +667,17 @@ ssize_t CBB_client::_write(int fd, const void *buffer, size_t size)throw(std::ru
 	}
 	return ret;
 
+}
+
+size_t CBB_client::_update_file_size_from_master(extended_IO_task* response, opened_file_info& file)
+{
+	size_t file_size;
+	response->pop(file_size);
+	/*if(file_size > file.file_meta_p->file_stat.st_size)
+	{
+		file.file_meta_p->file_stat.st_size = file_size;
+	}*/
+	return file_size;
 }
 
 int CBB_client::_write_update_file_size(opened_file_info& file, size_t size)
