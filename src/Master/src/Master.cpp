@@ -1323,7 +1323,7 @@ Master::IOnode_t::iterator Master::_find_by_ip(const std::string &ip)
 
 open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 		int flag,
-		Master_file_stat* stat)throw(std::invalid_argument)
+		Master_file_stat* stat)throw(std::invalid_argument, std::runtime_error)
 {
 	try
 	{
@@ -1331,15 +1331,27 @@ open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 		_buffered_files.insert(std::make_pair(file_no, new_file));
 		new_file->block_size=get_block_size(stat->get_status().st_size); 
 		stat->opened_file_info=new_file;
-		new_file->primary_replica_node=_select_IOnode(file_no, MIN(NUM_OF_REPLICA, _registed_IOnodes.size()), new_file->IOnodes_set);
-		_create_block_list(new_file->get_stat().st_size, new_file->block_size, new_file->block_list, new_file->IOnodes_set);
+
+		new_file->primary_replica_node=_select_IOnode(file_no,
+				MIN(NUM_OF_REPLICA, _registed_IOnodes.size()),
+				new_file->IOnodes_set);
+		_create_block_list(new_file->get_stat().st_size,
+				new_file->block_size,
+				new_file->block_list,
+				new_file->IOnodes_set);
 
 		//send open request to primary node
-		_send_open_request_to_IOnodes(*new_file, new_file->primary_replica_node, new_file->block_list, new_file->IOnodes_set);
+		_send_open_request_to_IOnodes(*new_file,
+				new_file->primary_replica_node,
+				new_file->block_list,
+				new_file->IOnodes_set);
 		//send open request to the rest of replica
 		for(auto& IOnode:new_file->IOnodes_set)
 		{
-			_send_open_request_to_IOnodes(*new_file, IOnode, new_file->block_list, new_file->IOnodes_set);
+			_send_open_request_to_IOnodes(*new_file,
+					IOnode,
+					new_file->block_list,
+					new_file->IOnodes_set);
 		}
 		return new_file;
 	}
@@ -1347,6 +1359,13 @@ open_file_info* Master::_create_new_open_file_info(ssize_t file_no,
 	{
 		//file open error
 		_release_file_no(file_no);
+		throw;
+	}
+	catch(std::runtime_error &e)
+	{
+		//file open error
+		_release_file_no(file_no);
+		_DEBUG("%s",e.what());
 		throw;
 	}
 }
@@ -1383,12 +1402,12 @@ Master_file_stat* Master::_create_new_file_stat(const char* relative_path,
 
 node_info* Master::_select_IOnode(ssize_t file_no,
 		int num_of_nodes,
-		node_info_pool_t& node_info_pool)
+		node_info_pool_t& node_info_pool)throw(std::runtime_error)
 {
 	if(0 == _registed_IOnodes.size())
 	{
 		//no IOnode
-		return nullptr;
+		throw std::runtime_error("no IOnode");
 	}
 
 	//insert main replica

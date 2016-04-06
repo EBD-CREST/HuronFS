@@ -138,9 +138,15 @@ int CBB_stream::_close_stream(FILE* file_stream)
 	return SUCCESS;
 }
 
-int CBB_stream::_flush_stream(FILE* file_stream)
+int CBB_stream::_flush_stream(FILE *file_stream)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
+	//forward
+	return _flush_stream(stream);
+}
+
+int CBB_stream::_flush_stream(stream_info_t* stream)
+{
 	_DEBUG("current offset=%ld\n", stream->_cur_file_off());
 
 	if(stream->buffer_flag && DIRTY == stream->dirty_flag)
@@ -501,6 +507,7 @@ int CBB_stream::_init_buffer_for_writing(stream_info_t* stream)
 	{
 		_DEBUG("fill buffer before writing buffer offset=%ld, buffered_data_size=%ld", stream->_cur_buf_off(), stream->buffered_data_size);
 		_DEBUG("file offset=%ld, file size=%ld\n", stream->buf_file_off, stream->file_size);
+		_flush_stream(stream);
 
 		return CBB_client::read(stream->fd, stream->buf, stream->buffer_size);
 	}

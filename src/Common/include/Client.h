@@ -78,8 +78,7 @@ namespace CBB
 		inline int Client::response_dequeue(extended_IO_task* response)
 		{
 			dequeue(response);
-			release_communication_queue(response);
-			return SUCCESS;
+			return release_communication_queue(response);
 		}
 
 		inline int Client::dequeue(extended_IO_task* response)
@@ -109,7 +108,8 @@ namespace CBB
 		inline int Client::release_communication_queue(communication_queue_t* queue)
 		{
 			_DEBUG("release queue %p\n", queue);
-			return queue->unlock_queue();
+			//return queue->unlock_queue();
+			return SUCCESS;
 		}
 
 		inline int Client::release_communication_queue(extended_IO_task* task)

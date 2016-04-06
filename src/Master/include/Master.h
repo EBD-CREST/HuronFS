@@ -144,14 +144,14 @@ namespace CBB
 						mode_t mode)throw(std::runtime_error); 
 				open_file_info* _create_new_open_file_info(ssize_t file_no,
 						int flag,
-						Master_file_stat* file_status)throw(std::invalid_argument);
+						Master_file_stat* file_status)throw(std::invalid_argument, std::runtime_error);
 				Master_file_stat* _create_new_file_stat(const char* relative_path,
 						int exist_flag,
 						mode_t mode)throw(std::invalid_argument);
 
 				node_info* _select_IOnode(ssize_t file_no,
 						int num_of_IOnodes,
-						node_info_pool_t& node_id_pool); 
+						node_info_pool_t& node_id_pool)throw(std::runtime_error); 
 
 				int _create_block_list(size_t file_size,
 						size_t block_size,

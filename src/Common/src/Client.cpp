@@ -103,7 +103,10 @@ communication_queue_t* Client::get_new_communication_queue()
 	auto begin=_communication_output_queue.begin(), 
 	     queue_ptr=begin,
 	     end=_communication_output_queue.end();
-	while(true)
+
+	return &(*queue_ptr);
+	//do not support now
+	/*while(true)
 	{
 		if(0 == queue_ptr->try_lock_queue())
 		{
@@ -118,7 +121,7 @@ communication_queue_t* Client::get_new_communication_queue()
 				queue_ptr=begin;
 			}
 		}
-	}
+	}*/
 	return nullptr;
 }
 
