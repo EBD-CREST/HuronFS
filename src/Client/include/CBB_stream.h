@@ -48,9 +48,9 @@ namespace CBB
 						stream_info(const stream_info&);
 				};
 			private:
-
 				typedef stream_info stream_info_t;
 				typedef std::map<stream_info_t*, int> stream_pool_t;
+				static const char* STREAM_USE_BUFFER;
 			public:
 				CBB_stream();
 				~CBB_stream();

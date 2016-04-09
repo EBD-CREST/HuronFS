@@ -114,7 +114,7 @@ const int RECV_EXTENDED_MESSAGE = 1;
 const bool STARTED = true;
 const bool UNSTARTED = false;
 const bool SET = true;
-const bool STREAM_BUFFER_FLAG = true;
+//const bool STREAM_BUFFER_FLAG = false;
 
 const int CBB_REMOTE_WRITE_BACK = 0;
 const int HEART_BEAT_INTERVAL=1000;

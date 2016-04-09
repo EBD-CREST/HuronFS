@@ -9,6 +9,10 @@
 
 using namespace CBB::Common;
 using namespace CBB::Client;
+
+bool USE_BUFFER=false;
+const char* CBB_stream::STREAM_USE_BUFFER="CBB_STREAM_USE_BUFFER";
+
 CBB_stream::stream_info::stream_info(bool dirty_flag,
 		bool buffer_flag,
 		int fd,
@@ -44,7 +48,22 @@ CBB_stream::stream_info::~stream_info()
 CBB_stream::CBB_stream():
 	CBB_client(),
 	_stream_pool()
-{}
+{
+	const char* use_buffer=nullptr;
+	if(nullptr == (use_buffer=getenv(STREAM_USE_BUFFER)))
+	{
+		use_buffer="true";
+	}
+
+	if(0 == strcmp(use_buffer, "true"))
+	{
+		USE_BUFFER=true;
+	}
+	else
+	{
+		USE_BUFFER=false;
+	}
+}
 
 CBB_stream::~CBB_stream()
 {
@@ -103,7 +122,7 @@ FILE* CBB_stream::_open_stream(const char* path, const char* mode)
 	else
 	{
 		size_t file_size=_get_file_size(fd);
-		stream_info* new_stream=new stream_info(CLEAN, STREAM_BUFFER_FLAG, fd, file_size, 0, flag, open_mode);
+		stream_info* new_stream=new stream_info(CLEAN, USE_BUFFER, fd, file_size, 0, flag, open_mode);
 		_stream_pool.insert(std::make_pair(new_stream, fd));
 		return reinterpret_cast<FILE*>(new_stream);
 	}
@@ -120,7 +139,7 @@ FILE* CBB_stream::_open_stream(const char* path, int flag, mode_t mode)
 	else
 	{
 		size_t file_size=_get_file_size(fd);
-		stream_info* new_stream=new stream_info(CLEAN, STREAM_BUFFER_FLAG, fd, file_size, 0, flag, mode);
+		stream_info* new_stream=new stream_info(CLEAN, USE_BUFFER, fd, file_size, 0, flag, mode);
 		_stream_pool.insert(std::make_pair(new_stream, fd));
 		return reinterpret_cast<FILE*>(new_stream);
 	}

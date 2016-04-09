@@ -67,7 +67,7 @@ CBB_client::CBB_client():
 	if(nullptr == (mount_point=getenv(CLIENT_MOUNT_POINT)))
 	{
 		fprintf(stderr, "please set mount point\n");
-		return;
+		throw std::runtime_error("lack of parameter");
 	}
 	//_DEBUG("%s\n", mount_point);
 	memset(&_client_addr, 0, sizeof(_client_addr));

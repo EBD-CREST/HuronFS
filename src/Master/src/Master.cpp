@@ -348,7 +348,7 @@ int Master::_parse_write_file(extended_IO_task* new_task)
 {
 	_LOG("request for writing\n");
 	ssize_t file_no=0;
-	size_t size=0;//, original_size=0;
+	size_t size=0, original_size=0;
 	int ret=0;
 	off64_t start_point=0;
 	new_task->pop(file_no);
@@ -359,12 +359,12 @@ int Master::_parse_write_file(extended_IO_task* new_task)
 		open_file_info &file=*_buffered_files.at(file_no);
 		std::string real_path=_get_real_path(file.get_path());
 		struct stat& file_status=file.get_stat();
-		//original_size=file_status.st_size;
+		original_size=file_status.st_size;
 		Recv_attr(new_task, &file.get_stat());
-		/*if(original_size > file_status.st_size)
+		if(original_size > file_status.st_size)
 		{
 			file_status.st_size=original_size;
-		}*/
+		}
 
 		new_task->pop(start_point);
 		new_task->pop(size);
