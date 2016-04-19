@@ -163,6 +163,7 @@ namespace CBB
 						Common::extended_IO_task* new_task);
 
 				int _setup_queues();
+				int _get_sync_response();
 
 				//private member
 			private:

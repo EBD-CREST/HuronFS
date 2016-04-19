@@ -1013,7 +1013,23 @@ int IOnode::_sync_write_data(data_sync_task* new_task)
 		_send_sync_data(replicas.second, requested_file, new_task->start_point, new_task->offset, new_task->size);
 	}
 #endif
+#ifdef SYNC_DATA_WITH_REPLY
+	for(auto& replicas:requested_file->IOnode_pool)
+	{
+		_get_sync_response();
+	}
+#endif
 	return SUCCESS;
+}
+
+int IOnode::_get_sync_response()
+{
+	int ret=SUCCESS;
+
+	extended_IO_task* response=get_data_sync_response();
+	response->pop(ret);
+	data_sync_response_dequeue(response);
+	return ret;
 }
 
 int IOnode::_send_sync_data(int socket, file* requested_file, off64_t start_point, off64_t offset, ssize_t size)
@@ -1040,13 +1056,7 @@ int IOnode::_send_sync_data(int socket, file* requested_file, off64_t start_poin
 	output_task->push_back(ret_size);
 	_DEBUG("data size=%ld\n", ret_size);
 	data_sync_task_enqueue(output_task);
-	int ret=SUCCESS;
-#ifdef SYNC_DATA_WITH_REPLY
-	extended_IO_task* response=get_data_sync_response(output_task);
-	response->pop(ret);
-	data_sync_response_dequeue(response);
-#endif
-	return ret;
+	return SUCCESS;
 }
 
 int IOnode::_get_sync_data(extended_IO_task* new_task)
