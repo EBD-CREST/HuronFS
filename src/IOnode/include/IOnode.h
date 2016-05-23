@@ -27,14 +27,16 @@ namespace CBB
 {
 	namespace IOnode
 	{
-		class IOnode:public Common::Server,
-		Common::CBB_connector,
-		public Common::CBB_data_sync
+		class IOnode:
+			public 	Common::Server,
+			public	Common::CBB_connector,
+			public	Common::CBB_data_sync
 		{
 			//API
 			public:
-				IOnode(const std::string& master_ip,
-						int master_port) throw(std::runtime_error);
+				IOnode(const std::string& 	master_ip,
+				       int 			master_port)
+				       throw(std::runtime_error);
 				virtual ~IOnode();
 				int start_server();
 
@@ -49,11 +51,12 @@ namespace CBB
 				struct file;
 				struct block
 				{
-					block(off64_t start_point,
-							size_t size,
-							bool dirty_flag,
-							bool valid,
-							file* file_stat) throw(std::bad_alloc);
+					block(off64_t 	start_point,
+					      size_t 	size,
+					      bool 	dirty_flag,
+					      bool 	valid,
+					      file* 	file_stat)
+					      throw(std::bad_alloc);
 					~block();
 					block(const block&);
 
@@ -61,18 +64,18 @@ namespace CBB
 					int lock();
 					int unlock();
 					
-					size_t data_size;
-					void* data;
-					off64_t  start_point;
-					bool dirty_flag;
-					bool valid;
-					int exist_flag;
-					file* file_stat;
-					CBB::Common::remote_task* write_back_task;
-					pthread_mutex_t locker;
+					size_t 			data_size;
+					void* 			data;
+					off64_t 		start_point;
+					bool 			dirty_flag;
+					bool 			valid;
+					int 			exist_flag;
+					file*			file_stat;
+					Common::remote_task* 	write_back_task;
+					pthread_mutex_t 	locker;
 					//remote handler will delete this struct if TO_BE_DELETED is setted
 					//this appends when user unlink file while remote handler is writing back
-					bool TO_BE_DELETED;
+					bool 			TO_BE_DELETED;
 				};
 				//map: start_point : block*
 				typedef std::map<off64_t, block*> block_info_t; 
@@ -82,14 +85,13 @@ namespace CBB
 					file(const char *path, int exist_flag, ssize_t file_no);
 					~file();
 
-					std::string file_path;
-					int exist_flag;
-					bool dirty_flag;
-					//main replica indicator
-					int main_flag;
-					ssize_t file_no;
-					block_info_t blocks;
-					node_socket_pool_t IOnode_pool;
+					std::string 		file_path;
+					int 			exist_flag;
+					bool 			dirty_flag;
+					int 			main_flag; //main replica indicator
+					ssize_t 		file_no;
+					block_info_t  		blocks;
+					node_socket_pool_t 	IOnode_pool;
 				};
 
 				//map: file_no: struct file
@@ -139,10 +141,10 @@ namespace CBB
 						size_t size)throw(std::runtime_error);
 
 				size_t _write_to_storage(block* block_data)throw(std::runtime_error); 
-				size_t _read_from_storage(const std::string& path,
-						block* block_data)throw(std::runtime_error);
+				size_t _read_from_storage(const  std::string& path,
+							  block* block_data)throw(std::runtime_error);
 				void _append_block(Common::extended_IO_task* new_task,
-						file& file_stat)throw(std::runtime_error);
+						   file& 		     file_stat)throw(std::runtime_error);
 				virtual std::string _get_real_path(const char* path)const override final;
 				std::string _get_real_path(const std::string& path)const;
 				int _remove_file(ssize_t file_no);
@@ -155,12 +157,12 @@ namespace CBB
 
 				int _sync_data(file& file, off64_t start_point, off64_t offset, ssize_t size, int socket);
 				int _send_sync_data(int socket, file* requested_file, off64_t start_point, off64_t offset, ssize_t size);
-				size_t update_block_data(block_info_t& blocks,
-						file& file,
-						off64_t start_point,
-						off64_t offset,
-						size_t size,
-						Common::extended_IO_task* new_task);
+				size_t update_block_data(block_info_t& 		   blocks,
+							 file& 			   file,
+							 off64_t 		   start_point,
+							 off64_t 		   offset,
+							 size_t 		   size,
+							 Common::extended_IO_task* new_task);
 
 				int _setup_queues();
 				int _get_sync_response();
@@ -168,23 +170,16 @@ namespace CBB
 				//private member
 			private:
 
-				//node id
-				ssize_t my_node_id;
-				/*block_info _blocks;
-				  file_info _files;*/
-
-				file_t _files;
-				int _current_block_number;
-				int _MAX_BLOCK_NUMBER;
-				//remain available memory; 
-				size_t _memory;
-				//master_conn_port
-				int _master_port;
-				//IO-node_server_address
+				ssize_t 	   my_node_id; //node id
+				file_t 		   _files;
+				int 		   _current_block_number;
+				int 		   _MAX_BLOCK_NUMBER;
+				size_t 		   _memory; //remain available memory; 
+				int 		   _master_port; //master_conn_port
 				struct sockaddr_in _master_conn_addr;
 				struct sockaddr_in _master_addr;
-				std::string _mount_point;
-				int _master_socket;
+				std::string 	   _mount_point;
+				int 		   _master_socket;
 				node_socket_pool_t IOnode_socket_pool;
 		};
 		inline int IOnode::block::lock()
