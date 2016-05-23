@@ -5,50 +5,99 @@ const size_t KB=1000;
 const size_t MB=KB*1000;
 const size_t GB=MB*1000;
 
-const size_t MAX_FILE_SIZE = 10*GB;
+//the port number used by master
 const int MASTER_PORT = 9000; 
+//the port number used to Connect master in each IOnode
 const int MASTER_CONN_PORT = 7001; 
+//the port number used by IONode
 const int IONODE_PORT = 7000; 
+//the maximum IOnode under each master
 const int MAX_IONODE = 1000;
+//the size of basic message in communication
 const int MAX_BASIC_MESSAGE_SIZE = 1*MB;
 //const int CLIENT_PORT = 8001;
 //const int IO_CLIENT_PORT = 8002;
+
+//the number of handler threads in server
 const int SERVER_THREAD_NUM = 1;
+//the number of handler threads in client
 const int CLIENT_THREAD_NUM = 1;
 
-const int MASTER_QUEUE_NUM=SERVER_THREAD_NUM+1;
-const int IONODE_QUEUE_NUM=SERVER_THREAD_NUM+1;
+//the number of queue used to send heart beat in Master= 1
+const int HEART_BEAT_QUEUE_NUM = 1;
+//the number of queue used to send data synchronization in IOnode= 1
+const int DATA_SYNC_QUEUE_NUM = 1;
+
+//the number of communication queues used in master
+//the number = # of handler threads in server + # of queue used to send heart beat
+const int MASTER_QUEUE_NUM=SERVER_THREAD_NUM+HEART_BEAT_QUEUE_NUM;
+//the number of communication queues used in IOnode 
+//the number = # of handler threads in server + # of remote handler
+const int IONODE_QUEUE_NUM=SERVER_THREAD_NUM+DATA_SYNC_QUEUE_NUM;
+//the number of communication queues used in client
+//the number = # of handler threads in client 
 const int CLIENT_QUEUE_NUM=CLIENT_THREAD_NUM;
 
-const int HEART_BEAT_QUEUE_NUM = SERVER_THREAD_NUM;
-const int DATA_SYNC_QUEUE_NUM = SERVER_THREAD_NUM;
-
+//the total memory available in each IOnode
+//ignored currently
 const int MEMORY = 10000; 
+//the maximum number of block for each file
+//not used
 const int MAX_BLOCK_NUMBER = 1000; 
+//the size of block used by all the file
+//important
+const size_t BLOCK_SIZE = 5*MB;
+//the maximum file size supported;
+//the number = block size * max block number
+//not used
+const size_t MAX_FILE_SIZE = BLOCK_SIZE*MAX_BLOCK_NUMBER;
+//the maximum file size supported;
+//not used
 const int MAX_FILE_NUMBER = 1000000; 
+//the max queue used in server listen as "backlog"
 const int MAX_QUEUE = 100; 
 //const int BLOCK_SIZE = 1000; 
-const int MAX_NODE_NUMBER = 10; 
+//const int MAX_NODE_NUMBER = 10; 
+
+
+//the number of listening queue used by epoll
+//the total number got in each poll
 const int LENGTH_OF_LISTEN_QUEUE = 1; 
-const int MAX_SERVER_BUFFER = 1000; 
-const int MAX_COMMAND_SIZE = 1000; 
-const int MAX_CONNECT_TIME = 10;
-const int MAX_QUERY_LENGTH = 100; 
+//const int MAX_SERVER_BUFFER = 1000; 
+//const int MAX_COMMAND_SIZE = 1000; 
+//const int MAX_QUERY_LENGTH = 100; 
+
+//the maximum file number can be opened in Client
 const int MAX_FILE = 10000;
+
+
+//the initial fd, used in Client
+//to avoid conflicts with normal fd, please set a large number
+//mainly used in preload
 const int INIT_FD = 100000;
+//the maximum retry in issuing connection
+const int MAX_CONNECT_TIME = 10;
+//wait time between each connection retry
 const int CONNECT_WAIT_TIME=1000;
-const size_t BLOCK_SIZE = 5*MB;
-const int NO_ERROR=0;
+//the size of IO buffer in each Client
+//used in buffered IO
 const size_t STREAM_BUFFER_SIZE = 2*BLOCK_SIZE;
+//the maximum size of data in each transfer 
 const size_t MAX_TRANSFER_SIZE = STREAM_BUFFER_SIZE;
 
+//all the flags
 const bool CLEAN = false;
 const bool DIRTY = true;
 const bool VALID = true;
 const bool INVALID = false;
 const int FAILURE = -1;
 const int SUCCESS = 0;
+//no error
+//used as a return value in socket error report
+const int NO_ERROR=0;
+const bool SET = true;
 
+//command operations
 const int CLOSE_PIPE = 0;
 const int REGIST = 1; 
 const int UNREGIST = 2;
@@ -100,30 +149,43 @@ const int NOT_EXIST = 0;
 
 const int OUT_OF_RANGE=100;
 
+//external flags
+//used in Master in file rename/symblic link
+//internal means file stored in this master
+//external means file stored in other master, the file in this Master is a link 
 const int EXTERNAL = 0;
 const int INTERNAL = -1;
+//rename means file stored in other master, the file in this Master is a renamed file
 const int RENAMED = 1;
 const int MYSELF = -1;
 
+//flags used to control communication threads
 const int KEEP_ALIVE = 0;
 const int NOT_KEEP_ALIVE =1;
 
-const int SEND = 0;
-const int RECV_EXTENDED_MESSAGE = 1;
+//flags
+//const int SEND = 0;
+//const int RECV_EXTENDED_MESSAGE = 1;
 
+//flag started
 const bool STARTED = true;
 const bool UNSTARTED = false;
-const bool SET = true;
 //const bool STREAM_BUFFER_FLAG = false;
 
+//mode in write back
 const int CBB_REMOTE_WRITE_BACK = 0;
+//the heart beat check interval
 const int HEART_BEAT_INTERVAL=1000;
 
+//number of replication
+//the total number of copy=number of replication + primary replica
 const int NUM_OF_REPLICA = 2;
 
+//main replica flag
 const int MAIN_REPLICA=0;
 const int SUB_REPLICA=1;
 
+//modes in data synchronization
 const int DATA_SYNC_INIT=0;
 const int DATA_SYNC_WRITE=1;
 #endif
