@@ -29,14 +29,14 @@ Master::Master()throw(std::runtime_error):
 	_buffered_files(), 
 	_IOnode_socket(IOnode_sock_t()), 
 	_file_number(0), 
-	_node_id_pool(new bool[MAX_NODE_NUMBER]), 
+	_node_id_pool(new bool[MAX_IONODE]), 
 	_file_no_pool(new bool[MAX_FILE_NUMBER]), 
 	_current_node_number(0), 
 	_current_file_no(0),
 	_mount_point(),
 	_current_IOnode(_registed_IOnodes.end())
 {
-	memset(_node_id_pool, 0, MAX_NODE_NUMBER*sizeof(bool)); 
+	memset(_node_id_pool, 0, MAX_IONODE*sizeof(bool)); 
 	memset(_file_no_pool, 0, MAX_FILE_NUMBER*sizeof(bool)); 
 	const char *master_mount_point=getenv(MASTER_MOUNT_POINT);
 	const char *master_number_string = getenv(MASTER_NUMBER);
@@ -1259,11 +1259,11 @@ const node_info_pool_t& Master::_open_file(const char* file_path,
 
 ssize_t Master::_get_node_id()
 {
-	if(MAX_NODE_NUMBER == _registed_IOnodes.size())
+	if(MAX_IONODE == _registed_IOnodes.size())
 	{
 		return -1;
 	}
-	for(; _current_node_number<MAX_NODE_NUMBER; ++_current_node_number)
+	for(; _current_node_number<MAX_IONODE; ++_current_node_number)
 	{
 		if(!_node_id_pool[_current_node_number])
 		{
@@ -1271,7 +1271,7 @@ ssize_t Master::_get_node_id()
 			return _current_node_number; 
 		}
 	}
-	for(_current_node_number=0;  _current_node_number<MAX_NODE_NUMBER; ++_current_node_number)
+	for(_current_node_number=0;  _current_node_number<MAX_IONODE; ++_current_node_number)
 	{
 		if(!_node_id_pool[_current_node_number])
 		{
