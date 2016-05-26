@@ -42,6 +42,7 @@ namespace CBB
 				extended_IO_task* get_query_response(extended_IO_task* query)throw(std::runtime_error);
 				int response_dequeue(extended_IO_task* response);
 				int dequeue(extended_IO_task* response);
+				int print_socket_error(extended_IO_task* response);
 
 				communication_queue_t* get_input_queue_from_query(extended_IO_task* query);
 				communication_queue_t* get_output_queue_from_query(extended_IO_task* query);
@@ -62,10 +63,16 @@ namespace CBB
 			return query_task;
 		}
 
+		inline int Client::print_socket_error(extended_IO_task* response)
+		{
+			_DEBUG("socket error detected, socket=%d\n", response->get_socket());
+			return SUCCESS;
+		}
+
 		inline extended_IO_task* Client::allocate_new_query_preallocated(int socket, int id)
 		{
 			communication_queue_t& new_queue=_communication_output_queue.at(id);
-			extended_IO_task* query_task=new_queue.allocate_tmp_node();
+			extended_IO_task* query_task    =new_queue.allocate_tmp_node();
 			query_task->set_socket(socket);
 			return query_task;
 		}
