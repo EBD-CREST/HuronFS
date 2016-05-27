@@ -38,7 +38,7 @@ $(FUSE_OBJ):$(FUSE_SRC)
 	$(CC) -c $(DEP_FLAG) $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) $(FUSE_HEADER) -o $@ $< 
 
 %.o:%.cpp
-	$(CC) -c $(DEP_FLAG) $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $< 
+	$(CC) -c $(CLIENT_WAIT_FLAG) $(DEP_FLAG) $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) -o $@ $< 
 
 $(COMMON):
 	cd ../Common && $(MAKE) $(notdir $@)
