@@ -1,28 +1,30 @@
-LIB = lib
-BIN = bin
-SRC = src
-MASTER_DIR = $(SRC)/Master
-IONODE_DIR = $(SRC)/IOnode
-CLIENT_DIR = $(SRC)/Client
-COMMON_DIR = $(SRC)/Common
+LIB 	     = lib
+BIN 	     = bin
+SRC 	     = src
+MASTER_DIR   = $(SRC)/Master
+IONODE_DIR   = $(SRC)/IOnode
+CLIENT_DIR   = $(SRC)/Client
+COMMON_DIR   = $(SRC)/Common
 
-MASTER = $(MASTER_DIR)/Master
+MASTER 	     = $(MASTER_DIR)/Master
 
-IONODE = $(IONODE_DIR)/IOnode
+IONODE 	     = $(IONODE_DIR)/IOnode
 
-CLIENT_SLIB = $(CLIENT_DIR)/libCBB.a
+CLIENT_SLIB  = $(CLIENT_DIR)/libCBB.a
 CLIENT_LTLIB = $(CLIENT_DIR)/libCBB.so
-CLIENT_FUSE= $(CLIENT_DIR)/cbbfs
+CLIENT_FUSE  = $(CLIENT_DIR)/cbbfs
 
-export CC=g++
-export LIB_FLAG=-shared -fPIC
-export PRELOAD = -DCBB_PRELOAD
-export DEP_FLAG = -MMD -MP
+export CC        =g++
+export LIB_FLAG  =-shared -fPIC
+export PRELOAD   = -DCBB_PRELOAD
+export DEP_FLAG  = -MMD -MP
 #export WRITE_BACK = -DWRITE_BACK
 export SYNC_FLAG = -DSTRICT_SYNC_DATA -DSYNC_DATA_WITH_REPLY
-export FLAG=-O3 -g -Wall -std=c++11 -DLOG -DBUSY_WAIT -DSLEEP_YIELD
-#export FLAG=-O3 -g -Wall -std=c++11 -DDEBUG -DLOG -DBUSY_WAIT -DSLEEP_YIELD
-#export FLAG=-O0 -g -Wall -std=c++11 -DDEBUG -DLOG -DBUSY_WAIT -DSLEEP_YIELD
+export SERVER_WAIT_FLAG = -DBUSY_WAIT
+export CLIENT_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
+export FLAG=-O3 -g -Wall -std=c++11 -DLOG
+#export FLAG=-O3 -g -Wall -std=c++11 -DDEBUG -DLOG
+#export FLAG=-O0 -g -Wall -std=c++11 -DDEBUG -DLOG 
 
 run:
 	@echo 'run'

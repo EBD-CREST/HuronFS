@@ -299,8 +299,14 @@ int IOnode::_promoted_to_primary(extended_IO_task* new_task)
 		_get_replica_node_info(new_task, file_info);
 
 		add_data_sync_task(DATA_SYNC_INIT, &file_info, 0, 0, -1, 0, IOnode_socket_pool.at(new_node_id));
-	} catch(std::runtime_error&e) {
-		_DEBUG("out of range !!\n");
+	}
+	catch(std::runtime_error&e) {
+		_DEBUG("try to connect to IOnode failed!!\n");
+		ret=FAILURE;
+	}
+	catch(std::out_of_range &e)
+	{
+		_DEBUG("no such file !!\n");
 		ret=FAILURE;
 	}
 	return ret;
@@ -570,6 +576,9 @@ int IOnode::_get_IOnode_info(extended_IO_task*	new_task,
 	new_task->pop(node_id);
 	new_task->pop_string(&node_ip);
 	node_socket_pool_t::const_iterator it;
+
+	_DEBUG("try to connect to %s\n", node_ip);
+	
 	if(end(IOnode_socket_pool) == (it=IOnode_socket_pool.find(node_id)))
 	{
 		new_socket=_connect_to_new_IOnode(node_id, my_node_id, node_ip);
@@ -1038,7 +1047,7 @@ int IOnode::_sync_write_data(data_sync_task* new_task)
 	}
 #endif
 #ifdef SYNC_DATA_WITH_REPLY
-	for(auto& replicas:requested_file->IOnode_pool)
+	for(auto& replica:requested_file->IOnode_pool)
 	{
 		_get_sync_response();
 	}

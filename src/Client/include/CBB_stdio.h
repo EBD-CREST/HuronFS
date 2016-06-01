@@ -15,10 +15,10 @@ extern "C"
 	void setbuf(FILE* stream, char* buf);
 	int setvbuf(FILE* stream, char* buf, int type, size_t size);
 
-	int fprintf(FILE* stream, const char* format, ...);
+	/*int fprintf(FILE* stream, const char* format, ...);
 	int fscanf(FILE* stream, const char* format, ...);
 	int vfprintf(FILE* stream, const char* format, va_list ap);
-	int vfscanf(FILE* stream, const char* format, va_list ap);
+	int vfscanf(FILE* stream, const char* format, va_list ap);*/
 
 	int fgetc(FILE* stream);
 	char* fgets(char* s, int n, FILE* stream);

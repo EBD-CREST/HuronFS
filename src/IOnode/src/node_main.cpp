@@ -63,7 +63,7 @@ int main(int argc, char**argv)
 		}
 		node.IOnode::start_server();
 	}
-	catch(std::runtime_error& e)
+	catch(std::runtime_error&e)
 	{
 		fprintf(stderr, e.what());
 		return EXIT_FAILURE;

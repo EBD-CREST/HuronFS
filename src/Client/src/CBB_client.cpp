@@ -95,7 +95,7 @@ int CBB_client::_regist_to_master()
 {
 	int ret=0;
 	struct sockaddr_in _master_addr;
-	const char* master_ip_list=getenv(MASTER_IP_LIST), *next_master_ip=nullptr;
+	const char* master_ip_list=getenv(MASTER_IP_LIST);
 	char master_ip[20];
 	if(nullptr == master_ip_list)
 	{
@@ -107,24 +107,8 @@ int CBB_client::_regist_to_master()
 	_master_addr.sin_port = htons(MASTER_PORT);
 
 	int counter=0;
-	while(0 != *master_ip_list)
+	while(nullptr != (master_ip_list =parse_master_config_ip(master_ip_list, master_ip)))
 	{
-		next_master_ip=strchr(master_ip_list, ',');
-		if(nullptr == next_master_ip)
-		{
-			for(next_master_ip=master_ip_list;
-					'\0' != *next_master_ip; ++ next_master_ip);
-			strncpy(master_ip, master_ip_list, next_master_ip-master_ip_list);
-			master_ip[next_master_ip-master_ip_list]=0;
-			master_ip_list=next_master_ip;
-		}
-		else
-		{
-			strncpy(master_ip, master_ip_list, next_master_ip-master_ip_list);
-			master_ip[next_master_ip-master_ip_list]=0;
-			master_ip_list=next_master_ip+1;
-		}
-
 		if(0 == inet_aton(master_ip, &_master_addr.sin_addr))
 		{
 			perror("Master IP Address Error");
@@ -254,13 +238,14 @@ int CBB_client::_get_fid()
 int CBB_client::_open(const char * path, int flag, mode_t mode)throw(std::runtime_error)
 {
 	CHECK_INIT();
-	file_meta* file_meta_p=nullptr;
-	std::string string_path=std::string(path);
-	int master_number=_get_master_number_from_path(path);
-	int master_socket=_get_master_socket_from_master_number(master_number);
-	int ret=master_number;
-	int fid=0;
-	extended_IO_task* response=nullptr;
+	file_meta* 	  file_meta_p	=nullptr;
+	std::string 	  string_path	=std::string(path);
+	int 		  master_number	=_get_master_number_from_path(path);
+	int 		  master_socket	=_get_master_socket_from_master_number(master_number);
+	int 		  ret		=master_number;
+	int 		  fid		=0;
+	extended_IO_task* response	=nullptr;
+
 	if(-1 == (fid=_get_fid()))
 	{
 		errno = EMFILE;
@@ -330,13 +315,16 @@ int CBB_client::_open(const char * path, int flag, mode_t mode)throw(std::runtim
 
 file_meta* CBB_client::_create_new_file(extended_IO_task* response, SCBB* corresponding_SCBB)
 {
-	ssize_t file_no=0;
-	size_t block_size=0;
-	struct stat file_stat;
+	ssize_t 	file_no		=0;
+	size_t 		block_size	=0;
+	struct stat 	file_stat;
+
 	response->pop(file_no);
 	response->pop(block_size);
 	Recv_attr(response, &file_stat);
+
 	file_meta* file_meta_p=new file_meta(file_no, block_size, &file_stat, corresponding_SCBB);
+
 	if(nullptr != file_meta_p)
 	{
 		return file_meta_p;
@@ -356,15 +344,15 @@ ssize_t CBB_client::_read_from_IOnode(SCBB* corresponding_SCBB,
 		char* buffer,
 		size_t size)
 {
-	ssize_t ans=0;
-	int ret=0;
-	off64_t current_point=file.current_point;
-	size_t read_size=size;
-	ssize_t node_id=begin(node_pool)->first;
-	off64_t start_point=begin(blocks)->start_point;
-	const std::string& node_ip=begin(node_pool)->second;
-	extended_IO_task *response=nullptr;
-	int IOnode_socket=_get_IOnode_socket(corresponding_SCBB, node_id, node_ip);
+	ssize_t 	   ans		=0;
+	int 		   ret		=0;
+	off64_t 	   current_point=file.current_point;
+	size_t 		   read_size	=size;
+	ssize_t 	   node_id	=begin(node_pool)->first;
+	off64_t 	   start_point	=begin(blocks)->start_point;
+	const std::string& node_ip	=begin(node_pool)->second;
+	extended_IO_task*  response	=nullptr;
+	int 		   IOnode_socket=_get_IOnode_socket(corresponding_SCBB, node_id, node_ip);
 
 	while(0 < read_size)
 	{
@@ -419,15 +407,15 @@ ssize_t CBB_client::_write_to_IOnode(SCBB *corresponding_SCBB,
 		const char* buffer,
 		size_t size)
 {
-	ssize_t ans=0;
-	int ret=0;
-	off64_t current_point=file.current_point;
-	size_t write_size=size;
-	ssize_t node_id=begin(node_pool)->first;
-	off64_t start_point=begin(blocks)->start_point;
-	const std::string& node_ip=begin(node_pool)->second;
-	int IOnode_socket=_get_IOnode_socket(corresponding_SCBB, node_id, node_ip);
-	extended_IO_task* response=nullptr;
+	ssize_t 		ans		=0;
+	int 			ret		=0;
+	off64_t 		current_point	=file.current_point;
+	size_t 			write_size	=size;
+	ssize_t 		node_id		=begin(node_pool)->first;
+	off64_t 		start_point	=begin(blocks)->start_point;
+	const std::string& 	node_ip		=begin(node_pool)->second;
+	int 			IOnode_socket	=_get_IOnode_socket(corresponding_SCBB, node_id, node_ip);
+	extended_IO_task* 	response	=nullptr;
 
 	while(0 < write_size)
 	{

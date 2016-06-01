@@ -65,6 +65,7 @@ namespace CBB
 				static const char *MASTER_NUMBER;
 				static const char *MASTER_TOTAL_NUMBER;
 				static const char *MASTER_BACKUP_POINT;
+				static const char *MASTER_IP_LIST;
 
 			private:
 
@@ -181,7 +182,8 @@ namespace CBB
 				void _send_remove_request(node_info* IOnode, ssize_t file_no);
 				void _send_truncate_request(node_info* node, ssize_t fd, off64_t block_start_point, ssize_t size);
 
-				node_info* _allocate_replace_IOnode(node_info_pool_t& node_info_pool);
+				node_info* _allocate_replace_IOnode(node_info_pool_t& 	node_info_pool,
+								    node_info*		old_node);
 				CBB_error _recreate_replicas(node_info* node_info);
 				CBB_error _resend_replica_nodes_info_to_new_node(open_file_info* file_info, node_info* primary_replica_node, node_info* new_IOnode);
 				CBB_error _replace_replica_nodes_info(open_file_info* file_info, node_info* new_IOnode, node_info* replaced_info);
@@ -200,12 +202,17 @@ namespace CBB
 				int _get_my_thread_id()const;
 
 				CBB_error _IOnode_failure_handler(node_info* IOnode_info);
+				CBB_error _set_master_number_size(const char* master_ip_list,
+								  int& master_number,
+								  int& master_size);
 				
-				void flush_file_stat();
 
 				std::string _get_backup_path(const std::string& path)const;
 				CBB_error _create_new_backup_file(const std::string& path, mode_t mode);
 				CBB_error _update_backup_file_size(const std::string& path, size_t size);
+
+				void flush_file_stat();
+				void dump_info();
 			private:
 				IOnode_t 	   _registed_IOnodes; //IOnode info map node_id:node info
 				file_stat_pool_t   _file_stat_pool; //all file status map, file_path: file status

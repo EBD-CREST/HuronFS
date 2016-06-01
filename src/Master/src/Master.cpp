@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <sched.h>
+#include <ifaddrs.h>
 
 #include "Master.h"
 #include "CBB_internal.h"
@@ -20,6 +21,7 @@ const char *Master::MASTER_MOUNT_POINT	="CBB_MASTER_MOUNT_POINT";
 const char *Master::MASTER_NUMBER	="CBB_MASTER_MY_ID";
 const char *Master::MASTER_TOTAL_NUMBER	="CBB_MASTER_TOTAL_NUMBER";
 const char *Master::MASTER_BACKUP_POINT	="CBB_MASTER_BACKUP_POINT";
+const char *Master::MASTER_IP_LIST	="CBB_MASTER_IP_LIST";
 
 Master::Master()throw(CBB_configure_error):
 	Server(MASTER_QUEUE_NUM, MASTER_PORT), 
@@ -37,9 +39,10 @@ Master::Master()throw(CBB_configure_error):
 	_current_IOnode(_registed_IOnodes.end())
 {
 	const char *master_mount_point		=getenv(MASTER_MOUNT_POINT);
-	const char *master_number_string 	=getenv(MASTER_NUMBER);
-	const char *master_total_size_string	=getenv(MASTER_TOTAL_NUMBER);
 	const char *master_backup_point_string 	=getenv(MASTER_BACKUP_POINT);
+	const char *master_ip_list_string	=getenv(MASTER_IP_LIST);
+	//const char *master_number_string	=getenv(MASTER_NUMBER);
+	//const char *master_total_size_string	=getenv(MASTER_TOTAL_NUMBER);
 	
 	memset(_node_id_pool, 0, MAX_IONODE*sizeof(bool)); 
 	memset(_file_no_pool, 0, MAX_FILE_NUMBER*sizeof(bool)); 
@@ -48,27 +51,41 @@ Master::Master()throw(CBB_configure_error):
 	{
 		throw CBB_configure_error("please set master mount point");
 	}
-	if(nullptr == master_number_string)
+	if(nullptr == master_backup_point_string)
+	{
+		throw CBB_configure_error("please set master backup point");
+	}
+	if(nullptr == master_ip_list_string)
+	{
+		throw CBB_configure_error("please set master ip list");
+	}
+	/*if(nullptr == master_number_string)
 	{
 		throw CBB_configure_error("please set master number");
 	}
 	if(nullptr == master_total_size_string)
 	{
 		throw CBB_configure_error("please set master total number");
-	}
-	if(nullptr == master_backup_point_string)
+	}*/
+
+
+	if(FAILURE == _set_master_number_size(master_ip_list_string,
+			        master_number,
+			       	master_total_size))
 	{
-		throw CBB_configure_error("please set master backup point");
+		throw CBB_configure_error("master ip error");
 	}
 
-	master_number	     =atoi(master_number_string);
-	master_total_size    =atoi(master_total_size_string);
+
 	_mount_point	     =string(master_mount_point);
 	metadata_backup_point=string(master_backup_point_string);
+	//master_number	     =atoi(master_number_string);
+	//master_total_size    =atoi(master_total_size_string);
 
 	_setup_queues();
 
 	_init_server();
+	dump_info();
 	_buffer_all_meta_data_from_remote(master_mount_point); //throw CBB_configure_error
 }
 
@@ -362,7 +379,7 @@ CBB::CBB_error Master::_parse_write_file(extended_IO_task* new_task)
 		struct stat& file_status=file.get_stat();
 		original_size=file_status.st_size;
 		Recv_attr(new_task, &file.get_stat());
-		if(original_size > file_status.st_size)
+		if(static_cast<ssize_t>(original_size) > file_status.st_size)
 		{
 			file_status.st_size=original_size;
 		}
@@ -942,23 +959,43 @@ CBB::CBB_error Master::_recreate_replicas(node_info* IOnode_info)
 		open_file_info* file_info=nullptr;
 		file_info=_buffered_files.at(file_no);	
 	
-		node_info* new_IOnode=_allocate_replace_IOnode(file_info->IOnodes_set);
-		file_info->IOnodes_set.erase(IOnode_info); //replace IOnode no in node list of that file
+		node_info* new_IOnode=_allocate_replace_IOnode(file_info->IOnodes_set, IOnode_info);
+		file_info->IOnodes_set.erase(IOnode_info); //replace IOnode in node list of that file
 
-		if(IOnode_info == file_info->primary_replica_node)
+		if(nullptr != new_IOnode)
 		{
-			file_info->primary_replica_node=*begin(file_info->IOnodes_set); //select the first replica as primary 
-			file_info->IOnodes_set.erase(file_info->primary_replica_node); //remove primary from replica list
-			file_info->IOnodes_set.insert(new_IOnode); //insert new replica
+			//we still get replica
+			if(IOnode_info == file_info->primary_replica_node)
+			{
+				file_info->primary_replica_node=*begin(file_info->IOnodes_set); //select the first replica as primary 
+				file_info->IOnodes_set.erase(file_info->primary_replica_node); //remove primary from replica list
+				file_info->IOnodes_set.insert(new_IOnode); //insert new replica
 
-			_resend_replica_nodes_info_to_new_node(file_info, file_info->primary_replica_node, new_IOnode); 
+				_resend_replica_nodes_info_to_new_node(file_info, file_info->primary_replica_node, new_IOnode); 
+			}
+			else
+			{
+				file_info->IOnodes_set.insert(new_IOnode);
+				_replace_replica_nodes_info(file_info, new_IOnode, IOnode_info);
+			}
+			_send_open_request_to_IOnodes(*file_info, new_IOnode, file_info->block_list, file_info->IOnodes_set);
 		}
 		else
 		{
-			file_info->IOnodes_set.insert(new_IOnode);
-			_replace_replica_nodes_info(file_info, new_IOnode, IOnode_info);
+			if(IOnode_info == file_info->primary_replica_node)
+			{
+				if(0 != file_info->IOnodes_set.size())
+				{
+					file_info->primary_replica_node=*begin(file_info->IOnodes_set); //select the first replica as primary 
+					file_info->IOnodes_set.erase(file_info->primary_replica_node); //remove primary from replica list
+				}
+				else
+				{
+					_DEBUG("no more replica, lose of data\n");
+				}
+			}
 		}
-		_send_open_request_to_IOnodes(*file_info, new_IOnode, file_info->block_list, file_info->IOnodes_set);
+
 	}
 	return SUCCESS;
 }
@@ -1016,14 +1053,20 @@ CBB::CBB_error Master::_send_remove_IOnode_request(node_info* removed_IOnode)
 	return SUCCESS;
 }
 
-node_info* Master::_allocate_replace_IOnode(node_info_pool_t& node_pool)
+node_info* Master::_allocate_replace_IOnode(node_info_pool_t& 	node_pool,
+					    node_info* 		old_node)
 {
 	node_info* new_node=nullptr;
 
+	if(NUM_OF_REPLICA > node_pool.size())
+	{
+		return new_node;
+	}
 	do
 	{
 		new_node=_get_next_IOnode();
-	}while(end(node_pool) != node_pool.find(new_node));
+	}while(new_node == old_node
+	       && end(node_pool) != node_pool.find(new_node));
 
 	return new_node;
 }
@@ -1865,4 +1908,71 @@ Master::_update_backup_file_size(const string 	&path,
 	{
 		return SUCCESS;
 	}
+}
+
+CBB::CBB_error
+Master::_set_master_number_size(const char*	master_ip_list,
+			        int&		master_number,
+			        int&		master_total_size)
+{
+	//struct hostent* ip_list_ent	=get_my_ip_list();	
+	struct ifaddrs* interface_array =nullptr;
+	char		ip[200];
+	struct in_addr 	master_addr;
+	bool set=false;
+
+	
+	master_total_size=0;
+	//only ipv4 now
+	if(0 != getifaddrs(&interface_array))
+	{
+		return FAILURE;
+	}
+
+	while(nullptr != (master_ip_list = parse_master_config_ip(master_ip_list, ip)))
+	{
+		if(0 == inet_pton(AF_INET, ip, &master_addr))
+		{
+			return FAILURE;
+		}
+		for(struct ifaddrs* interface=interface_array;
+				nullptr != interface; interface=interface->ifa_next)
+		{
+			if(AF_INET == interface->ifa_addr->sa_family)
+				//	|| AF_ROUTE == interface->ifa_addr->sa_family)
+			{
+				struct in_addr* temp_attr=nullptr;
+				temp_attr = &((struct sockaddr_in *)interface->ifa_addr)->sin_addr;
+				if(temp_attr->s_addr == master_addr.s_addr)
+				{
+					master_number = master_total_size;
+					set=true;
+				}
+
+			}
+			/*else
+			{
+				temp_attr = &((struct sockaddr_in6 *)interface->ifa_addr)->sin6_addr;
+			}*/
+		}
+		master_total_size++;
+	}
+
+	freeifaddrs(interface_array);
+	if(set)
+	{
+		return SUCCESS;
+	}
+	else
+	{
+		return FAILURE;
+	}
+}
+void Master::dump_info()
+{
+	_LOG("master number=%d\n", this->master_number);
+	_LOG("master mount point=%s\n",this->_mount_point.c_str());
+	_LOG("master metadata backup point=%s\n",metadata_backup_point.c_str());
+	_LOG("master total size=%d\n", this->master_total_size);
+	return;
 }

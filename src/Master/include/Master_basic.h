@@ -50,12 +50,12 @@ namespace CBB
 				ssize_t get_id()const;
 				std::string& get_ip()const;
 			private:
-				int socket;
-				ssize_t node_id;
-				std::string ip; 
-				file_no_pool_t stored_files; 
-				std::size_t avaliable_memory; 
-				std::size_t total_memory;
+				int 		socket;
+				ssize_t 	node_id;
+				std::string 	ip; 
+				file_no_pool_t 	stored_files; 
+				size_t 		avaliable_memory; 
+				size_t 		total_memory;
 		}; 
 
 		class Master_file_stat
@@ -88,14 +88,14 @@ namespace CBB
 				const std::string& get_filename()const;
 				const std::string& get_filefullpath()const;
 			private:
-				struct stat status;
-				std::string name;
-				int external_flag;
-				int external_master;
-				std::string external_name;
-				int exist_flag;
-				file_stat_pool_t::iterator full_path;
+				struct stat 	status;
+				std::string 	name;
+				int 		external_flag;
+				int 		external_master;
+				std::string 	external_name;
+				int 		exist_flag;
 				open_file_info* opened_file_info;
+				file_stat_pool_t::iterator full_path;
 		};
 
 		class open_file_info
@@ -119,17 +119,14 @@ namespace CBB
 				struct stat& get_stat();
 				const struct stat& get_stat()const;
 			private:
-				ssize_t file_no;
-				//node_t IOnodes_set;
-				block_list_t block_list;
-				node_info_pool_t IOnodes_set;
-				//the node stores the main replica
-				node_info* primary_replica_node;
-				size_t block_size;
-				int open_count;
-				//open file
-				int flag; 
-				Master_file_stat* file_status;
+				ssize_t 		file_no;
+				block_list_t 		block_list;
+				node_info_pool_t 	IOnodes_set;
+				node_info* 		primary_replica_node; //the node stores the main replica
+				size_t 			block_size;
+				int 			open_count;
+				int 			flag; 
+				Master_file_stat* 	file_status;
 		}; 
 
 		inline struct stat& open_file_info::get_stat()

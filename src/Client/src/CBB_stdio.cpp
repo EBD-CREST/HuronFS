@@ -116,7 +116,7 @@ extern "C" int CBB_WRAP(setvbuf)(FILE* stream, char* buf, int type, size_t size)
 	}
 }
 
-extern "C" int CBB_WRAP(fprintf)(FILE *stream, const char * format, ...)
+/*extern "C" int CBB_WRAP(fprintf)(FILE *stream, const char * format, ...)
 {
 	va_list ap;
 	va_start(ap, format);
@@ -165,7 +165,7 @@ extern "C" int CBB_WRAP(vfscanf)(FILE *stream, const char * format, va_list ap)
 		MAP_BACK(vfscanf);
 		return CBB_REAL(vfscanf)(stream, format, ap);
 	}
-}
+}*/
 
 extern "C" int CBB_WRAP(fgetc)(FILE *stream)
 {

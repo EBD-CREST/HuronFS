@@ -16,7 +16,7 @@ $(MAIN):$(OBJ) $(COMMON)
 	$(CC) -o $@ $^ -lpthread
 
 %.o:%.cpp
-	$(CC) -c $(DEP_FLAG) $(FLAG) $(INCLUDE_PATH) -o $@ $<
+	$(CC) -c $(SERVER_WAIT_FLAG) $(DEP_FLAG) $(FLAG) $(INCLUDE_PATH) -o $@ $<
 
 $(COMMON):
 	cd ../Common && $(MAKE) $(notdir $@)

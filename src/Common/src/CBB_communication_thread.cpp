@@ -56,11 +56,19 @@ CBB_communication_thread::~CBB_communication_thread()
 	for(socket_pool_t::iterator it=_socket_pool.begin(); 
 			it!=_socket_pool.end(); ++it)
 	{
-		//inform each client that server is shutdown
-		Send(*it, sizeof(int));
-		Send_flush(*it, I_AM_SHUT_DOWN); 
-		//close socket
-		close(*it); 
+		try
+		{
+			//inform each client that server is shutdown
+			Send(*it, sizeof(int));
+			Send_flush(*it, I_AM_SHUT_DOWN); 
+			//close socket
+			close(*it); 
+		}
+		catch(std::runtime_error& e)
+		{
+			;//ignore
+		}
+
 	}
 	stop_communication_server();
 	close(sender_epollfd);

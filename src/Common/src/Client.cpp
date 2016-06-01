@@ -56,6 +56,11 @@ int Client::input_from_socket(int socket,
 		if(nullptr == output_queue)
 		{
 			output_queue=get_communication_queue_from_socket(socket);
+			if(nullptr == output_queue)
+			{
+				//if there is no one waiting for this socket ignore it
+				return SUCCESS;
+			}
 			new_task=output_queue->allocate_tmp_node();
 			new_task->set_socket(socket);
 		}
@@ -100,13 +105,12 @@ int Client::start_client()
 
 communication_queue_t* Client::get_new_communication_queue()
 {
-	auto begin=_communication_output_queue.begin(), 
+	auto begin=std::begin(_communication_output_queue), 
 	     queue_ptr=begin,
-	     end=_communication_output_queue.end();
+	     end=std::end(_communication_output_queue);
 
-	return &(*queue_ptr);
-	//do not support now
-	/*while(true)
+	//return &(*queue_ptr);
+	while(true)
 	{
 		if(0 == queue_ptr->try_lock_queue())
 		{
@@ -121,13 +125,13 @@ communication_queue_t* Client::get_new_communication_queue()
 				queue_ptr=begin;
 			}
 		}
-	}*/
+	}
 	return nullptr;
 }
 
 communication_queue_t* Client::get_communication_queue_from_socket(int socket)
 {
-	/*for(threads_socket_map_t::iterator it=begin(_threads_socket_map);
+	for(threads_socket_map_t::iterator it=begin(_threads_socket_map);
 			end(_threads_socket_map) != it; ++it)
 	{
 		if(socket == *it)
@@ -135,15 +139,17 @@ communication_queue_t* Client::get_communication_queue_from_socket(int socket)
 			return &_communication_input_queue.at(distance(begin(_threads_socket_map), it));
 		}
 	}
-	_DEBUG("return nullptr socket=%d\n", socket);*/
-	return &_communication_input_queue.at(0);
+	_DEBUG("return nullptr:socket=%d\n", socket);
+	return nullptr;
+	//return &_communication_input_queue.at(0);
 }
 
 int Client::reply_with_socket_error(extended_IO_task* input_task)
 {
-	int index=input_task->get_id();
-	communication_queue_t& input_queue=_communication_input_queue.at(index);
-	extended_IO_task* new_task=input_queue.allocate_tmp_node();
+	int 			index		=input_task->get_id();
+	communication_queue_t& 	input_queue	=_communication_input_queue.at(index);
+	extended_IO_task* 	new_task	=input_queue.allocate_tmp_node();
+
 	new_task->set_error(SOCKET_KILLED);
 	input_queue.task_enqueue_signal_notification();
 	return SUCCESS;
@@ -165,14 +171,15 @@ extended_IO_task* Client::get_query_response(extended_IO_task* query)throw(std::
 	do
 	{
 		ret=get_input_queue_from_query(query)->get_task();
-	}while((query->get_socket() != ret->get_socket())    &&
-			(SUCCESS == print_socket_error(ret)) &&
-			(SUCCESS == dequeue(ret)));	
+	}while((query->get_socket() != ret->get_socket()) 
+			&& (SUCCESS == print_socket_error(ret))
+			&& (SUCCESS == dequeue(ret)));	
 
 	//socket killed
 	if(SOCKET_KILLED == ret->get_error())
 	{
 		response_dequeue(ret);
+		release_communication_queue(query);
 		_DEBUG("socket killed, entry=%p\n", ret);
 
 		_report_IOnode_failure(query->get_socket());

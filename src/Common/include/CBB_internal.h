@@ -105,4 +105,37 @@ inline off64_t get_block_start_point(off64_t start_point)
 	return block_start_point;
 }
 
+inline char* parse_master_config_ip(char* start_ptr,
+				    char* des_ptr)
+{
+	char* next_master_ip=strchr(start_ptr, ',');
+	char* ret=nullptr;
+
+	if(0 == *start_ptr)
+	{
+		return ret;
+	}
+	if(nullptr == next_master_ip)
+	{
+		for(next_master_ip=start_ptr;
+				'\0' != *next_master_ip; ++next_master_ip);
+		strncpy(des_ptr, start_ptr, next_master_ip-start_ptr);
+		des_ptr[next_master_ip-start_ptr]=0;
+		ret=next_master_ip;
+	}
+	else
+	{
+		strncpy(des_ptr, start_ptr, next_master_ip-start_ptr);
+		des_ptr[next_master_ip-start_ptr]=0;
+		ret=next_master_ip+1;
+	}
+	return ret;
+}
+
+inline const char* parse_master_config_ip(const char* start_ptr,
+					  char*	      des_ptr)
+{
+	return parse_master_config_ip(const_cast<char*>(start_ptr), des_ptr);	
+}
+
 #endif

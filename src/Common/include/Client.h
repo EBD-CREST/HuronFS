@@ -115,8 +115,7 @@ namespace CBB
 		inline int Client::release_communication_queue(communication_queue_t* queue)
 		{
 			_DEBUG("release queue %p\n", queue);
-			//return queue->unlock_queue();
-			return SUCCESS;
+			return queue->unlock_queue();
 		}
 
 		inline int Client::release_communication_queue(extended_IO_task* task)

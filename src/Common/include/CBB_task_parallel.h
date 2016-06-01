@@ -19,9 +19,9 @@ namespace CBB
 		inline void yield()
 		{
 #ifdef SLEEP_YIELD
-			usleep(1);
-#else
 			sched_yield();
+#else
+			;
 #endif
 		}
 		class basic_task

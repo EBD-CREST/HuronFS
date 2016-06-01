@@ -49,8 +49,8 @@ Master_file_stat::Master_file_stat(const struct stat& file_stat,
 	external_master(0),
 	external_name(),
 	exist_flag(exist_flag),
-	full_path(nullptr),
-	opened_file_info(nullptr)
+	opened_file_info(nullptr),
+	full_path(nullptr)
 {}
 
 Master_file_stat::Master_file_stat(const struct stat& file_stat, 
@@ -63,8 +63,8 @@ Master_file_stat::Master_file_stat(const struct stat& file_stat,
 	external_master(0),
 	external_name(),
 	exist_flag(exist_flag),
-	full_path(nullptr),
-	opened_file_info(opened_file_info)
+	opened_file_info(opened_file_info),
+	full_path(nullptr)
 {}
 
 Master_file_stat::Master_file_stat():
@@ -74,8 +74,8 @@ Master_file_stat::Master_file_stat():
 	external_master(0),
 	external_name(),
 	exist_flag(),
-	full_path(nullptr),
-	opened_file_info()
+	opened_file_info(),
+	full_path(nullptr)
 {}
 
 node_info::node_info(ssize_t id,

@@ -40,10 +40,8 @@ namespace CBB
 				virtual ~IOnode();
 				int start_server();
 
-				//map node id: socket
-				typedef std::map<ssize_t, int> node_socket_pool_t;
-				//map node id: ip
-				typedef std::map<ssize_t, std::string> node_ip_t;
+				typedef std::map<ssize_t, int> node_socket_pool_t; //map node id: socket
+				typedef std::map<ssize_t, std::string> node_ip_t; //map node id: ip
 
 				//nested class
 			private:
@@ -77,8 +75,7 @@ namespace CBB
 					//this appends when user unlink file while remote handler is writing back
 					bool 			TO_BE_DELETED;
 				};
-				//map: start_point : block*
-				typedef std::map<off64_t, block*> block_info_t; 
+				typedef std::map<off64_t, block*> block_info_t; //map: start_point : block*
 
 				struct file
 				{
