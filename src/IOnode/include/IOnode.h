@@ -111,6 +111,7 @@ namespace CBB
 
 				virtual int remote_task_handler(Common::remote_task* new_task)override final;
 				virtual int data_sync_parser(Common::data_sync_task* new_task)override final;
+				virtual void configure_dump()override final;
 
 				int _send_data(Common::extended_IO_task* new_task);
 				int _receive_data(Common::extended_IO_task* new_task);

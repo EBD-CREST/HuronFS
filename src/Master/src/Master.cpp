@@ -85,7 +85,6 @@ Master::Master()throw(CBB_configure_error):
 	_setup_queues();
 
 	_init_server();
-	dump_info();
 	_buffer_all_meta_data_from_remote(master_mount_point); //throw CBB_configure_error
 }
 
@@ -1968,7 +1967,7 @@ Master::_set_master_number_size(const char*	master_ip_list,
 		return FAILURE;
 	}
 }
-void Master::dump_info()
+void Master::configure_dump()
 {
 	_LOG("master number=%d\n", this->master_number);
 	_LOG("master mount point=%s\n",this->_mount_point.c_str());

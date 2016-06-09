@@ -2,7 +2,11 @@ CBB_LTLIB= libCBB.so
 CBB_SLIB= libCBB.a
 MAIN = cbbfs
 
-COMMON = ../Common/Client.o ../Common/CBB_rwlocker.o ../Common/CBB_communication_thread.o ../Common/CBB_connector.o
+COMMON = ../Common/Client.o \
+	 ../Common/CBB_rwlocker.o \
+	 ../Common/CBB_communication_thread.o \
+	 ../Common/CBB_connector.o \
+	 ../Common/CBB_profiling.o
 
 FUSE_SRC = CBB_fuse.cpp
 BASE_SRC = CBB_client.cpp CBB_stream.cpp CBB_basic.cpp
@@ -29,7 +33,7 @@ $(CBB_SLIB):$(LIB_OBJ) $(BASE_OBJ) $(COMMON)
 	ar -r $@ $^
 
 $(CBB_LTLIB):$(LIB_OBJ) $(BASE_OBJ) $(COMMON)
-	$(CC) -Wl,-soname=libCBB.so.0 $(LIB_FLAG) -o $@ $^ -ldl
+	$(CC) -Wl,-soname=libCBB.so.0 $(LIB_FLAG) -o $@ $^ -ldl -lpthread
 
 $(MAIN):$(FUSE_OBJ) $(BASE_OBJ) $(COMMON) 
 	$(CC) -o $@ $^ -ldl $(FUSE_LIB)

@@ -72,6 +72,7 @@ namespace CBB
 				//virtual int _parse_new_request(int socketfd,
 				//			const struct sockaddr_in& client_addr);
 				virtual CBB_error _parse_request(Common::extended_IO_task* new_task) override final;
+				virtual void configure_dump()override final;
 
 				//request parser
 				CBB_error _parse_regist_IOnode(Common::extended_IO_task* new_task);

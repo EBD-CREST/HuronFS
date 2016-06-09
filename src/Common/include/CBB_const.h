@@ -74,7 +74,7 @@ const int MAX_FILE = 10000;
 //the initial fd, used in Client
 //to avoid conflicts with normal fd, please set a large number
 //mainly used in preload
-const int INIT_FD = 100000;
+const int INIT_FD = 1000;
 //the maximum retry in issuing connection
 const int MAX_CONNECT_TIME = 10;
 //wait time between each connection retry
@@ -179,7 +179,7 @@ const int HEART_BEAT_INTERVAL=1000;
 
 //number of replication
 //the total number of copy=number of replication + primary replica
-const int NUM_OF_REPLICA = 2;
+const int NUM_OF_REPLICA = 0;
 
 //main replica flag
 const int MAIN_REPLICA=0;

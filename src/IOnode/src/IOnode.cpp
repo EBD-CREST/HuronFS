@@ -1138,3 +1138,12 @@ int IOnode::_get_sync_data(extended_IO_task* new_task)
 #endif
 	return ret;
 }
+
+void IOnode::configure_dump()
+{
+	_LOG("my id=%ld\n", my_node_id);
+	_LOG("under master %s\n", inet_ntoa(_master_addr.sin_addr));
+	_LOG("mount point=%s\n", _mount_point.c_str());
+	_LOG("max block %d\n", _MAX_BLOCK_NUMBER);
+	_LOG("avaliable memory %ld\n", _memory); //remain available memory; 
+}

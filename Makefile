@@ -14,8 +14,8 @@ CLIENT_SLIB  = $(CLIENT_DIR)/libCBB.a
 CLIENT_LTLIB = $(CLIENT_DIR)/libCBB.so
 CLIENT_FUSE  = $(CLIENT_DIR)/cbbfs
 
-export CC        =g++
-export LIB_FLAG  =-shared -fPIC
+export CC        = g++
+export LIB_FLAG  = -shared -fPIC
 export PRELOAD   = -DCBB_PRELOAD
 export DEP_FLAG  = -MMD -MP
 #export WRITE_BACK = -DWRITE_BACK

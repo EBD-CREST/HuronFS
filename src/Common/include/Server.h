@@ -40,6 +40,7 @@ namespace CBB
 				virtual std::string _get_real_path(const char* path)const=0;
 				virtual std::string _get_real_path(const std::string& path)const=0;
 				virtual int remote_task_handler(remote_task* new_task)=0;
+				virtual void configure_dump()=0;
 
 				int send_input_for_socket_error(int socket);
 				extended_IO_task* init_response_task(extended_IO_task* input_task);

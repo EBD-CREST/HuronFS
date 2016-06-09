@@ -45,6 +45,7 @@ Server::~Server()
 
 void Server::_init_server()throw(std::runtime_error)
 {
+	configure_dump();
 	_setup_socket();
 	CBB_communication_thread::setup(&_communication_output_queue,
 			&_communication_input_queue);

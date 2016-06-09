@@ -249,6 +249,7 @@ int CBB_client::_open(const char * path, int flag, mode_t mode)throw(std::runtim
 	if(-1 == (fid=_get_fid()))
 	{
 		errno = EMFILE;
+		_DEBUG("error!");
 		return -1; 
 	}
 	try
@@ -298,6 +299,7 @@ int CBB_client::_open(const char * path, int flag, mode_t mode)throw(std::runtim
 		{
 			errno=-ret;
 			response_dequeue(response);
+			_DEBUG("server return error!");
 			return -1;
 		}
 		response_dequeue(response);
@@ -309,7 +311,9 @@ int CBB_client::_open(const char * path, int flag, mode_t mode)throw(std::runtim
 	{
 		file.current_point=file_meta_p->file_stat.st_size;
 	}
-	_DEBUG("file no =%ld, fid = %d\n", file_meta_p->file_no, _fid_to_fd(fid));
+	_DEBUG("file no =%ld, fd = %d\n", file_meta_p->file_no, fd);
+
+	errno=0;
 	return fd;
 }
 
@@ -356,6 +360,9 @@ ssize_t CBB_client::_read_from_IOnode(SCBB* corresponding_SCBB,
 
 	while(0 < read_size)
 	{
+		//profiling
+		//start_recording();
+
 		off64_t offset = current_point-start_point;
 		size_t IO_size = MAX_TRANSFER_SIZE > read_size? read_size : MAX_TRANSFER_SIZE;
 
@@ -396,6 +403,8 @@ ssize_t CBB_client::_read_from_IOnode(SCBB* corresponding_SCBB,
 		}
 		//*buffer=0;
 		response_dequeue(response);
+		//profiling
+		//end_recording();
 	}
 	return ans;
 }
@@ -419,6 +428,8 @@ ssize_t CBB_client::_write_to_IOnode(SCBB *corresponding_SCBB,
 
 	while(0 < write_size)
 	{
+		//profiling
+		//start_recording();
 
 		off64_t offset = current_point-start_point;
 		size_t IO_size = MAX_TRANSFER_SIZE > write_size? write_size: MAX_TRANSFER_SIZE;
@@ -459,6 +470,7 @@ ssize_t CBB_client::_write_to_IOnode(SCBB *corresponding_SCBB,
 			}
 		}
 		response_dequeue(response);
+		//end_recording();
 	}	
 	return ans;
 }
@@ -467,8 +479,10 @@ int CBB_client::_get_IOnode_socket(SCBB	 	 *corresponding_SCBB,
 				   ssize_t 	 IOnode_id,
 				   const string& ip)
 {
+	//start_recording();
 	try
 	{
+		//end_recording();
 		return corresponding_SCBB->get_IOnode_fd(IOnode_id);
 	}
 	catch(std::out_of_range& e)
@@ -488,6 +502,7 @@ int CBB_client::_get_IOnode_socket(SCBB	 	 *corresponding_SCBB,
 		if(SUCCESS == ret)
 		{
 			corresponding_SCBB->insert_IOnode(IOnode_id, IOnode_socket);
+			//end_recording();
 			return IOnode_socket;
 		}
 		else
@@ -893,7 +908,6 @@ int CBB_client::_unlink(const char * path)throw(std::runtime_error)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	_close_local_opened_file(path);
 	int master_socket=_get_master_socket_from_path(path);
 
 	extended_IO_task* query=allocate_new_query(master_socket);
@@ -907,6 +921,7 @@ int CBB_client::_unlink(const char * path)throw(std::runtime_error)
 
 	if(SUCCESS == ret)
 	{
+		_close_local_opened_file(path);
 		return 0;
 	}
 	else
@@ -1232,7 +1247,9 @@ int CBB_client::open(const char *path, int flag, mode_t mode)
 	{
 		try
 		{
+			//start_recording();
 			ret=_open(path, flag, mode);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1241,6 +1258,7 @@ int CBB_client::open(const char *path, int flag, mode_t mode)
 		}
 	}
 	while(true);
+	_DEBUG("ret=%d\n", ret); 
 	return ret;
 }
 
@@ -1289,7 +1307,9 @@ int CBB_client::close(int fd)
 	{
 		try
 		{
+			//start_recording();
 			ret=_close(fd);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1308,7 +1328,9 @@ int CBB_client::flush(int fd)
 	{
 		try
 		{
+			//start_recording();
 			ret=_flush(fd);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1332,7 +1354,9 @@ int CBB_client::getattr(const char *path, struct stat* fstat)
 	{
 		try
 		{
+			//start_recording();
 			ret=_getattr(path, fstat);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1351,7 +1375,9 @@ int CBB_client::readdir(const char* path, dir_t& dir)
 	{
 		try
 		{
+			//start_recording();
 			ret=_readdir(path, dir);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1370,7 +1396,9 @@ int CBB_client::unlink(const char* path)
 	{
 		try
 		{
+			//start_recording();
 			ret=_unlink(path);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1389,7 +1417,9 @@ int CBB_client::rmdir(const char* path)
 	{
 		try
 		{
+			//start_recording();
 			ret=_rmdir(path);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1408,7 +1438,9 @@ int CBB_client::access(const char* path, int mode)
 	{
 		try
 		{
+			//start_recording();
 			ret=_access(path, mode);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1427,7 +1459,9 @@ int CBB_client::stat(const char* path, struct stat* buf)
 	{
 		try
 		{
+			//start_recording();
 			ret=_stat(path, buf);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1446,7 +1480,9 @@ int CBB_client::rename(const char* old_name, const char* new_name)
 	{
 		try
 		{
+			//start_recording();
 			ret=_rename(old_name, new_name);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1465,7 +1501,9 @@ int CBB_client::mkdir(const char* path, mode_t mode)
 	{
 		try
 		{
+			//start_recording();
 			ret=_mkdir(path, mode);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1484,7 +1522,9 @@ int CBB_client::truncate(const char*path, off64_t size)
 	{
 		try
 		{
+			//start_recording();
 			ret=_truncate(path, size);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1503,7 +1543,9 @@ int CBB_client::ftruncate(int fd, off64_t size)
 	{
 		try
 		{
+			//start_recording();
 			ret=_ftruncate(fd, size);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)

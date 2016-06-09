@@ -11,12 +11,15 @@
 #include "Client.h"
 #include "CBB_const.h"
 #include "CBB_basic.h"
+#include "CBB_profiling.h"
 
 namespace CBB
 {
 	namespace Client
 	{
-		class CBB_client:Common::Client
+		class CBB_client:
+			private Common::Client,
+			public Common::CBB_profiling
 		{
 
 			public:
@@ -152,7 +155,7 @@ namespace CBB
 
 		inline int CBB_client::_get_master_socket_from_path(const std::string& path)const
 		{
-			return master_socket_list.at(_get_master_number_from_path(path)).id;
+			return master_socket_list.at(_get_master_number_from_path(path)).master_socket;
 		}
 
 		inline int CBB_client::_get_master_socket_from_master_number(int master_number)const
