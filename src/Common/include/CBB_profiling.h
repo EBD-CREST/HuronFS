@@ -8,12 +8,14 @@ namespace CBB
 {
 	namespace Common
 	{
+#define _RECORD(fp, fmt, args... ) fprintf(fp, "[%s]" fmt, __func__, ##args)
+
 #define record(rec)					\
 		do{					\
-		rec.file_name=__FILE__;			\
-		rec.function_name=__func__;		\
-		rec.line_number=__LINE__;		\
-		gettimeofday(&rec.time, nullptr);	\
+		(rec).file_name=__FILE__;			\
+		(rec).function_name=__func__;		\
+		(rec).line_number=__LINE__;		\
+		gettimeofday(&(rec).time, nullptr);	\
 		}while(0)				\
 
 
@@ -26,6 +28,12 @@ namespace CBB
 		do{			\
 			record(et);	\
 			_print_time();	\
+		}while(0)
+	
+#define record_raws()			\
+		do{			\
+			record(raw);	\
+			print_raw_time();\
 		}while(0)
 
 		class time_record
@@ -46,16 +54,22 @@ namespace CBB
 		class CBB_profiling
 		{
 			public:
-				CBB_profiling()=default;
-				virtual ~CBB_profiling()=default;
+				CBB_profiling();
+				virtual ~CBB_profiling();
 				//void start_recording();
 				//void end_recording();
 			public:
 				void _print_time();
-
+				void print_raw_time();
+				void flush_record();
+			private:
+				int _open_profile_file(const char* file_name);
+				int _close_profile_file();
 			public:
 				time_record	st;
 				time_record	et;
+				time_record     raw;
+				FILE*		fp; //fp for recording
 		};
 
 		inline void time_record::print()

@@ -13,6 +13,7 @@ namespace CBB
 		{
 			public:
 				remote_task();
+				remote_task(int id, remote_task* next);
 				virtual ~remote_task()=default;
 				void set_task_id(int id);
 				int get_task_id()const;

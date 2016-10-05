@@ -15,6 +15,13 @@ const int IONODE_PORT = 7000;
 const int MAX_IONODE = 1000;
 //the size of basic message in communication
 const int MAX_BASIC_MESSAGE_SIZE = 1*MB;
+
+const int RECEIVER_ID_OFF = 0;
+const int SENDER_ID_OFF = RECEIVER_ID_OFF+sizeof(int);
+const int MESSAGE_SIZE_OFF = SENDER_ID_OFF+sizeof(int);
+const int EXTENDED_SIZE_OFF = MESSAGE_SIZE_OFF+sizeof(size_t);
+const int MESSAGE_META_OFF = EXTENDED_SIZE_OFF + sizeof(size_t);
+const int RECV_MESSAGE_OFF = MESSAGE_META_OFF - sizeof(int);
 //const int CLIENT_PORT = 8001;
 //const int IO_CLIENT_PORT = 8002;
 
@@ -99,8 +106,8 @@ const bool SET = true;
 
 //command operations
 const int CLOSE_PIPE = 0;
-const int REGIST = 1; 
-const int UNREGIST = 2;
+const int REGISTER = 1; 
+const int UNREGISTER = 2;
 const int PRINT_NODE_INFO = 3; 
 const int GET_FILE_INFO = 4; 
 const int OPEN_FILE = 5;

@@ -1,5 +1,6 @@
 #include "CBB_basic.h"
 using namespace CBB::Client;
+using namespace CBB::Common;
 
 block_info::block_info(off64_t start_point,
 		       size_t size):
@@ -56,13 +57,13 @@ opened_file_info::opened_file_info(const opened_file_info& src):
 }
 
 SCBB::SCBB(int id,
-	   int socket):
+	   comm_handle_t handle):
 	IOnode_list(),
 	id(id),
-	master_socket(socket)
+	master_handle(handle)
 {}
 
-int SCBB::get_IOnode_fd(ssize_t IOnode_id)	
+comm_handle_t SCBB::get_IOnode_fd(ssize_t IOnode_id)	
 {
 	return IOnode_list.at(IOnode_id);
 }

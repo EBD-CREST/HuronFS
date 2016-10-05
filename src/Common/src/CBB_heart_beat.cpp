@@ -26,11 +26,10 @@ void CBB_heart_beat::set_queues(communication_queue_t* input_queue,
 int CBB_heart_beat::heart_beat_check()
 {
 	_DEBUG("start heart beat check\n");
-	socket_map_t map;
-	get_IOnode_socket_map(map);
+	handle_map_t map;
+	get_IOnode_handle_map(map);
 	for(const auto& item : map)
 	{
-		_DEBUG("check heart beat of %d\n", item.first);
 		send_heart_beat_check(item.first);
 	}
 	return SUCCESS;
@@ -52,11 +51,11 @@ void CBB_heart_beat::stop_heart_beat_check()
 	keepAlive=NOT_KEEP_ALIVE;
 }*/
 
-int CBB_heart_beat::send_heart_beat_check(int socket)
+int CBB_heart_beat::send_heart_beat_check(comm_handle_t handle)
 {
 	int ret=0;
 	extended_IO_task* new_task=output_queue->allocate_tmp_node();
-	new_task->set_socket(socket);
+	new_task->set_handle(handle);
 	new_task->push_back(HEART_BEAT);
 	output_queue->task_enqueue();
 	return ret;

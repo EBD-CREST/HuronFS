@@ -1,6 +1,8 @@
 #ifndef CBB_CONNECTOR_H_
 #define CBB_CONNECTOR_H_
 
+#include "Communication.h"
+
 namespace CBB
 {
 	namespace Common
@@ -9,8 +11,6 @@ namespace CBB
 		{
 			public:
 				virtual ~CBB_connector();
-				int _connect_to_server(const struct sockaddr_in& client_addr,
-						const struct sockaddr_in& server_addr)const throw(std::runtime_error); 
 		};
 	}
 }

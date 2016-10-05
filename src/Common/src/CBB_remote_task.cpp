@@ -7,6 +7,14 @@
 using namespace CBB::Common;
 
 remote_task::remote_task():
+	basic_task(),
+	task_id(0),
+	task_data(nullptr),
+	extended_task_data(nullptr)
+{}
+
+remote_task::remote_task(int id, remote_task* next):
+	basic_task(id, next),
 	task_id(0),
 	task_data(nullptr),
 	extended_task_data(nullptr)

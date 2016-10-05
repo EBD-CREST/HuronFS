@@ -7,12 +7,13 @@ SRC = Server.cpp \
       CBB_dir.cpp \
       CBB_communication_thread.cpp \
       CBB_request_handler.cpp \
-      CBB_connector.cpp \
       CBB_remote_task.cpp \
       CBB_heart_beat.cpp \
       CBB_data_sync.cpp \
       CBB_serialization.cpp \
+      CBB_tcp.cpp\
       CBB_profiling.cpp
+
 OBJ = $(SRC:.cpp=.o)
 DEP = $(SRC:.cpp=.d)
 SRC_DIR = src

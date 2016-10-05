@@ -4,6 +4,17 @@ using namespace std;
 using namespace CBB;
 using namespace CBB::Common;
 
+data_sync_task::data_sync_task(int id, data_sync_task* next):
+	basic_task(id, next),
+	task_id(),
+	handle(),
+	receiver_id(),
+	_file(),
+	start_point(),
+	offset(),
+	size()
+{}
+
 CBB_data_sync::CBB_data_sync():
 	keepAlive(KEEP_ALIVE),
 	thread_started(UNSTARTED),
@@ -73,7 +84,7 @@ int CBB_data_sync::add_data_sync_task(int task_id,
 		off64_t offset,
 		ssize_t size,
 		int receiver_id,
-		int socket)
+		comm_handle_t handle)
 {
 	data_sync_task* new_data_sync_task=data_sync_queue.allocate_tmp_node();
 	new_data_sync_task->task_id=task_id;
@@ -82,6 +93,6 @@ int CBB_data_sync::add_data_sync_task(int task_id,
 	new_data_sync_task->receiver_id=receiver_id;
 	new_data_sync_task->offset=offset;
 	new_data_sync_task->size=size;
-	new_data_sync_task->socket=socket;
+	new_data_sync_task->handle=handle;
 	return data_sync_queue.task_enqueue_signal_notification();
 }

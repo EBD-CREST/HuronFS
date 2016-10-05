@@ -14,6 +14,65 @@ ssize_t time_record::diff(time_record& et)
 void CBB_profiling::_print_time()
 {
 	//_LOG("start time %ld %ld, end time %ld %ld\n", st.time.tv_sec, st.time.tv_usec, et.time.tv_sec, et.time.tv_usec);
-	_LOG("from %s %d to %s %d difference %ld us\n", st.function_name, st.line_number
-			,et.function_name, et.line_number, st.diff(et));
+#ifdef PROFILING
+	_RECORD(this->fp, "from %s %d to %s %d difference %ld us\n",
+			st.function_name, st.line_number,
+			et.function_name, et.line_number, st.diff(et));
+#endif
+}
+
+void CBB_profiling::print_raw_time()
+{
+	//_LOG("start time %ld %ld, end time %ld %ld\n", st.time.tv_sec, st.time.tv_usec, et.time.tv_sec, et.time.tv_usec);
+#ifdef PROFILING
+	_RECORD(this->fp, "at %s %d %ld %ld\n",
+			raw.function_name, 
+			raw.line_number, 
+			raw.time.tv_sec, 
+			raw.time.tv_usec);
+#endif
+}
+
+void CBB_profiling::flush_record()
+{
+	fflush(this->fp);
+}
+
+int CBB_profiling::_open_profile_file(const char* file_name)
+{
+#ifdef PROFILING
+	_close_profile_file();
+	if( nullptr == (fp=fopen(file_name, "w")))
+	{
+		perror("fopen");
+		return FAILURE;
+	}
+#endif
+	return SUCCESS;
+}
+
+int CBB_profiling::_close_profile_file()
+{
+	if( nullptr != fp)
+	{
+		fclose(fp);
+	}
+	return SUCCESS;
+}
+
+CBB_profiling::CBB_profiling():
+	st(),
+	et(),
+	fp(nullptr)
+{
+#ifdef PROFILING
+	_open_profile_file("profile");
+#endif
+}
+
+CBB_profiling::~CBB_profiling()
+{
+#ifdef PROFILING
+	_close_profile_file();
+#endif
 }

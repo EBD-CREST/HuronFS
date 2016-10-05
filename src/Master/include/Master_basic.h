@@ -7,6 +7,8 @@
 #include <set>
 
 #include "CBB_const.h"
+#include "CBB_communication_thread.h"
+#include "Comm_api.h"
 //#include "CBB_socket.h"
 //#include "CBB_rwlocker.h"
 //#include "CBB_map.h"
@@ -43,16 +45,16 @@ namespace CBB
 				//set file_no
 				friend class Master;
 				node_info(ssize_t id,
-						const std::string& ip,
+						const std::string& uri,
 						std::size_t total_memory,
-						int socket); 
+						Common::comm_handle_t handle); 
 				~node_info()=default;
 				ssize_t get_id()const;
-				std::string& get_ip()const;
+				const std::string& get_uri()const;
 			private:
-				int 		socket;
+				Common::comm_handle	handle;
 				ssize_t 	node_id;
-				std::string 	ip; 
+				std::string 	uri; 
 				file_no_pool_t 	stored_files; 
 				size_t 		avaliable_memory; 
 				size_t 		total_memory;
@@ -217,6 +219,11 @@ namespace CBB
 				return -1;
 			}
 		}
+		inline const std::string& node_info::
+			get_uri()const
+			{
+				return this->uri;
+			}
 	}
 }
 

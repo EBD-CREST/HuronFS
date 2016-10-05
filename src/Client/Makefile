@@ -5,12 +5,15 @@ MAIN = cbbfs
 COMMON = ../Common/Client.o \
 	 ../Common/CBB_rwlocker.o \
 	 ../Common/CBB_communication_thread.o \
-	 ../Common/CBB_connector.o \
+	 ../Common/CBB_tcp.o\
 	 ../Common/CBB_profiling.o
 
 FUSE_SRC = CBB_fuse.cpp
-BASE_SRC = CBB_client.cpp CBB_stream.cpp CBB_basic.cpp
-LIB_SRC = CBB_posix.cpp CBB_stdio.cpp
+BASE_SRC = CBB_client.cpp \
+	   CBB_stream.cpp \
+	   CBB_basic.cpp
+LIB_SRC = CBB_posix.cpp \
+	  CBB_stdio.cpp
 SRC = $(FUSE_SRC) $(BASE_SRC) $(LIB_SRC)
 FUSE_OBJ = $(FUSE_SRC:.cpp=.o)
 BASE_OBJ = $(BASE_SRC:.cpp=.o)

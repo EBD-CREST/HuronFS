@@ -11,7 +11,7 @@
 
 #include "Master.h"
 #include "CBB_internal.h"
-#include "Communication.h"
+#include "Comm_api.h"
 
 using namespace CBB::Common;
 using namespace CBB::Master;
@@ -26,17 +26,17 @@ const char *Master::MASTER_IP_LIST	="CBB_MASTER_IP_LIST";
 Master::Master()throw(CBB_configure_error):
 	Server(MASTER_QUEUE_NUM, MASTER_PORT), 
 	CBB_heart_beat(),
-	_registed_IOnodes(IOnode_t()), 
+	_registered_IOnodes(IOnode_t()), 
 	_file_stat_pool(),
 	_buffered_files(), 
-	_IOnode_socket(IOnode_sock_t()), 
+	_IOnode_handle(IOnode_handle_t()), 
 	_file_number(0), 
 	_node_id_pool(new bool[MAX_IONODE]), 
 	_file_no_pool(new bool[MAX_FILE_NUMBER]), 
 	_current_node_number(0), 
 	_current_file_no(0),
 	_mount_point(),
-	_current_IOnode(_registed_IOnodes.end())
+	_current_IOnode(_registered_IOnodes.end())
 {
 	const char *master_mount_point		=getenv(MASTER_MOUNT_POINT);
 	const char *master_backup_point_string 	=getenv(MASTER_BACKUP_POINT);
@@ -59,15 +59,6 @@ Master::Master()throw(CBB_configure_error):
 	{
 		throw CBB_configure_error("please set master ip list");
 	}
-	/*if(nullptr == master_number_string)
-	{
-		throw CBB_configure_error("please set master number");
-	}
-	if(nullptr == master_total_size_string)
-	{
-		throw CBB_configure_error("please set master total number");
-	}*/
-
 
 	if(FAILURE == _set_master_number_size(master_ip_list_string,
 			        master_number,
@@ -98,12 +89,12 @@ CBB::CBB_error Master::_setup_queues()
 Master::~Master()
 {
 	Server::stop_server(); 
-	for(IOnode_t::iterator it=_registed_IOnodes.begin();
-			it!=_registed_IOnodes.end();++it)
+	for(IOnode_t::iterator it=_registered_IOnodes.begin();
+			it!=_registered_IOnodes.end();++it)
 	{
 		
-		Send(it->second->socket, I_AM_SHUT_DOWN);
-		close(it->second->socket);
+		Send(&(it->second->handle), I_AM_SHUT_DOWN);
+		Close(&(it->second->handle));
 		delete it->second;
 	}
 	for(File_t::iterator it=_buffered_files.begin();
@@ -157,8 +148,8 @@ CBB::CBB_error Master::_parse_request(extended_IO_task* new_task)
 
 	switch(request)
 	{
-		case REGIST:
-			_parse_regist_IOnode(new_task);	break;
+		case REGISTER:
+			_parse_register_IOnode(new_task);	break;
 		case NEW_CLIENT:
 			_parse_new_client(new_task);	break;
 		case OPEN_FILE:
@@ -199,21 +190,21 @@ CBB::CBB_error Master::_parse_request(extended_IO_task* new_task)
 	return ans; 
 }
 
+//R: uri	:char
 //R: total memory: size_t
 //S: node_id: ssize_t
-CBB::CBB_error Master::_parse_regist_IOnode(extended_IO_task* new_task)
+CBB::CBB_error Master::_parse_register_IOnode(extended_IO_task* new_task)
 {
-	struct sockaddr_in addr;
-	size_t 		total_memory	=0;
-	socklen_t 	len		=sizeof(addr);
+	size_t 	total_memory	=0;
+	char*	uri		=nullptr;
 
-	getpeername(new_task->get_socket(), reinterpret_cast<sockaddr*>(&addr), &len); 
-	std::string ip=std::string(inet_ntoa(addr.sin_addr));
-	_LOG("regist IOnode\nip=%s\n",ip.c_str());
+	new_task->pop_string(&uri);
+	std::string uri_string=std::string(uri);
+	_LOG("register IOnode uri=%s\n",uri);
 	new_task->pop(total_memory);
 
 	extended_IO_task* output=init_response_task(new_task);
-	output->push_back(_add_IOnode(ip, total_memory, new_task->get_socket()));
+	output->push_back(_add_IOnode(uri, total_memory, new_task->get_handle()));
 	output_task_enqueue(output);
 	_DEBUG("total memory %lu\n", total_memory);
 	return SUCCESS;
@@ -222,11 +213,10 @@ CBB::CBB_error Master::_parse_regist_IOnode(extended_IO_task* new_task)
 //S: SUCCESS: int
 CBB::CBB_error Master::_parse_new_client(extended_IO_task* new_task)
 {
-	struct sockaddr_in 	addr;
-	socklen_t 		len=sizeof(addr);
-	getpeername(new_task->get_socket(), reinterpret_cast<sockaddr*>(&addr), &len); 
-	std::string ip=std::string(inet_ntoa(addr.sin_addr));
-	_LOG("new client ip=%s\n", ip.c_str());
+	//char * uri=nullptr;	
+	//new_task->pop_string(&uri);
+	//std::string ip=std::string(uri);
+	_LOG("new client\n");
 
 	extended_IO_task* output=init_response_task(new_task);
 
@@ -443,7 +433,7 @@ CBB::CBB_error Master::_parse_flush_file(extended_IO_task* new_task)
 		output_task_enqueue(output);
 		_DEBUG("write back request to IOnode %ld, file_no %ld\n", file.primary_replica_node->node_id, file_no);
 		extended_IO_task* IOnode_output=allocate_output_task(_get_my_thread_id());
-		IOnode_output->set_socket(file.primary_replica_node->socket);
+		IOnode_output->set_handle(file.primary_replica_node->handle);
 		IOnode_output->push_back(FLUSH_FILE);
 		IOnode_output->push_back(file_no);
 		output_task_enqueue(IOnode_output);
@@ -485,7 +475,7 @@ CBB::CBB_error Master::_parse_close_file(extended_IO_task* new_task)
 	}
 	_DEBUG("write back request to IOnode %ld\n", file->primary_replica_node->node_id);
 	extended_IO_task* IOnode_output=allocate_output_task(_get_my_thread_id());
-	IOnode_output->set_socket(file->primary_replica_node->socket);
+	IOnode_output->set_handle(file->primary_replica_node->handle);
 	IOnode_output->push_back(CLOSE_FILE);
 	IOnode_output->push_back(file_no);
 	output_task_enqueue(IOnode_output);
@@ -791,7 +781,7 @@ void Master::_send_rename_request(node_info	*node,
 				  const string 	&new_relative_path)
 {
 	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
-	output->set_socket(node->socket);
+	output->set_handle(node->handle);
 	output->push_back(RENAME);
 	output->push_back(file_no);
 	output->push_back_string(new_relative_path.c_str(), new_relative_path.size());
@@ -802,9 +792,9 @@ void Master::_send_rename_request(node_info	*node,
 CBB::CBB_error Master::_parse_close_client(extended_IO_task* new_task)
 {
 	_LOG("close client\n");
-	int socket=new_task->get_socket();
-	Server::_delete_socket(socket);
-	close(socket);
+	comm_handle_t handle=new_task->get_handle();
+	Server::_delete_handle(handle);
+	Close(handle);
 	return SUCCESS;
 }
 
@@ -882,7 +872,7 @@ void Master::_send_truncate_request(node_info 	*node,
 	extended_IO_task* output=nullptr;
 
 	output=allocate_output_task(_get_my_thread_id());
-	output->set_socket(node->socket);
+	output->set_handle(node->handle);
 	output->push_back(TRUNCATE);
 	output->push_back(fd);
 	output->push_back(block_start_point);
@@ -917,17 +907,17 @@ CBB::CBB_error Master::_parse_rename_migrating(extended_IO_task* new_task)
 
 CBB::CBB_error Master::_parse_node_failure(extended_IO_task* new_task)
 {
-	int 				socket	=new_task->get_socket();
-	IOnode_sock_t::const_iterator 	it	=_IOnode_socket.find(socket);
+	comm_handle_t			handle	=new_task->get_handle();
+	IOnode_handle_t::const_iterator	it	=_IOnode_handle.find(handle);
 
 	_LOG("parsing node failure\n");
-	if(end(_IOnode_socket) != it)
+	if(end(_IOnode_handle) != it)
 	{
 		return _IOnode_failure_handler(it->second);
 	}
 	else
 	{
-		return _close_client(socket);
+		return _close_client(handle);
 	}
 }
 
@@ -936,14 +926,14 @@ CBB::CBB_error Master::_IOnode_failure_handler(node_info* IOnode_info)
 	_DEBUG("handle IOnode failure node id=%ld\n", IOnode_info->node_id);
 	_send_remove_IOnode_request(IOnode_info);
 	_recreate_replicas(IOnode_info);
-	return _unregist_IOnode(IOnode_info);
+	return _unregister_IOnode(IOnode_info);
 }
 
 CBB::CBB_error Master::_recreate_replicas(node_info* IOnode_info)
 {
 	_LOG("recreating new replicas\n");
 
-	if(1 == _registed_IOnodes.size())
+	if(1 == _registered_IOnodes.size())
 	{
 		//only one node remains
 		_remove_IOnode_buffered_file(IOnode_info);
@@ -1007,7 +997,7 @@ Master::_resend_replica_nodes_info_to_new_node(open_file_info	*file_info,
 	_LOG("send replica info to new main node\n");
 
 	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
-	output->set_socket(primary_replica_node->socket);
+	output->set_handle(primary_replica_node->handle);
 	output->push_back(PROMOTED_TO_PRIMARY_REPLICA);
 	output->push_back(file_info->file_no);
 	output->push_back(new_node->node_id);
@@ -1025,12 +1015,12 @@ Master::_replace_replica_nodes_info(open_file_info	*file_info,
 	_LOG("send replica info to new main node\n");
 
 	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
-	output->set_socket(file_info->primary_replica_node->socket);
+	output->set_handle(file_info->primary_replica_node->handle);
 	output->push_back(REPLACE_REPLICA);
 	output->push_back(file_info->file_no);
 	output->push_back(replaced_info->node_id);
 	output->push_back(new_IOnode->node_id);
-	output->push_back_string(new_IOnode->ip.c_str(), new_IOnode->ip.size());
+	output->push_back_string(new_IOnode->uri);
 	output_task_enqueue(output);
 
 	return SUCCESS;
@@ -1040,10 +1030,10 @@ CBB::CBB_error Master::_send_remove_IOnode_request(node_info* removed_IOnode)
 {
 	_LOG("send remove IOnode request to each IOnode\n");
 
-	for(auto& IOnode:_registed_IOnodes)
+	for(auto& IOnode:_registered_IOnodes)
 	{
 		extended_IO_task* output=allocate_output_task(_get_my_thread_id());
-		output->set_socket(IOnode.second->socket);
+		output->set_handle(IOnode.second->handle);
 		output->push_back(REMOVE_IONODE);
 		output->push_back(removed_IOnode->node_id);
 		output_task_enqueue(output);
@@ -1070,11 +1060,11 @@ node_info* Master::_allocate_replace_IOnode(node_info_pool_t& 	node_pool,
 	return new_node;
 }
 
-CBB::CBB_error Master::_unregist_IOnode(node_info* IOnode_info)
+CBB::CBB_error Master::_unregister_IOnode(node_info* IOnode_info)
 {
-	int socket=IOnode_info->socket;
-	_LOG("unregist IOnode id %ld\n", IOnode_info->node_id);
-	_IOnode_socket.erase(socket);
+	comm_handle_t handle=&IOnode_info->handle;
+	_LOG("unregister IOnode id %ld\n", IOnode_info->node_id);
+	_IOnode_handle.erase(handle);
 	
 	_remove_IOnode(IOnode_info);
 	return SUCCESS;
@@ -1089,7 +1079,7 @@ CBB::CBB_error Master::_remove_IOnode(node_info* IOnode_info)
 		_current_IOnode++;
 	}
 
-	_registed_IOnodes.erase(IOnode_info->node_id);
+	_registered_IOnodes.erase(IOnode_info->node_id);
 	delete IOnode_info;
 	return SUCCESS;
 }
@@ -1110,10 +1100,10 @@ CBB::CBB_error Master::_remove_IOnode_buffered_file(node_info* IOnode_info)
 	return SUCCESS;
 }
 
-CBB::CBB_error Master::_close_client(int socket)
+CBB::CBB_error Master::_close_client(comm_handle_t handle)
 {
-	_LOG("closing client socket %d\n", socket);
-	Server::_delete_socket(socket);
+	_LOG("closing client handle %p\n", handle);
+	Server::_delete_handle(handle);
 	return SUCCESS;
 }
 	
@@ -1137,8 +1127,8 @@ void Master::_send_block_info(Common::extended_IO_task	*output,
 	for(auto& node_info:node_info_pool)
 	{
 		output->push_back(node_info->node_id);
-		const std::string& ip=node_info->ip;
-		output->push_back_string(ip.c_str(), ip.size());
+		const std::string& uri=node_info->uri;
+		output->push_back_string(uri);
 	}
 
 	output->push_back(static_cast<int>(block_list.size()));
@@ -1168,7 +1158,7 @@ void Master::_send_append_request(ssize_t file_no,
 			nodes_it != append_blocks.end();++nodes_it)
 	{
 		extended_IO_task* output=allocate_output_task(0);
-		output->set_socket(_registed_IOnodes.at(nodes_it->first)->socket);
+		output->set_handle(_registered_IOnodes.at(nodes_it->first)->handle);
 		output->push_back(APPEND_BLOCK);
 		output->push_back(file_no);
 		output->push_back(static_cast<int>(nodes_it->second.size()));
@@ -1199,10 +1189,10 @@ Master::_send_open_request_to_IOnodes(struct open_file_info  &file,
 {
 	//send read request to each IOnode
 	//buffer requset, file_no, open_flag, exist_flag, file_path, start_point, block_size
-	int 		  socket=current_node_info->socket;
+	comm_handle_t 	 handle=&current_node_info->handle;
 	extended_IO_task *output=allocate_output_task(_get_my_thread_id());
 
-	output->set_socket(socket);
+	output->set_handle(handle);
 	output->push_back(OPEN_FILE);
 	output->push_back(file.file_no); 
 	output->push_back(file.flag);
@@ -1240,39 +1230,39 @@ Master::_send_replica_nodes_info(extended_IO_task 	*output,
 	for(auto& node_info:IOnodes_set)
 	{
 		output->push_back(node_info->node_id);
-		output->push_back_string(node_info->ip.c_str());
+		output->push_back_string(node_info->get_uri());
 	}
 	return SUCCESS;
 }
 
-ssize_t Master::_add_IOnode(const string &node_ip,
-			    size_t 	 total_memory,
-			    int 	 socket)
+ssize_t Master::_add_IOnode(const string  &node_uri,
+			    size_t 	  total_memory,
+			    comm_handle_t handle)
 {
 	ssize_t id=0; 
 	if(-1 == (id=_get_node_id()))
 	{
 		return -1;
 	}
-	if(_registed_IOnodes.end() != _find_by_ip(node_ip))
+	if(_registered_IOnodes.end() != _find_by_uri(node_uri))
 	{
 		return -1;
 	}
-	_registed_IOnodes.insert(std::make_pair(id, new node_info(id, node_ip, total_memory, socket)));
-	node_info *node=_registed_IOnodes.at(id); 
-	_IOnode_socket.insert(std::make_pair(socket, node)); 
-	Server::_add_socket(socket); 
+	_registered_IOnodes.insert(std::make_pair(id, new node_info(id, node_uri, total_memory, handle)));
+	node_info *node=_registered_IOnodes.at(id); 
+	_IOnode_handle.insert(std::make_pair(handle, node)); 
+	Server::_add_handle(handle); 
 	return id; 
 }
 
-ssize_t Master::_delete_IOnode(int socket)
+ssize_t Master::_delete_IOnode(comm_handle_t handle)
 {
-	node_info *node=_IOnode_socket.at(socket);
+	node_info *node=_IOnode_handle.at(handle);
 	ssize_t id=node->node_id;
-	_registed_IOnodes.erase(id);
-	Server::_delete_socket(socket); 
-	close(socket); 
-	_IOnode_socket.erase(socket); 
+	_registered_IOnodes.erase(id);
+	Server::_delete_handle(handle); 
+	Close(handle); 
+	_IOnode_handle.erase(handle); 
 	_node_id_pool[id]=false;
 	delete node;
 	return id;
@@ -1324,7 +1314,7 @@ const node_info_pool_t& Master::_open_file(const char 	*file_path,
 
 ssize_t Master::_get_node_id()
 {
-	if(MAX_IONODE == _registed_IOnodes.size())
+	if(MAX_IONODE == _registered_IOnodes.size())
 	{
 		return -1;
 	}
@@ -1379,10 +1369,10 @@ void Master::_release_file_no(ssize_t file_no)
 	return;
 }
 
-Master::IOnode_t::iterator Master::_find_by_ip(const string &ip)
+Master::IOnode_t::iterator Master::_find_by_uri(const string &uri)
 {
-	IOnode_t::iterator it=_registed_IOnodes.begin();
-	for(; it != _registed_IOnodes.end() && ! (it->second->ip == ip); ++it);
+	IOnode_t::iterator it=_registered_IOnodes.begin();
+	for(; it != _registered_IOnodes.end() && ! (it->second->uri == uri); ++it);
 	return it;
 }
 
@@ -1401,7 +1391,7 @@ Master::_create_new_open_file_info(ssize_t 		file_no,
 		stat->opened_file_info=new_file;
 
 		new_file->primary_replica_node=_select_IOnode(file_no,
-				MIN(NUM_OF_REPLICA, _registed_IOnodes.size()),
+				MIN(NUM_OF_REPLICA, _registered_IOnodes.size()),
 				new_file->IOnodes_set);
 		_create_block_list(new_file->get_stat().st_size,
 				new_file->block_size,
@@ -1475,7 +1465,7 @@ node_info* Master::_select_IOnode(ssize_t 		file_no,
 				  node_info_pool_t 	&node_info_pool)
 				  throw(std::runtime_error)
 {
-	if(0 == _registed_IOnodes.size())
+	if(0 == _registered_IOnodes.size())
 	{
 		//no IOnode
 		throw std::runtime_error("no IOnode");
@@ -1485,17 +1475,17 @@ node_info* Master::_select_IOnode(ssize_t 		file_no,
 	node_info* main_replica=_get_next_IOnode();
 	main_replica->stored_files.insert(file_no);
 	//insert sub replica
-	if(static_cast<int>(_registed_IOnodes.size()-1) <num_of_nodes)
+	if(static_cast<int>(_registered_IOnodes.size()-1) <num_of_nodes)
 	{
-		num_of_nodes=_registed_IOnodes.size()-1;
+		num_of_nodes=_registered_IOnodes.size()-1;
 	}
 
 	auto _replica_IOnode=_current_IOnode;
 	for(;0 < num_of_nodes;num_of_nodes--)
 	{
-		if(end(_registed_IOnodes) == _replica_IOnode)
+		if(end(_registered_IOnodes) == _replica_IOnode)
 		{
-			_replica_IOnode=begin(_registed_IOnodes);
+			_replica_IOnode=begin(_registered_IOnodes);
 		}
 		_replica_IOnode->second->stored_files.insert(file_no);
 		node_info_pool.insert((_replica_IOnode++)->second);
@@ -1568,7 +1558,7 @@ Master::_allocate_new_blocks_for_writing(open_file_info 	&file,
 	{
 		node_info_pool.insert(nodes);
 	}
-	//node_info &selected_node=_registed_IOnodes.at(node_id);
+	//node_info &selected_node=_registered_IOnodes.at(node_id);
 	return;
 	if(selected_node.avaliable_memory >= BLOCK_SIZE)
 	{
@@ -1626,7 +1616,7 @@ void Master::_send_remove_request(node_info 	*IOnode,
 				  ssize_t 	file_no)
 {
 	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
-	output->set_socket(IOnode->socket);
+	output->set_handle(IOnode->handle);
 	output->push_back(UNLINK);
 	_DEBUG("unlink file no=%ld\n", file_no);
 	output->push_back(file_no);
@@ -1738,20 +1728,20 @@ Master::_dfs_items_in_remote(DIR 	*current_remote_directory,
 	return SUCCESS;
 }
 
-CBB::CBB_error Master::get_IOnode_socket_map(socket_map_t& socket_map)
+CBB::CBB_error Master::get_IOnode_handle_map(handle_map_t& handle_map)
 {
-	for(const auto& IOnode:_IOnode_socket)
+	for(const auto& IOnode:_IOnode_handle)
 	{
-		socket_map.insert(std::make_pair(IOnode.first, IOnode.second->node_id));
+		handle_map.insert(std::make_pair(IOnode.first, IOnode.second->node_id));
 	}
 	return SUCCESS;
 }
 
-CBB::CBB_error Master::node_failure_handler(int node_socket)
+CBB::CBB_error Master::node_failure_handler(comm_handle_t node_handle)
 {
 	//dummy code
-	_DEBUG("IOnode failed socket=%d\n", node_socket);
-	return send_input_for_socket_error(node_socket);
+	_DEBUG("IOnode failed handle=%p\n", node_handle);
+	return send_input_for_handle_error(node_handle);
 }
 
 CBB::CBB_error Master::_remote_rename(Common::remote_task* new_task)
@@ -1819,14 +1809,14 @@ CBB::CBB_error Master::_remote_mkdir(Common::remote_task* new_task)
 
 node_info* Master::_get_next_IOnode()
 {
-	if(0 == _registed_IOnodes.size())
+	if(0 == _registered_IOnodes.size())
 	{
 		//out of nodes
 		return nullptr;
 	}
-	if(end(_registed_IOnodes) == _current_IOnode)
+	if(end(_registered_IOnodes) == _current_IOnode)
 	{
-		_current_IOnode=begin(_registed_IOnodes);
+		_current_IOnode=begin(_registered_IOnodes);
 	}
 	return (_current_IOnode++)->second;
 }
@@ -1837,9 +1827,9 @@ CBB::CBB_error Master::_parse_IOnode_failure(extended_IO_task* new_task)
 	new_task->pop(IOnode_id);
 	_DEBUG("IOnode failure node_id=%ld\n", IOnode_id);
 	
-	IOnode_t::iterator it=_registed_IOnodes.find(IOnode_id);
+	IOnode_t::iterator it=_registered_IOnodes.find(IOnode_id);
 
-	if(end(_registed_IOnodes) != it)
+	if(end(_registered_IOnodes) != it)
 	{
 		_IOnode_failure_handler(it->second);
 	}
@@ -1945,6 +1935,7 @@ Master::_set_master_number_size(const char*	master_ip_list,
 				if(temp_attr->s_addr == master_addr.s_addr)
 				{
 					master_number = master_total_size;
+					my_uri=string(inet_ntoa(*temp_attr));
 					set=true;
 				}
 

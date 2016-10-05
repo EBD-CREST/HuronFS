@@ -1,6 +1,7 @@
 #include "Master_basic.h"
 
 using namespace CBB::Master;
+using namespace CBB::Common;
 
 open_file_info::open_file_info(ssize_t fileno,
 		size_t block_size,
@@ -79,13 +80,15 @@ Master_file_stat::Master_file_stat():
 {}
 
 node_info::node_info(ssize_t id,
-		const std::string& ip,
+		const std::string& uri,
 		size_t total_memory,
-		int socket):
-	socket(socket),
+		comm_handle_t handle):
+	handle(),
 	node_id(id),
-	ip(ip), 
+	uri(uri), 
 	stored_files(file_no_pool_t()), 
 	avaliable_memory(total_memory), 
 	total_memory(total_memory)
-{}
+{
+	memcpy(&(this->handle), handle, sizeof(this->handle));
+}

@@ -12,7 +12,7 @@ namespace CBB
 		{
 			public:
 				//socket, IOnode_id
-				typedef std::map<int, ssize_t> socket_map_t;
+				typedef std::map<comm_handle_t, ssize_t> handle_map_t;
 				CBB_heart_beat();
 				CBB_heart_beat(communication_queue_t* input_queue,
 						communication_queue_t* output_queue);	
@@ -24,8 +24,8 @@ namespace CBB
 
 				void heart_beat_func();
 
-				int send_heart_beat_check(int socket);
-				virtual int get_IOnode_socket_map(socket_map_t& map)=0;
+				int send_heart_beat_check(comm_handle_t handle);
+				virtual int get_IOnode_handle_map(handle_map_t& map)=0;
 			private:
 				CBB_heart_beat(const CBB_heart_beat&) = delete;	
 				CBB_heart_beat& operator=(const CBB_heart_beat&) = delete;

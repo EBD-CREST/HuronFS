@@ -11,15 +11,13 @@
 #include "Client.h"
 #include "CBB_const.h"
 #include "CBB_basic.h"
-#include "CBB_profiling.h"
 
 namespace CBB
 {
 	namespace Client
 	{
 		class CBB_client:
-			private Common::Client,
-			public Common::CBB_profiling
+			private Common::Client
 		{
 
 			public:
@@ -109,8 +107,11 @@ namespace CBB
 						size_t size);
 
 				int _get_fid();
-				int _regist_to_master();
-				int _get_IOnode_socket(SCBB* corresponding_SCBB, ssize_t IOnode_id, const std::string& ip);
+				int _register_to_master();
+				Common::comm_handle_t
+					_get_IOnode_handle(SCBB* corresponding_SCBB, 
+							   ssize_t IOnode_id,
+							   const std::string& ip);
 
 				static inline int _fd_to_fid(int fd);
 				static inline int _fid_to_fd(int fid);
@@ -118,17 +119,20 @@ namespace CBB
 				int _get_local_attr(const char *path, struct stat *file_stat);
 				file_meta* _create_new_file(Common::extended_IO_task* new_task, SCBB* corresponding_SCBB);
 				int _close_local_opened_file(const char* path);
-				int _get_master_socket_from_path(const std::string& path)const;
-				int _get_master_socket_from_master_number(int master_number)const;
+				Common::comm_handle_t 
+					_get_master_handle_from_path(const std::string& path)const;
+				Common::comm_handle_t 
+					_get_master_handle_from_master_number(int master_number)const;
 				int _get_master_number_from_path(const std::string& path)const;
-				int _get_master_socket_from_fd(int fd)const;
+				Common::comm_handle_t 
+					_get_master_handle_from_fd(int fd)const;
 				int _get_master_number_from_fd(int fd)const;
 				SCBB* _get_scbb_from_master_number(int master_number);
 				SCBB* _get_scbb_from_fd(int fd);
 				ssize_t _get_IOnode_id(int master_number, ssize_t IOnode_id)const;
-				virtual int _report_IOnode_failure(int socket)override final;
+				virtual int _report_IOnode_failure(Common::comm_handle_t handle)override final;
 				void _parse_master_IOnode_id(ssize_t master_IOnode, int& master_number, ssize_t& IOnode_id);
-				SCBB* _find_scbb_by_socket(int socket);
+				SCBB* _find_scbb_by_handle(Common::comm_handle_t handle);
 				off64_t find_start_point(const _block_list_t& blocks, off64_t start_point, ssize_t update_size);
 				size_t _update_file_size_from_master(Common::extended_IO_task* response, opened_file_info& file);
 
@@ -140,7 +144,8 @@ namespace CBB
 				struct sockaddr_in 	_client_addr;
 				bool 			_initial;
 
-				master_list_t 		master_socket_list;
+				master_list_t 		master_handle_list;
+				std::string		my_uri;
 				//IOnode_fd_map_t 	IOnode_fd_map;
 		};
 		inline int CBB_client::_fd_to_fid(int fd)
@@ -153,19 +158,22 @@ namespace CBB
 			return fid+INIT_FD;
 		}
 
-		inline int CBB_client::_get_master_socket_from_path(const std::string& path)const
+		inline Common::comm_handle_t CBB_client::
+			_get_master_handle_from_path(const std::string& path)const
 		{
-			return master_socket_list.at(_get_master_number_from_path(path)).master_socket;
+			return master_handle_list.at(_get_master_number_from_path(path)).master_handle;
 		}
 
-		inline int CBB_client::_get_master_socket_from_master_number(int master_number)const
+		inline Common::comm_handle_t CBB_client::
+			_get_master_handle_from_master_number(int master_number)const
 		{
-			return master_socket_list.at(master_number).master_socket;
+			return master_handle_list.at(master_number).master_handle;
 		}
 
-		inline int CBB_client::_get_master_socket_from_fd(int fd)const
+		inline Common::comm_handle_t CBB_client::
+			_get_master_handle_from_fd(int fd)const
 		{
-			return _file_list.at(fd).file_meta_p->get_master_socket();
+			return _file_list.at(fd).file_meta_p->get_master_handle();
 		}
 
 		inline SCBB* CBB_client::_get_scbb_from_fd(int fd)
@@ -180,13 +188,13 @@ namespace CBB
 
 		inline int CBB_client::_get_master_number_from_path(const std::string& path)const
 		{
-			static size_t size=master_socket_list.size();
+			static size_t size=master_handle_list.size();
 			return file_path_hash(path, size);
 		}
 
 		inline SCBB* CBB_client::_get_scbb_from_master_number(int master_number)
 		{
-			return &master_socket_list.at(master_number);
+			return &master_handle_list.at(master_number);
 		}
 
 		/*inline ssize_t CBB_client::_get_IOnode_id(int master_number, ssize_t IOnode_id)const

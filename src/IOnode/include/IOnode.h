@@ -12,16 +12,14 @@
 
 #include <string>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <stdexcept>
 #include <exception>
 #include <stdlib.h>
 #include <map>
 
 #include "Server.h"
-#include "CBB_connector.h"
 #include "CBB_data_sync.h"
+#include "Comm_api.h"
 
 namespace CBB
 {
@@ -29,7 +27,6 @@ namespace CBB
 	{
 		class IOnode:
 			public 	Common::Server,
-			public	Common::CBB_connector,
 			public	Common::CBB_data_sync
 		{
 			//API
@@ -40,7 +37,7 @@ namespace CBB
 				virtual ~IOnode();
 				int start_server();
 
-				typedef std::map<ssize_t, int> node_socket_pool_t; //map node id: socket
+				typedef std::map<ssize_t, Common::comm_handle_t> node_handle_pool_t; //map node id: handle
 				typedef std::map<ssize_t, std::string> node_ip_t; //map node id: ip
 
 				//nested class
@@ -88,7 +85,7 @@ namespace CBB
 					int 			main_flag; //main replica indicator
 					ssize_t 		file_no;
 					block_info_t  		blocks;
-					node_socket_pool_t 	IOnode_pool;
+					node_handle_pool_t 	IOnode_pool;
 				};
 
 				//map: file_no: struct file
@@ -100,10 +97,10 @@ namespace CBB
 			private:
 				//don't allow copy
 				IOnode(const IOnode&); 
-				//unregist IOnode from master
-				int _unregist();
-				//regist IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
-				ssize_t _regist(Common::communication_queue_array_t* output_queue,
+				//unregister IOnode from master
+				int _unregister();
+				//register IOnode to master,  on success return IOnode_id,  on failure throw runtime_error
+				ssize_t _register(Common::communication_queue_array_t* output_queue,
 						Common::communication_queue_array_t* input_queue) throw(std::runtime_error);
 				//virtual int _parse_new_request(int sockfd,
 				//		const struct sockaddr_in& client_addr); 
@@ -121,13 +118,13 @@ namespace CBB
 				int _rename(Common::extended_IO_task* new_task);
 				int _truncate_file(Common::extended_IO_task* new_task);
 				int _append_new_block(Common::extended_IO_task* new_task);
-				int _regist_new_client(Common::extended_IO_task* new_task);
+				int _register_new_client(Common::extended_IO_task* new_task);
 				int _close_client(Common::extended_IO_task* new_task);
 				int _unlink(Common::extended_IO_task* new_task);
 				int _node_failure(Common::extended_IO_task* new_task);
 				int _heart_beat(Common::extended_IO_task* new_task);
 				int _get_sync_data(Common::extended_IO_task* new_task);
-				int _regist_new_IOnode(Common::extended_IO_task* new_task);
+				int _register_new_IOnode(Common::extended_IO_task* new_task);
 				int _promoted_to_primary(Common::extended_IO_task* new_task);
 				int _replace_replica(Common::extended_IO_task* new_task);
 				int _remove_IOnode(Common::extended_IO_task* new_task);
@@ -147,14 +144,25 @@ namespace CBB
 				std::string _get_real_path(const std::string& path)const;
 				int _remove_file(ssize_t file_no);
 
-				int _connect_to_new_IOnode(ssize_t destination_node_id, ssize_t my_node_id, const char* node_ip);
+				Common::comm_handle_t 
+					_connect_to_new_IOnode(ssize_t destination_node_id,
+							       ssize_t my_node_id,
+							       const char* node_ip);
 
 				//send data to new replica node after IOnode fail over
 				int _sync_init_data(Common::data_sync_task* new_task);
 				int _sync_write_data(Common::data_sync_task* new_task);
 
-				int _sync_data(file& file, off64_t start_point, off64_t offset, ssize_t size, int socket);
-				int _send_sync_data(int socket, file* requested_file, off64_t start_point, off64_t offset, ssize_t size);
+				int _sync_data(file& file,
+						off64_t start_point,
+						off64_t offset,
+						ssize_t size,
+						Common::comm_handle_t handle);
+				int _send_sync_data(Common::comm_handle_t handle,
+						file* requested_file,
+						off64_t start_point,
+						off64_t offset,
+						ssize_t size);
 				size_t update_block_data(block_info_t& 		   blocks,
 							 file& 			   file,
 							 off64_t 		   start_point,
@@ -173,12 +181,15 @@ namespace CBB
 				int 		   _current_block_number;
 				int 		   _MAX_BLOCK_NUMBER;
 				size_t 		   _memory; //remain available memory; 
-				int 		   _master_port; //master_conn_port
-				struct sockaddr_in _master_conn_addr;
-				struct sockaddr_in _master_addr;
+
+				std::string		   my_uri;
+				std::string		   master_uri;
+
+				Common::comm_handle_t	   master_handle;
+				Common::comm_handle_t	   my_handle;
+
 				std::string 	   _mount_point;
-				int 		   _master_socket;
-				node_socket_pool_t IOnode_socket_pool;
+				node_handle_pool_t IOnode_handle_pool;
 		};
 		inline int IOnode::block::lock()
 		{

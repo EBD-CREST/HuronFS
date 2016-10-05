@@ -26,13 +26,13 @@ namespace CBB
 			protected:
 				Server(int thread_number, int port)throw(std::runtime_error); 
 				virtual ~Server(); 
-				virtual int input_from_socket(int socket,
+				virtual int input_from_network(comm_handle_t handle,
 						communication_queue_array_t* output)override final;
 
 				virtual int input_from_producer(communication_queue_t* output)override final;
 				virtual int output_task_enqueue(extended_IO_task* output_task)override final;
-				virtual communication_queue_t* get_communication_queue_from_socket(int socket)override final;
-				virtual int node_failure_handler(int socket)override;
+				virtual communication_queue_t* get_communication_queue_from_handle(comm_handle_t handle)override final;
+				virtual int node_failure_handler(comm_handle_t handle)override;
 
 				void _init_server()throw(std::runtime_error); 
 
@@ -42,7 +42,7 @@ namespace CBB
 				virtual int remote_task_handler(remote_task* new_task)=0;
 				virtual void configure_dump()=0;
 
-				int send_input_for_socket_error(int socket);
+				int send_input_for_handle_error(comm_handle_t handle);
 				extended_IO_task* init_response_task(extended_IO_task* input_task);
 				communication_queue_t* get_communication_input_queue(int index);
 				communication_queue_t* get_communication_output_queue(int index);
@@ -51,19 +51,18 @@ namespace CBB
 				//id = thread id, temporarily id=0
 				extended_IO_task* allocate_output_task(int id);
 			private:
-				void _setup_socket();
+				void _setup_server();
 
 			protected:
 				communication_queue_array_t _communication_input_queue;
 				communication_queue_array_t _communication_output_queue;
-				struct sockaddr_in _server_addr;
-				int _port;
-				int _server_socket;
-				threads_socket_map_t _threads_socket_map;
+				comm_handle		    _server_handle;
+				threads_handle_map_t 	    _threads_handle_map;
 		}; 
 
 		inline int Server::output_task_enqueue(extended_IO_task* output_task)
 		{
+			_DEBUG("id=%d\n", output_task->get_id());
 			communication_queue_t& output_queue=_communication_output_queue.at(output_task->get_id());
 			return output_queue.task_enqueue();
 		}

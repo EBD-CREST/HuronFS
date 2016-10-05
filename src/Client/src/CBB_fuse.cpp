@@ -24,6 +24,18 @@ static CBB_stream client;
 struct fuse_operations CBB_oper;
 extern char* mount_point;
 
+
+#if 1
+#define start_record()
+
+#define end_record()	
+
+#define FLUSH_RECORD()
+
+#define raw_record()
+
+#else
+
 #define recording(rec)					\
 		do{					\
 		client.rec.file_name=__FILE__;			\
@@ -32,11 +44,6 @@ extern char* mount_point;
 		gettimeofday(&client.rec.time, nullptr);	\
 		}while(0)	
 
-#define start_record()
-
-#define end_record()	
-
-#if 0
 #define start_record()				\
 		do{				\
 			recording(st);	\
@@ -46,6 +53,17 @@ extern char* mount_point;
 		do{				\
 			recording(et);	\
 			client._print_time();	\
+		}while(0)
+
+#define FLUSH_RECORD()				\
+		do{				\
+			client.flush_record();	        \
+		}while(0)
+	
+#define raw_record()			\
+		do{			\
+			recording(raw);	\
+			client.print_raw_time();\
 		}while(0)
 #endif
 
@@ -158,9 +176,12 @@ static int CBB_getattr(const char* path, struct stat* stbuf)
 {
 	_DEBUG("CBB getattr path=%s\n", path);
 
+	raw_record();
 	start_record();
 	int ret=client.getattr(path, stbuf);
 	end_record();
+	raw_record();
+	FLUSH_RECORD();
 
 	_DEBUG("ret=%d path=%s file_size=%lu\n", ret,path,stbuf->st_size);
 	return ret;

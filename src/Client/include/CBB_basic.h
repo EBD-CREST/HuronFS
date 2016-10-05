@@ -8,6 +8,7 @@
 
 #include "CBB_error.h"
 #include "CBB_const.h"
+#include "Comm_api.h"
 
 namespace CBB
 {
@@ -18,7 +19,7 @@ namespace CBB
 		class opened_file_info;
 		class CBB_client;
 
-		typedef std::map<ssize_t, int> IOnode_fd_map_t;
+		typedef std::map<ssize_t, Common::comm_handle_t> IOnode_fd_map_t;
 		typedef std::set<int> _opened_fd_t;
 		typedef std::map<std::string, file_meta*> _path_file_meta_map_t; //map path, fd
 
@@ -29,19 +30,19 @@ namespace CBB
 				friend class file_meta;
 
 				SCBB()=default;
-				SCBB(int id, int master_socket);
+				SCBB(int id, Common::comm_handle_t master_handle);
 				~SCBB()=default;
-				int get_IOnode_fd(ssize_t IOnode_id);				
+				Common::comm_handle_t get_IOnode_fd(ssize_t IOnode_id);				
 				void set_id(int id);				
-				void set_master_socket(int socket);
-				int get_master_socket();
+				void set_master_handle(Common::comm_handle_t handle);
+				Common::comm_handle_t get_master_handle();
 				IOnode_fd_map_t& get_IOnode_list();
 				CBB_error insert_IOnode(ssize_t IOnode_id,
-							int IOnode_socket);
+							Common::comm_handle_t IOnode_handle);
 			private:
 				IOnode_fd_map_t IOnode_list; //map IOnode id: fd
 				int 		id;
-				int		master_socket;
+				Common::comm_handle_t   master_handle;
 		};
 
 		class  block_info
@@ -65,7 +66,7 @@ namespace CBB
 						size_t block_size,
 						const struct stat* file_stat,
 						SCBB* corresponding_SCBB);
-				int get_master_socket();
+				Common::comm_handle_t get_master_handle();
 				int get_master_number();
 			private:
 				ssize_t 	file_no;
@@ -74,7 +75,7 @@ namespace CBB
 				struct stat 	file_stat;
 				_opened_fd_t 	opened_fd;
 				SCBB		*corresponding_SCBB;
-				//int 		master_socket;
+				//int 		master_handle;
 				_path_file_meta_map_t::iterator it;
 
 		};
@@ -96,40 +97,47 @@ namespace CBB
 				file_meta* 	file_meta_p;
 		};
 
-		inline void SCBB::set_id(int id)	
+		inline void SCBB::
+			set_id(int id)	
 		{
 			this->id=id;
 		}
 
-		inline void SCBB::set_master_socket(int socket)	
+		inline void SCBB::
+			set_master_handle(Common::comm_handle_t handle)	
 		{
-			this->master_socket=socket;
+			this->master_handle=handle;
 		}
 
-		inline int file_meta::get_master_socket()
+		inline Common::comm_handle_t file_meta::
+			get_master_handle()
 		{
-			return this->corresponding_SCBB->master_socket;
+			return this->corresponding_SCBB->master_handle;
 		}
 
-		inline int file_meta::get_master_number()
+		inline int file_meta::
+			get_master_number()
 		{
 			return this->corresponding_SCBB->id;
 		}
-		inline CBB_error SCBB::insert_IOnode(ssize_t IOnode_id,
-						     int IOnode_socket)
+		inline CBB_error SCBB::
+			insert_IOnode(ssize_t IOnode_id,
+				      Common::comm_handle_t IOnode_handle)
 		{
-			this->IOnode_list.insert(std::make_pair(IOnode_id, IOnode_socket));
+			this->IOnode_list.insert(std::make_pair(IOnode_id, IOnode_handle));
 			return SUCCESS;
 		}
 
-		inline IOnode_fd_map_t& SCBB::get_IOnode_list()
+		inline IOnode_fd_map_t& SCBB::
+			get_IOnode_list()
 		{
 			return this->IOnode_list;
 		}
 
-		inline int SCBB::get_master_socket()
+		inline Common::comm_handle_t SCBB::
+			get_master_handle()
 		{
-			return this->master_socket;
+			return this->master_handle;
 		}
 	}
 }

@@ -13,11 +13,12 @@ namespace CBB
 		class data_sync_task: public basic_task
 		{
 			public:
+				data_sync_task(int id, data_sync_task* next);
 				data_sync_task()=default;
 				virtual ~data_sync_task()=default;
 
 				int task_id;
-				int socket;
+				comm_handle_t handle;
 				int receiver_id;
 				void* _file;
 				off64_t start_point;
@@ -40,7 +41,7 @@ namespace CBB
 						off64_t offset,
 						ssize_t size,
 						int receiver_id,
-						int socket);
+						comm_handle_t handle);
 				static void* data_sync_thread_fun(void* argv);
 				void set_queues(communication_queue_t* input_queue,
 						communication_queue_t* output_queue);
@@ -68,7 +69,7 @@ namespace CBB
 
 		inline int CBB_data_sync::data_sync_task_enqueue(extended_IO_task* output_task)
 		{
-			_DEBUG("task enqueue %p, socket=%d\n", communication_output_queue_ptr, output_task->get_socket());
+			_DEBUG("task enqueue %p\n", communication_output_queue_ptr);
 			return communication_output_queue_ptr->task_enqueue();
 		}
 

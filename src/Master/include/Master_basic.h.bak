@@ -21,7 +21,8 @@ namespace CBB
 		typedef CBB::Common::CBB_set<ssize_t> node_pool_t;
 		typedef CBB::Common::CBB_set<Master_extended_file_stat*> items_set_t;
 
-		extern Master_extended_file_stat* find_by_name(const std::string filename, Master_extended_file_stat* current_directory);
+		extern Master_extended_file_stat* 
+			find_by_name(const std::string filename, Master_extended_file_stat* current_directory);
 
 		class node_info
 		{
@@ -32,13 +33,13 @@ namespace CBB
 				node_info(ssize_t id,
 						const std::string& ip,
 						std::size_t total_memory,
-						int socket); 
+						comm_handle_t handle); 
 				ssize_t get_id()const;
-				std::string& get_ip()const;
+				std::string& get_uri()const;
 			private:
-				int socket;
+				comm_handle handle;
 				ssize_t node_id;
-				std::string ip; 
+				std::string uri; 
 				file_no_pool_t stored_files; 
 				std::size_t avaliable_memory; 
 				std::size_t total_memory;

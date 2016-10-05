@@ -48,8 +48,8 @@ namespace CBB
 				typedef std::map<ssize_t, open_file_info*> File_t; 
 				//map file_path: file_stat
 				//typedef CBB_map<std::string, file_stat> file_stat_t; 
-				//map socket, node_info	need delete
-				typedef std::map<int, node_info*> IOnode_sock_t; 
+				//map handle, node_info	need delete
+				typedef std::map<Common::comm_handle_t, node_info*> IOnode_handle_t; 
 
 				//map node_id:node_info need delete
 				typedef std::map<ssize_t, node_info*> IOnode_t; 
@@ -69,13 +69,13 @@ namespace CBB
 
 			private:
 
-				//virtual int _parse_new_request(int socketfd,
+				//virtual int _parse_new_request(int handlefd,
 				//			const struct sockaddr_in& client_addr);
 				virtual CBB_error _parse_request(Common::extended_IO_task* new_task) override final;
 				virtual void configure_dump()override final;
 
 				//request parser
-				CBB_error _parse_regist_IOnode(Common::extended_IO_task* new_task);
+				CBB_error _parse_register_IOnode(Common::extended_IO_task* new_task);
 				CBB_error _parse_new_client(Common::extended_IO_task* new_task);
 				CBB_error _parse_open_file(Common::extended_IO_task* new_task);
 				CBB_error _parse_read_file(Common::extended_IO_task* new_task);
@@ -102,10 +102,10 @@ namespace CBB
 				CBB_error _remote_unlink(Common::remote_task* new_task);
 				CBB_error _remote_mkdir(Common::remote_task* new_task);
 
-				CBB_error _unregist_IOnode(node_info* IOnode_info);
+				CBB_error _unregister_IOnode(node_info* IOnode_info);
 				CBB_error _remove_IOnode_buffered_file(node_info* IOnode_info);
 				CBB_error _remove_IOnode(node_info* IOnode_info);
-				CBB_error _close_client(int socket);
+				CBB_error _close_client(Common::comm_handle_t handle);
 				CBB_error _buffer_all_meta_data_from_remote(const char* mount_point)throw(CBB_configure_error);
 				CBB_error _dfs_items_in_remote(DIR* current_remote_directory,
 						char* file_path,
@@ -127,8 +127,8 @@ namespace CBB
 
 				ssize_t _add_IOnode(const std::string& node_ip,
 						    size_t avaliable_memory,
-						    int socket);
-				ssize_t _delete_IOnode(int socket);
+						    Common::comm_handle_t handle);
+				ssize_t _delete_IOnode(Common::comm_handle_t handle);
 				const node_info_pool_t& _open_file(const char* file_path,
 								   int flag,
 								   ssize_t& file_no,
@@ -144,7 +144,7 @@ namespace CBB
 								     off64_t start_point,
 								     size_t size);
 
-				IOnode_t::iterator _find_by_ip(const std::string& ip);
+				IOnode_t::iterator _find_by_uri(const std::string& uri);
 				void _create_file(const char* file_path,
 						  mode_t mode)
 						  throw(std::runtime_error); 
@@ -193,8 +193,8 @@ namespace CBB
 				virtual std::string _get_real_path(const char* path)const override final;
 				virtual std::string _get_real_path(const std::string& path)const override final;
 				virtual CBB_error remote_task_handler(Common::remote_task* new_task)override final;
-				virtual CBB_error get_IOnode_socket_map(socket_map_t& map)override final;
-				virtual CBB_error node_failure_handler(int socket)override final;
+				virtual CBB_error get_IOnode_handle_map(handle_map_t& map)override final;
+				virtual CBB_error node_failure_handler(Common::comm_handle_t handle)override final;
 
 				ssize_t _select_IOnode_for_IO(open_file_info& file);
 				dir_t _get_file_stat_from_dir(const std::string& path);
@@ -215,11 +215,11 @@ namespace CBB
 				void flush_file_stat();
 				void dump_info();
 			private:
-				IOnode_t 	   _registed_IOnodes; //IOnode info map node_id:node info
+				IOnode_t 	   _registered_IOnodes; //IOnode info map node_id:node info
 				file_stat_pool_t   _file_stat_pool; //all file status map, file_path: file status
 
 				File_t 		   _buffered_files; //buffered files info map, file_path: opened file status
-				IOnode_sock_t 	   _IOnode_socket; //socket IOnode info map, socket, IOnode info
+				IOnode_handle_t    _IOnode_handle; //handle IOnode info map, handle, IOnode info
 
 				ssize_t 	   _file_number; 
 				bool 		   *_node_id_pool; 
@@ -228,6 +228,7 @@ namespace CBB
 				ssize_t 	   _current_file_no; 
 				std::string 	   _mount_point;
 				std::string 	   metadata_backup_point;
+				std::string 	   my_uri;
 				int 		   master_number;
 				int 		   master_total_size;
 

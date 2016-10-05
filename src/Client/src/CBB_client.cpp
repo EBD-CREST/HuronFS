@@ -47,6 +47,7 @@ const char *mount_point=nullptr;
 	{                                                                 \
 		if(!_initial)                                             \
 		{                                                         \
+			printf("init\n");				  \
 			start_threads();				  \
 		}                                                         \
 	}while(0)
@@ -59,7 +60,7 @@ CBB_client::CBB_client():
 	_path_file_meta_map(),
 	_client_addr(sockaddr_in()),
 	_initial(false),
-	master_socket_list()
+	master_handle_list()
 	//IOnode_fd_map()
 {
 	_DEBUG("start initalizing\n");
@@ -83,7 +84,7 @@ void CBB_client::start_threads()
 	_client_addr.sin_port = htons(0);
 	_client_addr.sin_addr.s_addr = htons(INADDR_ANY);
 	Client::start_client();
-	if(-1 == _regist_to_master())
+	if(-1 == _register_to_master())
 	{
 		return;
 	}
@@ -91,10 +92,9 @@ void CBB_client::start_threads()
 	_initial=true;
 }
 
-int CBB_client::_regist_to_master()
+int CBB_client::_register_to_master()
 {
 	int ret=0;
-	struct sockaddr_in _master_addr;
 	const char* master_ip_list=getenv(MASTER_IP_LIST);
 	char master_ip[20];
 	if(nullptr == master_ip_list)
@@ -102,23 +102,14 @@ int CBB_client::_regist_to_master()
 		fprintf(stderr, "please set master ip\n");
 		return -1;
 	}
-	memset(&_master_addr, 0, sizeof(_master_addr));
-	_master_addr.sin_family = AF_INET;
-	_master_addr.sin_port = htons(MASTER_PORT);
 
 	int counter=0;
 	while(nullptr != (master_ip_list =parse_master_config_ip(master_ip_list, master_ip)))
 	{
-		if(0 == inet_aton(master_ip, &_master_addr.sin_addr))
-		{
-			perror("Master IP Address Error");
-			_DEBUG("%s\n", master_ip);
-			return -1;
-		}
-		int master_socket=Client::_connect_to_server(_client_addr, _master_addr); 
-		CBB_communication_thread::_add_socket(master_socket);
-		master_socket_list.push_back(SCBB(counter++, master_socket));
-		extended_IO_task* query=allocate_new_query(master_socket);
+		comm_handle_t master_handle=Client::connect_to_server(master_ip, MASTER_PORT); 
+		CBB_communication_thread::_add_handle(master_handle);
+		master_handle_list.push_back(SCBB(counter++, master_handle));
+		extended_IO_task* query=allocate_new_query(master_handle);
 		query->push_back(NEW_CLIENT);
 		send_query(query);
 
@@ -135,7 +126,7 @@ CBB_client::~CBB_client()
 			it!=_file_list.end();++it)
 	{
 		int ret=0;
-		extended_IO_task* query=allocate_new_query(it->second.file_meta_p->get_master_socket());
+		extended_IO_task* query=allocate_new_query(it->second.file_meta_p->get_master_handle());
 		query->push_back(CLOSE_FILE);
 		query->push_back(it->second.file_meta_p->file_no);
 		send_query(query);
@@ -145,10 +136,10 @@ CBB_client::~CBB_client()
 		response_dequeue(response);
 		release_communication_queue(query);
 	}
-	for(master_list_t::iterator it=master_socket_list.begin();
-			it != master_socket_list.end();++it)
+	for(master_list_t::iterator it=master_handle_list.begin();
+			it != master_handle_list.end();++it)
 	{
-		extended_IO_task* query=allocate_new_query(it->get_master_socket());
+		extended_IO_task* query=allocate_new_query(it->get_master_handle());
 		query->push_back(CLOSE_CLIENT);
 		send_query(query);
 		release_communication_queue(query);
@@ -241,7 +232,7 @@ int CBB_client::_open(const char * path, int flag, mode_t mode)throw(std::runtim
 	file_meta* 	  file_meta_p	=nullptr;
 	std::string 	  string_path	=std::string(path);
 	int 		  master_number	=_get_master_number_from_path(path);
-	int 		  master_socket	=_get_master_socket_from_master_number(master_number);
+	comm_handle_t	  master_handle	=_get_master_handle_from_master_number(master_number);
 	int 		  ret		=master_number;
 	int 		  fid		=0;
 	extended_IO_task* response	=nullptr;
@@ -265,7 +256,7 @@ int CBB_client::_open(const char * path, int flag, mode_t mode)throw(std::runtim
 		_DEBUG("connect to master\n");
 		do{
 			master_number = ret;
-			extended_IO_task* query=allocate_new_query(master_socket);
+			extended_IO_task* query=allocate_new_query(master_handle);
 			query->push_back(OPEN_FILE); 
 			query->push_back_string(path);
 
@@ -276,7 +267,7 @@ int CBB_client::_open(const char * path, int flag, mode_t mode)throw(std::runtim
 			query->push_back(mode);
 			send_query(query);
 			response=get_query_response(query);
-			master_socket = _get_master_socket_from_master_number(ret);
+			master_handle = _get_master_handle_from_master_number(ret);
 		}while(master_number != ret && response_dequeue(response));
 		response->pop(ret);
 		if(SUCCESS == ret)
@@ -356,7 +347,8 @@ ssize_t CBB_client::_read_from_IOnode(SCBB* corresponding_SCBB,
 	off64_t 	   start_point	=begin(blocks)->start_point;
 	const std::string& node_ip	=begin(node_pool)->second;
 	extended_IO_task*  response	=nullptr;
-	int 		   IOnode_socket=_get_IOnode_socket(corresponding_SCBB, node_id, node_ip);
+	comm_handle_t	   IOnode_handle=
+		_get_IOnode_handle(corresponding_SCBB, node_id, node_ip);
 
 	while(0 < read_size)
 	{
@@ -368,7 +360,7 @@ ssize_t CBB_client::_read_from_IOnode(SCBB* corresponding_SCBB,
 
 		do
 		{
-			extended_IO_task* query=allocate_new_query(IOnode_socket);
+			extended_IO_task* query=allocate_new_query(IOnode_handle);
 			query->push_back(READ_FILE);
 			query->push_back(file.file_meta_p->file_no);
 			query->push_back(start_point);
@@ -423,7 +415,8 @@ ssize_t CBB_client::_write_to_IOnode(SCBB *corresponding_SCBB,
 	ssize_t 		node_id		=begin(node_pool)->first;
 	off64_t 		start_point	=begin(blocks)->start_point;
 	const std::string& 	node_ip		=begin(node_pool)->second;
-	int 			IOnode_socket	=_get_IOnode_socket(corresponding_SCBB, node_id, node_ip);
+	comm_handle_t		IOnode_handle	=
+		_get_IOnode_handle(corresponding_SCBB, node_id, node_ip);
 	extended_IO_task* 	response	=nullptr;
 
 	while(0 < write_size)
@@ -437,7 +430,7 @@ ssize_t CBB_client::_write_to_IOnode(SCBB *corresponding_SCBB,
 		_DEBUG("IO_size=%lu, start_point=%ld, file_no=%ld\n", IO_size, start_point, file.file_meta_p->file_no);
 		do
 		{
-			extended_IO_task* query=allocate_new_query(IOnode_socket);
+			extended_IO_task* query=allocate_new_query(IOnode_handle);
 			query->push_back(WRITE_FILE);
 			query->push_back(file.file_meta_p->file_no);
 			query->push_back(start_point);
@@ -475,7 +468,7 @@ ssize_t CBB_client::_write_to_IOnode(SCBB *corresponding_SCBB,
 	return ans;
 }
 
-int CBB_client::_get_IOnode_socket(SCBB	 	 *corresponding_SCBB,
+comm_handle_t CBB_client::_get_IOnode_handle(SCBB	 	 *corresponding_SCBB,
 				   ssize_t 	 IOnode_id,
 				   const string& ip)
 {
@@ -487,13 +480,12 @@ int CBB_client::_get_IOnode_socket(SCBB	 	 *corresponding_SCBB,
 	}
 	catch(std::out_of_range& e)
 	{
-		struct sockaddr_in IOnode_addr;
-		set_server_addr(ip, IOnode_addr);
-		int IOnode_socket=Client::_connect_to_server(_client_addr, IOnode_addr);
+		comm_handle_t IOnode_handle=
+			Client::connect_to_server(ip.c_str(), IONODE_PORT);
 		int ret=FAILURE;
 
-		CBB_communication_thread::_add_socket(IOnode_socket);
-		extended_IO_task* query=allocate_new_query(IOnode_socket);
+		CBB_communication_thread::_add_handle(IOnode_handle);
+		extended_IO_task* query=allocate_new_query(IOnode_handle);
 		query->push_back(NEW_CLIENT);
 		send_query(query);
 		extended_IO_task* response=get_query_response(query);
@@ -501,15 +493,15 @@ int CBB_client::_get_IOnode_socket(SCBB	 	 *corresponding_SCBB,
 		response_dequeue(response);
 		if(SUCCESS == ret)
 		{
-			corresponding_SCBB->insert_IOnode(IOnode_id, IOnode_socket);
+			corresponding_SCBB->insert_IOnode(IOnode_id, IOnode_handle);
 			//end_recording();
-			return IOnode_socket;
+			return IOnode_handle;
 		}
 		else
 		{
-			CBB_communication_thread::_delete_socket(IOnode_socket);
-			close(IOnode_socket);
-			return -1;
+			CBB_communication_thread::_delete_handle(IOnode_handle);
+			Close(IOnode_handle);
+			return nullptr;
 		}
 	}
 }
@@ -541,9 +533,9 @@ ssize_t CBB_client::_read(int fd, void *buffer, size_t size)throw(std::runtime_e
 				return 0;
 			}
 		}
-		int 	master_socket=_get_master_socket_from_fd(fid);
+		comm_handle_t master_handle=_get_master_handle_from_fd(fid);
 		SCBB* 	corresponding_SCBB=_get_scbb_from_fd(fid);
-		extended_IO_task* query=allocate_new_query(master_socket);
+		extended_IO_task* query=allocate_new_query(master_handle);
 		query->push_back(READ_FILE);
 		query->push_back(file_no);
 		query->push_back(file.current_point);
@@ -595,9 +587,9 @@ ssize_t CBB_client::_write(int fd, const void *buffer, size_t size)throw(std::ru
 		_block_list_t blocks;
 		_node_pool_t node_pool;
 
-		int 	master_socket=_get_master_socket_from_fd(fid);
+		comm_handle_t master_handle=_get_master_handle_from_fd(fid);
 		SCBB* 	corresponding_SCBB=_get_scbb_from_fd(fid);
-		extended_IO_task* query=allocate_new_query(master_socket);
+		extended_IO_task* query=allocate_new_query(master_handle);
 		query->push_back(WRITE_FILE);
 		query->push_back(file_no);
 		Send_attr(query, &file.file_meta_p->file_stat);
@@ -697,11 +689,11 @@ int CBB_client::_close(int fd)throw(std::runtime_error)
 	int ret=0;
 	int fid=_fd_to_fid(fd);
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_fd(fid);
+	comm_handle_t master_handle=_get_master_handle_from_fd(fid);
 	try
 	{
 		opened_file_info& file=_file_list.at(fid);
-		extended_IO_task* query=allocate_new_query(master_socket);
+		extended_IO_task* query=allocate_new_query(master_handle);
 		query->push_back(CLOSE_FILE);
 		query->push_back(file.file_meta_p->file_no);
 		send_query(query);
@@ -737,12 +729,12 @@ int CBB_client::_flush(int fd)throw(std::runtime_error)
 {
 	int ret=0;
 	int fid=_fd_to_fid(fd);
-	int master_socket=_get_master_socket_from_fd(fid);
+	comm_handle_t master_handle=_get_master_handle_from_fd(fid);
 	CHECK_INIT();
 	try
 	{
 		opened_file_info& file=_file_list.at(fid);
-		extended_IO_task* query=allocate_new_query(master_socket);
+		extended_IO_task* query=allocate_new_query(master_handle);
 		query->push_back(FLUSH_FILE);
 		query->push_back(file.file_meta_p->file_no);
 		send_query(query);
@@ -796,7 +788,7 @@ int CBB_client::_getattr(const char* path, struct stat* fstat)throw(std::runtime
 {
 	CHECK_INIT();
 	int master_number=_get_master_number_from_path(path);
-	int master_socket=_get_master_socket_from_master_number(master_number);
+	comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
 	int ret=master_number;
 	extended_IO_task* response=nullptr;
 
@@ -811,14 +803,14 @@ int CBB_client::_getattr(const char* path, struct stat* fstat)throw(std::runtime
 		do{
 			//problem
 			master_number=ret;
-			extended_IO_task* query=allocate_new_query(master_socket);
+			extended_IO_task* query=allocate_new_query(master_handle);
 			query->push_back(GET_ATTR); 
 			query->push_back_string(path);
 			send_query(query);
 			
 			response=get_query_response(query);
 			response->pop(ret);
-			master_socket = _get_master_socket_from_master_number(ret);
+			master_handle = _get_master_handle_from_master_number(ret);
 		}while(master_number != ret && response_dequeue(response));
 		response->pop(ret);
 		if(SUCCESS == ret)
@@ -842,11 +834,11 @@ int CBB_client::_readdir(const char * path, dir_t& dir)throw(std::runtime_error)
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
 
-	for(master_list_t::const_iterator it=master_socket_list.begin();
-			it != master_socket_list.end(); ++it)
+	for(master_list_t::const_iterator it=master_handle_list.begin();
+			it != master_handle_list.end(); ++it)
 	{
-		int master_socket=it->master_socket;
-		extended_IO_task* query=allocate_new_query(master_socket);
+		comm_handle_t master_handle=it->master_handle;
+		extended_IO_task* query=allocate_new_query(master_handle);
 		query->push_back(READ_DIR); 
 		query->push_back_string(path);
 		send_query(query);
@@ -882,9 +874,9 @@ int CBB_client::_rmdir(const char * path)throw(std::runtime_error)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_path(path);
+	comm_handle_t master_handle=_get_master_handle_from_path(path);
 
-	extended_IO_task* query=allocate_new_query(master_socket);
+	extended_IO_task* query=allocate_new_query(master_handle);
 	query->push_back(RM_DIR); 
 	query->push_back_string(path);
 	send_query(query);
@@ -908,9 +900,9 @@ int CBB_client::_unlink(const char * path)throw(std::runtime_error)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_path(path);
+	comm_handle_t master_handle=_get_master_handle_from_path(path);
 
-	extended_IO_task* query=allocate_new_query(master_socket);
+	extended_IO_task* query=allocate_new_query(master_handle);
 	query->push_back(UNLINK); 
 	query->push_back_string(path);
 	send_query(query);
@@ -972,11 +964,11 @@ int CBB_client::_access(const char* path, int mode)throw(std::runtime_error)
 	else
 	{
 		int master_number=_get_master_number_from_path(path);
-		int master_socket=_get_master_socket_from_master_number(master_number);
+		comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
 		int ret=master_number;
 		do{
 			master_number=ret;
-			extended_IO_task* query=allocate_new_query(master_socket);
+			extended_IO_task* query=allocate_new_query(master_handle);
 			query->push_back(ACCESS); 
 			query->push_back_string(path);
 			query->push_back(mode);
@@ -984,7 +976,7 @@ int CBB_client::_access(const char* path, int mode)throw(std::runtime_error)
 	
 			response=get_query_response(query);
 			response->pop(ret);
-			master_socket = _get_master_socket_from_master_number(ret);
+			master_handle = _get_master_handle_from_master_number(ret);
 		}while(master_number != ret && response_dequeue(response));
 		response->pop(ret);
 		response_dequeue(response);
@@ -1005,20 +997,20 @@ int CBB_client::_stat(const char* path, struct stat* buf)throw(std::runtime_erro
 	CHECK_INIT();
 	memset(buf, 0, sizeof(struct stat));
 	int master_number=_get_master_number_from_path(path);
-	int master_socket=_get_master_socket_from_master_number(master_number);
+	comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
 	int ret=master_number;
 	extended_IO_task* response=nullptr;
 
 	do{
 		master_number=ret;
-		extended_IO_task* query=allocate_new_query(master_socket);
+		extended_IO_task* query=allocate_new_query(master_handle);
 		query->push_back(GET_FILE_META);
 		query->push_back_string(path);
 		send_query(query);
 		
 		extended_IO_task* response=get_query_response(query);
 		response->pop(ret);
-		master_socket = _get_master_socket_from_master_number(ret);
+		master_handle = _get_master_handle_from_master_number(ret);
 	}while(master_number != ret && response_dequeue(response));
 	response->pop(ret);
 	response_dequeue(response);
@@ -1040,8 +1032,10 @@ int CBB_client::_rename(const char* old_name, const char* new_name)throw(std::ru
 	CHECK_INIT();
 	int new_master_number=_get_master_number_from_path(new_name);
 	int old_master_number=_get_master_number_from_path(old_name);
-	int old_master_socket=_get_master_socket_from_master_number(old_master_number);
-	int new_master_socket=_get_master_socket_from_master_number(new_master_number);
+	comm_handle_t old_master_handle=
+		_get_master_handle_from_master_number(old_master_number);
+	comm_handle_t new_master_handle=
+		_get_master_handle_from_master_number(new_master_number);
 
 	_path_file_meta_map_t::iterator it=_path_file_meta_map.find(old_name);
 	extended_IO_task* response=nullptr;
@@ -1056,7 +1050,7 @@ int CBB_client::_rename(const char* old_name, const char* new_name)throw(std::ru
 	}
 
 	//send rename to old master
-	extended_IO_task* query=allocate_new_query(old_master_socket);
+	extended_IO_task* query=allocate_new_query(old_master_handle);
 	query->push_back(RENAME); 
 	query->push_back_string(old_name);
 	query->push_back_string(new_name);
@@ -1080,7 +1074,7 @@ int CBB_client::_rename(const char* old_name, const char* new_name)throw(std::ru
 		response->pop(ret);
 		response_dequeue(response);
 
-		extended_IO_task* query=allocate_new_query(new_master_socket);
+		extended_IO_task* query=allocate_new_query(new_master_handle);
 		query->push_back(RENAME_MIGRATING);
 		query->push_back_string(new_name);
 		query->push_back(old_master_number);
@@ -1105,9 +1099,9 @@ int CBB_client::_mkdir(const char* path, mode_t mode)throw(std::runtime_error)
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	int master_socket=_get_master_socket_from_path(path);
+	comm_handle_t master_handle=_get_master_handle_from_path(path);
 
-	extended_IO_task* query=allocate_new_query(master_socket);
+	extended_IO_task* query=allocate_new_query(master_handle);
 	query->push_back(MKDIR); 
 	query->push_back_string(path);
 	query->push_back(mode);
@@ -1201,13 +1195,13 @@ int CBB_client::_truncate(const char* path, off64_t size)throw(std::runtime_erro
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
 	int master_number=_get_master_number_from_path(path);
-	int master_socket=_get_master_socket_from_master_number(master_number);
+	comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
 	int ret=master_number;
 	extended_IO_task* response=nullptr;
 
 	do{
 		master_number=ret;
-		extended_IO_task* query=allocate_new_query(master_socket);
+		extended_IO_task* query=allocate_new_query(master_handle);
 		query->push_back(TRUNCATE); 
 		query->push_back_string(path);
 		query->push_back(size);
@@ -1215,7 +1209,7 @@ int CBB_client::_truncate(const char* path, off64_t size)throw(std::runtime_erro
 		
 		response=get_query_response(query);
 		response->pop(ret);
-		master_socket = _get_master_socket_from_master_number(ret);
+		master_handle = _get_master_handle_from_master_number(ret);
 	}while(master_number != ret && response_dequeue(response));
 	response->pop(ret);
 	response_dequeue(response);
@@ -1254,7 +1248,7 @@ int CBB_client::open(const char *path, int flag, mode_t mode)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1274,7 +1268,7 @@ ssize_t CBB_client::read(int fd, void *buffer, size_t size)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1293,7 +1287,7 @@ ssize_t CBB_client::write(int fd,const void *buffer, size_t size)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1314,7 +1308,7 @@ int CBB_client::close(int fd)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1335,7 +1329,7 @@ int CBB_client::flush(int fd)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1361,7 +1355,7 @@ int CBB_client::getattr(const char *path, struct stat* fstat)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1382,7 +1376,7 @@ int CBB_client::readdir(const char* path, dir_t& dir)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1403,7 +1397,7 @@ int CBB_client::unlink(const char* path)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1424,7 +1418,7 @@ int CBB_client::rmdir(const char* path)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1445,7 +1439,7 @@ int CBB_client::access(const char* path, int mode)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1466,7 +1460,7 @@ int CBB_client::stat(const char* path, struct stat* buf)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1487,7 +1481,7 @@ int CBB_client::rename(const char* old_name, const char* new_name)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1508,7 +1502,7 @@ int CBB_client::mkdir(const char* path, mode_t mode)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1529,7 +1523,7 @@ int CBB_client::truncate(const char*path, off64_t size)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1550,7 +1544,7 @@ int CBB_client::ftruncate(int fd, off64_t size)
 		}
 		catch(std::runtime_error &e)
 		{
-			_DEBUG("socket error, retry\n");
+			_DEBUG("handle error, retry\n");
 		}
 	}
 	while(true);
@@ -1562,9 +1556,9 @@ off64_t CBB_client::tell(int fd)
 	return _tell(fd);
 }
 
-int CBB_client::_report_IOnode_failure(int socket)
+int CBB_client::_report_IOnode_failure(comm_handle_t handle)
 {
-	SCBB* corresponding_SCBB=_find_scbb_by_socket(socket);
+	SCBB* corresponding_SCBB=_find_scbb_by_handle(handle);
 	if(nullptr == corresponding_SCBB)
 	{
 		return FAILURE;
@@ -1572,10 +1566,10 @@ int CBB_client::_report_IOnode_failure(int socket)
 	int master_number=0;
 	ssize_t IOnode_id=0;
 	//_parse_master_IOnode_id(master_IOnode_id, master_number, IOnode_id);
-	int master_socket=master_socket_list.at(master_number).get_master_socket();
+	comm_handle_t master_handle=master_handle_list.at(master_number).get_master_handle();
 	_DEBUG("report IOnode failure to master %d, IOnode id %ld\n", master_number, IOnode_id);
 
-	extended_IO_task* query=allocate_new_query(master_socket);
+	extended_IO_task* query=allocate_new_query(master_handle);
 	query->push_back(IONODE_FAILURE);
 	query->push_back(IOnode_id);
 	send_query(query);
@@ -1583,13 +1577,13 @@ int CBB_client::_report_IOnode_failure(int socket)
 	return SUCCESS;
 }
 
-SCBB* CBB_client::_find_scbb_by_socket(int socket)
+SCBB* CBB_client::_find_scbb_by_handle(comm_handle_t handle)
 {
-	for(auto& scbb:master_socket_list)
+	for(auto& scbb:master_handle_list)
 	{
 		for(auto& IOnode:scbb.IOnode_list)
 		{
-			if(socket == IOnode.second)
+			if(handle == IOnode.second)
 			{
 				return &scbb;
 			}

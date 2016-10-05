@@ -8,8 +8,8 @@
 
 #include "CBB_mutex_locker.h"
 #include "CBB_const.h"
-#include "Communication.h"
 #include "string.h"
+#include "CBB_internal.h"
 
 namespace CBB
 {
@@ -28,15 +28,16 @@ namespace CBB
 		{
 			public:
 				basic_task()=default;
+				basic_task(int id, basic_task* next);
 				virtual ~basic_task()=default;
 				basic_task* get_next();
 				virtual void reset();
 				void set_next(basic_task* next);
-				void set_id(int id);
+				virtual void set_id(int id);
 				int get_id()const;
 			private:
-				basic_task* next;
 				int id;
+				basic_task* next;
 		};
 
 		template<class task_type> class task_parallel_queue
@@ -80,6 +81,11 @@ namespace CBB
 				int queue_id;
 				pthread_mutex_t queue_lock;
 		};
+
+		inline basic_task::basic_task(int id, basic_task* next):
+			id(id),
+			next(next)
+		{}
 
 		inline basic_task* basic_task::get_next()
 		{
@@ -238,9 +244,10 @@ namespace CBB
 			if(queue_tmp_tail.load() == queue_tmp_head.load()->get_next())
 			{
 				_DEBUG("new queue item allocated length of the queue=%ld\n", length_of_queue);
-				ret=new task_type();
-				ret->set_next(queue_head.load(std::memory_order_relaxed)->get_next());
-				ret->set_id(queue_id);
+				ret=new task_type(queue_id,
+						static_cast<task_type*>(
+							queue_head.load(
+								std::memory_order_relaxed)->get_next()));
 				queue_head.load(std::memory_order_relaxed)->set_next(ret);
 				queue_tmp_head.store(ret);
 				ret=queue_head.load(std::memory_order_relaxed);
@@ -270,6 +277,7 @@ namespace CBB
 			this->queue_head.store(this->queue_tmp_head.load());
 			static uint64_t notification=1;
 
+			_DEBUG("task enqueue\n");
 			if(-1 == write(this->queue_event_fd, &notification, sizeof(uint64_t)))
 			{
 				perror("write");
