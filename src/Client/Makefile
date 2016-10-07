@@ -6,6 +6,8 @@ COMMON = ../Common/Client.o \
 	 ../Common/CBB_rwlocker.o \
 	 ../Common/CBB_communication_thread.o \
 	 ../Common/CBB_tcp.o\
+	 ../Common/Comm_basic.o\
+	 ../Common/CBB_IO_task.o\
 	 ../Common/CBB_profiling.o
 
 FUSE_SRC = CBB_fuse.cpp

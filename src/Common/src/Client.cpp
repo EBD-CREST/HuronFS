@@ -74,16 +74,26 @@ int Client::input_from_producer(communication_queue_t* input_queue)
 	{
 		extended_IO_task* new_task=input_queue->get_task();
 		_DEBUG("send request from producer\n");
-		try
+		if(new_task->is_new_connection())
 		{
-			send(new_task);
+			new_task->clear_new_conection();
+			connect_to_server(new_task->get_uri(),
+					  new_task->get_port(),
+					  new_task);
 		}
-		catch(std::runtime_error& e)
+		else
 		{
-			//for client if server died before data is sent;
-			//we return an error code to client;
-			reply_with_handle_error(new_task);
-			node_failure_handler(new_task->get_handle());
+			try
+			{
+				send(new_task);
+			}
+			catch(std::runtime_error& e)
+			{
+				//for client if server died before data is sent;
+				//we return an error code to client;
+				reply_with_handle_error(new_task);
+				node_failure_handler(new_task->get_handle());
+			}
 		}
 		input_queue->task_dequeue();
 	}
@@ -168,7 +178,7 @@ extended_IO_task* Client::get_query_response(extended_IO_task* query)throw(std::
 	do
 	{
 		ret=get_input_queue_from_query(query)->get_task();
-	}while((!compare_handle(query->get_handle(), ret->get_handle())) 
+	}while((!compare_handle(query->get_handle(), ret->get_handle()))
 			&& (SUCCESS == print_handle_error(ret))
 			&& (SUCCESS == dequeue(ret)));	
 
@@ -185,4 +195,24 @@ extended_IO_task* Client::get_query_response(extended_IO_task* query)throw(std::
 	_threads_handle_map[query->get_id()]=nullptr;
 	_DEBUG("end of get query response\n");
 	return ret;
+}
+
+int Client::
+connect_to_server(const char* 	   uri,
+		  int 	           port,
+		  extended_IO_task* new_task)
+{
+
+	comm_handle handle;
+
+	Connect(uri, port,
+		handle, 
+		new_task->get_message(),
+		reinterpret_cast<size_t*>(
+			new_task->get_message()
+		+MESSAGE_SIZE_OFF));
+	new_task->set_handle(&handle);
+	CBB_communication_thread::_add_handle(&handle);
+
+	return SUCCESS;
 }

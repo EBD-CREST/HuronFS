@@ -60,10 +60,10 @@ SCBB::SCBB(int id,
 	   comm_handle_t handle):
 	IOnode_list(),
 	id(id),
-	master_handle(handle)
+	master_handle(*handle)
 {}
 
 comm_handle_t SCBB::get_IOnode_fd(ssize_t IOnode_id)	
 {
-	return IOnode_list.at(IOnode_id);
+	return &IOnode_list.at(IOnode_id);
 }

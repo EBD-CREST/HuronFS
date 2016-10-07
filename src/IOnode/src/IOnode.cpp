@@ -115,8 +115,8 @@ IOnode::IOnode(const std::string&	master_ip,
 	_memory(MEMORY), 
 	my_uri(),
 	master_uri(),
-	master_handle(nullptr),
-	my_handle(nullptr),
+	master_handle(),
+	my_handle(),
 	_mount_point(std::string()),
 	IOnode_handle_pool()
 {
@@ -181,31 +181,19 @@ int IOnode::_unregister()
 ssize_t IOnode::_register(communication_queue_array_t* input_queue,
 			communication_queue_array_t* output_queue) throw(std::runtime_error)
 { 
-	char *uri=nullptr;
 	_LOG("start registration\n");
-	try
-	{
-		master_handle=connect_to_server(master_uri.c_str(), MASTER_PORT);
-		Server::_add_handle(master_handle, EPOLLPRI);
-	}
-	catch(std::runtime_error &e)
-	{
-		throw;
-	}
-	get_uri_from_handle(master_handle, &(uri));
-	this->my_uri=string(uri);
-	_LOG("uri=%s\n",uri);
 
 	extended_IO_task* output=allocate_output_task(SERVER_THREAD_NUM);
-	output->set_handle(master_handle);
+	output->setup_new_connection(master_uri.c_str(), MASTER_PORT);
 	output->push_back(REGISTER);
-	output->push_back_string(my_uri);
 	output->push_back(_memory);
 	output_task_enqueue(output);
 
 	extended_IO_task* response=get_communication_input_queue(SERVER_THREAD_NUM)->get_task();
 	ssize_t id=-1;
 	response->pop(id);
+	master_handle=*response->get_handle();
+
 	get_communication_input_queue(SERVER_THREAD_NUM)->task_dequeue();
 	_LOG("registration finished, id=%ld\n", id);
 	return id; 
@@ -293,7 +281,7 @@ int IOnode::_promoted_to_primary(extended_IO_task* new_task)
 		file& file_info=_files.at(file_no);
 		_get_replica_node_info(new_task, file_info);
 
-		add_data_sync_task(DATA_SYNC_INIT, &file_info, 0, 0, -1, 0, IOnode_handle_pool.at(new_node_id));
+		add_data_sync_task(DATA_SYNC_INIT, &file_info, 0, 0, -1, 0, &IOnode_handle_pool.at(new_node_id));
 	}
 	catch(std::runtime_error&e) {
 		_DEBUG("try to connect to IOnode failed!!\n");
@@ -342,7 +330,7 @@ int IOnode::_remove_IOnode(extended_IO_task* new_task)
 
 	if(end(IOnode_handle_pool) != it)
 	{
-		Close(it->second);
+		Close(&(it->second));
 		IOnode_handle_pool.erase(it);
 	}
 	return SUCCESS;
@@ -356,7 +344,7 @@ int IOnode::_register_new_IOnode(extended_IO_task* new_task)
 	new_task->pop(new_IOnode_id);
 	_LOG("register new IOnode %ld \n", new_IOnode_id);
 
-	IOnode_handle_pool.insert(std::make_pair(new_IOnode_id, handle));
+	IOnode_handle_pool.insert(std::make_pair(new_IOnode_id, *handle));
 	return SUCCESS;
 }
 
@@ -563,7 +551,8 @@ int IOnode::_get_replica_node_info(extended_IO_task* 	new_task,
 int IOnode::_get_IOnode_info(extended_IO_task*	new_task, 
 			     file& 		_file)
 {
-	comm_handle_t new_handle=nullptr;
+	comm_handle_t 
+		new_handle	=nullptr;
 	char* 	node_ip		=nullptr;
 	ssize_t node_id		=0;
 
@@ -579,7 +568,7 @@ int IOnode::_get_IOnode_info(extended_IO_task*	new_task,
 	}
 	else
 	{
-		new_handle=it->second;
+		new_handle=&(it->second);
 	}
 	_file.IOnode_pool.insert(std::make_pair(node_id, new_handle));
 	return SUCCESS;
@@ -590,17 +579,21 @@ _connect_to_new_IOnode(ssize_t 	destination_node_id,
 		       ssize_t 	my_node_id,
 		       const char* 	node_ip)
 {
-	comm_handle_t handle=connect_to_server(node_ip, IONODE_PORT); 
+	int ret;
 	_DEBUG("connect to destination node id %ld\n", destination_node_id);
 
-	Server::_add_handle(handle);
 	extended_IO_task* output=allocate_output_task(0);
-	output->set_handle(handle);
+	output->setup_new_connection(node_ip, IONODE_PORT);
 	output->push_back(NEW_IONODE);
 	output->push_back(my_node_id);
 	output_task_enqueue(output);
-	IOnode_handle_pool.insert(std::make_pair(destination_node_id, handle));
-	return handle;
+
+	extended_IO_task* response=get_communication_input_queue(0)->get_task();
+	response->pop(ret);
+
+	comm_handle_t IOnode_handle=
+		&(IOnode_handle_pool.insert(std::make_pair(destination_node_id, *response->get_handle())).first->second);
+	return IOnode_handle;
 }
 
 int IOnode::_close_file(extended_IO_task* new_task)
@@ -960,7 +953,7 @@ int IOnode::_node_failure(extended_IO_task* new_task)
 	_DEBUG("node failure, close handle %p\n", handle);
 	Close(handle);
 
-	if(handle->socket == master_handle->socket)
+	if(compare_handle(&master_handle, handle))
 	{
 		_DEBUG("Master failed !!!\n");
 	}
@@ -969,7 +962,7 @@ int IOnode::_node_failure(extended_IO_task* new_task)
 		//remove handle if failed node if IOnode
 		for(auto& node:IOnode_handle_pool)
 		{
-			if(handle == node.second)
+			if(compare_handle(handle, &node.second))
 			{
 				IOnode_handle_pool.erase(node.first);
 				break;

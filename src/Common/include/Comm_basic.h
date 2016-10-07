@@ -30,20 +30,18 @@ namespace CBB
 		const int PROT_CCI=2;
 		struct CBB_handle
 		{
-			int 		 protocol_name;
 #ifdef CCI
 			cci_connection_t cci_handle; 
 			cci_rma_handle_t local_rma_handle; 
 			cci_rma_handle_t remote_rma_handle; 
 #else
 			int 		 socket;
-			int		 port;
 #endif
 		};
 
 		typedef CBB_handle comm_handle;
-		typedef CBB_handle* comm_handle_t;
-		typedef const CBB_handle* const_comm_handle_t;
+		typedef const CBB_handle* comm_handle_t;
+		typedef CBB_handle& ref_comm_handle_t;
 
 		class Comm_basic
 		{
@@ -88,13 +86,12 @@ namespace CBB
 						size_t 		count)
 				throw(std::runtime_error);
 			
-			virtual comm_handle_t create_handle()=0;
-
 			virtual CBB_error init_protocol()
 				throw(std::runtime_error)=0;
 
 			virtual CBB_error 
-				init_server(comm_handle_t server_handle)
+				init_server_handle(ref_comm_handle_t server_handle,
+					           int		      port)
 				throw(std::runtime_error)=0;
 
 			virtual CBB_error end_protocol(comm_handle_t server_handle)=0;
@@ -107,8 +104,13 @@ namespace CBB
 			virtual bool compare_handle(comm_handle_t src,
 					comm_handle_t des)=0;
 
-			virtual comm_handle_t copy_handle(comm_handle_t src,
-					comm_handle_t des)=0;
+			virtual CBB_error
+				Connect(const char* uri,
+					int	    port,
+					ref_comm_handle_t handle,
+					void* 	    buf,
+					size_t*	    size)
+				throw(std::runtime_error)=0;
 
 			virtual size_t 
 				Recv_large(comm_handle_t sockfd, 
@@ -122,7 +124,16 @@ namespace CBB
 					   size_t 	 count)
 				throw(std::runtime_error)=0;
 
+			comm_handle_t 
+				copy_handle(ref_comm_handle_t des,
+						comm_handle_t src);
 		private:
+
+			int create_socket(const struct sockaddr_in& addr)
+				throw(std::runtime_error);
+
+			void set_timer(struct timeval* timer);
+
 			virtual size_t
 				Do_recv(comm_handle_t sockfd, 
 					void* 	      buffer,
@@ -136,7 +147,6 @@ namespace CBB
 					size_t 		count, 
 					int 		flag)
 				throw(std::runtime_error)=0;
-
 		};
 
 		//implementation
@@ -211,6 +221,21 @@ namespace CBB
 			{
 				return Do_send(handle, buffer,
 						  count*sizeof(T), MSG_DONTWAIT|MSG_NOSIGNAL);
+			}
+
+		inline void Comm_basic::
+			set_timer(struct timeval* timer)
+			{
+				timer->tv_sec=TIMEOUT_SEC;
+				timer->tv_usec=0;
+			}
+
+		inline comm_handle_t 
+			copy_handle(ref_comm_handle_t des,
+				    comm_handle_t src)
+			{
+				memcpy(&des, src, sizeof(comm_handle));
+				return &des;
 			}
 	}
 }

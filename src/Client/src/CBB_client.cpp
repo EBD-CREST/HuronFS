@@ -106,15 +106,14 @@ int CBB_client::_register_to_master()
 	int counter=0;
 	while(nullptr != (master_ip_list =parse_master_config_ip(master_ip_list, master_ip)))
 	{
-		comm_handle_t master_handle=Client::connect_to_server(master_ip, MASTER_PORT); 
-		CBB_communication_thread::_add_handle(master_handle);
-		master_handle_list.push_back(SCBB(counter++, master_handle));
-		extended_IO_task* query=allocate_new_query(master_handle);
+		extended_IO_task* query=allocate_new_query(master_ip, MASTER_PORT);
 		query->push_back(NEW_CLIENT);
 		send_query(query);
 
 		extended_IO_task* response=get_query_response(query);
 		response->pop(ret);
+		master_handle_list.push_back(SCBB(counter++, response->get_handle()));
+
 		response_dequeue(response);
 	}
 	return ret;
@@ -148,7 +147,7 @@ CBB_client::~CBB_client()
 		for(IOnode_fd_map_t::iterator IOnode_it=begin(IOnode_list);
 				IOnode_it != end(IOnode_list);++IOnode_it)
 		{
-			extended_IO_task* query=allocate_new_query(IOnode_it->second);
+			extended_IO_task* query=allocate_new_query(&IOnode_it->second);
 			query->push_back(CLOSE_CLIENT);
 			send_query(query);
 			release_communication_queue(query);
@@ -480,29 +479,23 @@ comm_handle_t CBB_client::_get_IOnode_handle(SCBB	 	 *corresponding_SCBB,
 	}
 	catch(std::out_of_range& e)
 	{
-		comm_handle_t IOnode_handle=
-			Client::connect_to_server(ip.c_str(), IONODE_PORT);
 		int ret=FAILURE;
+		comm_handle_t IOnode_handle=nullptr;
 
-		CBB_communication_thread::_add_handle(IOnode_handle);
-		extended_IO_task* query=allocate_new_query(IOnode_handle);
+		extended_IO_task* query=allocate_new_query(ip.c_str(), IONODE_PORT);
 		query->push_back(NEW_CLIENT);
 		send_query(query);
+
 		extended_IO_task* response=get_query_response(query);
 		response->pop(ret);
-		response_dequeue(response);
 		if(SUCCESS == ret)
 		{
-			corresponding_SCBB->insert_IOnode(IOnode_id, IOnode_handle);
+			IOnode_handle=
+				corresponding_SCBB->insert_IOnode(IOnode_id, response->get_handle());
 			//end_recording();
-			return IOnode_handle;
 		}
-		else
-		{
-			CBB_communication_thread::_delete_handle(IOnode_handle);
-			Close(IOnode_handle);
-			return nullptr;
-		}
+		response_dequeue(response);
+		return IOnode_handle;
 	}
 }
 
@@ -837,7 +830,7 @@ int CBB_client::_readdir(const char * path, dir_t& dir)throw(std::runtime_error)
 	for(master_list_t::const_iterator it=master_handle_list.begin();
 			it != master_handle_list.end(); ++it)
 	{
-		comm_handle_t master_handle=it->master_handle;
+		comm_handle_t master_handle=&it->master_handle;
 		extended_IO_task* query=allocate_new_query(master_handle);
 		query->push_back(READ_DIR); 
 		query->push_back_string(path);
@@ -1583,7 +1576,7 @@ SCBB* CBB_client::_find_scbb_by_handle(comm_handle_t handle)
 	{
 		for(auto& IOnode:scbb.IOnode_list)
 		{
-			if(handle == IOnode.second)
+			if(compare_handle(handle, &IOnode.second))
 			{
 				return &scbb;
 			}

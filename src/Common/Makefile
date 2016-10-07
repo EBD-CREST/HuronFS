@@ -11,8 +11,10 @@ SRC = Server.cpp \
       CBB_heart_beat.cpp \
       CBB_data_sync.cpp \
       CBB_serialization.cpp \
-      CBB_tcp.cpp\
-      CBB_profiling.cpp
+      CBB_tcp.cpp \
+      CBB_profiling.cpp \
+      Comm_basic.cpp \
+      CBB_IO_task.cpp
 
 OBJ = $(SRC:.cpp=.o)
 DEP = $(SRC:.cpp=.d)

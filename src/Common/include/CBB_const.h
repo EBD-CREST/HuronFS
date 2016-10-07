@@ -11,6 +11,8 @@ const int MASTER_PORT = 9000;
 const int MASTER_CONN_PORT = 7001; 
 //the port number used by IONode
 const int IONODE_PORT = 7000; 
+//the port number used for exchanging URI in CCI
+const int CCI_PORT = 9001;
 //the maximum IOnode under each master
 const int MAX_IONODE = 1000;
 //the size of basic message in communication
@@ -195,4 +197,9 @@ const int SUB_REPLICA=1;
 //modes in data synchronization
 const int DATA_SYNC_INIT=0;
 const int DATA_SYNC_WRITE=1;
+
+const int URI_MAX = 1000;
+const int TIMEOUT_SEC=1;
+const int SETUP_CONNECTION = 1;
+const int NORMAL_IO=2;
 #endif

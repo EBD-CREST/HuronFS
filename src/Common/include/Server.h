@@ -57,6 +57,8 @@ namespace CBB
 				communication_queue_array_t _communication_input_queue;
 				communication_queue_array_t _communication_output_queue;
 				comm_handle		    _server_handle;
+				//for tcp
+				int			    server_port;
 				threads_handle_map_t 	    _threads_handle_map;
 		}; 
 

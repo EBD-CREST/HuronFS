@@ -18,7 +18,8 @@ throw(std::runtime_error)
 
 
 CBB_error CBB_tcp::
-init_server(comm_handle_t server_handle)
+init_server_handle(ref_comm_handle_t server_handle,
+	           int port)
 throw(std::runtime_error)
 {
 
@@ -26,12 +27,12 @@ throw(std::runtime_error)
 	memset(&server_addr,  0,  sizeof(server_addr)); 
 	server_addr.sin_family 	    = AF_INET;  
 	server_addr.sin_addr.s_addr = htons(INADDR_ANY);  
-	server_addr.sin_port	    = htons(server_handle->port);  
+	server_addr.sin_port	    = htons(port);  
 
 	//create socket, throw rumtime error
-	server_handle->socket=create_socket(server_addr);
+	server_handle.socket=create_socket(server_addr);
 
-	if(0 != listen(server_handle->socket,  MAX_QUEUE))
+	if(0 != listen(server_handle.socket,  MAX_QUEUE))
 	{
 		perror("Server Listen PORT ERROR");  
 		throw std::runtime_error("Server Listen PORT ERROR");   
@@ -41,38 +42,32 @@ throw(std::runtime_error)
 	return SUCCESS;
 }
 
-comm_handle_t CBB_tcp::
-create_handle()
-{
-	comm_handle_t handle=new comm_handle;
-	handle->protocol_name=PROT_TCP;
-	return handle;
-}
-
-comm_handle_t CBB_tcp::
-connect_to_server(const char* 	server_addr,
-		   int 		server_port)
+CBB_error CBB_tcp::
+Connect(const char* uri,
+	int 	    port,
+	ref_comm_handle_t handle,
+	void*	    buf,
+	size_t*	    size)
 throw(std::runtime_error)
 {
-	comm_handle_t handle= create_handle();
 	int count	  = 0; 
 	struct sockaddr_in addr;
 
 	addr.sin_family      = AF_INET;  
 	addr.sin_addr.s_addr = htons(INADDR_ANY);  
-	addr.sin_port 	     = htons(server_port);  
+	addr.sin_port 	     = htons(port);  
 
-	if (0 == inet_aton(server_addr, &addr.sin_addr))
+	if (0 == inet_aton(uri, &addr.sin_addr))
 	{
 		perror("Server IP Address Error"); 
 		throw std::runtime_error("Server IP Address Error");
 	}
 
 	//create socket, throw rumtime error
-	handle->socket= create_socket(client_addr);
+	handle.socket= create_socket(client_addr);
 
 	while( MAX_CONNECT_TIME > ++count &&
-			0 !=  connect(handle->socket, 
+			0 !=  connect(handle.socket, 
 				reinterpret_cast<struct sockaddr*>(
 					const_cast<struct sockaddr_in*>(&addr)),
 				sizeof(addr)))
@@ -83,12 +78,26 @@ throw(std::runtime_error)
 
 	if (MAX_CONNECT_TIME == count)
 	{
-		close(handle->socket); 
+		close(handle.socket); 
 		perror("Can not Connect to Server");  
 		throw std::runtime_error("Can not Connect to Server"); 
 	}
 
-	return handle; 
+	//bad hack
+	char* my_uri=nullptr;
+	void* end_of_buf=buf+MESSAGE_META_OFF;
+	get_uri_from_handle(&handle, &my_uri);
+	size_t uri_len = strlen(my_uri)+1;
+	memcpy(end_of_buf+(*size), &uri_len, sizeof(uri_len));
+	*size+=sizeof(uri_len);
+	memcpy(end_of_buf+(*size), my_uri, uri_len);
+	*size+=uri_len;
+
+	//init_message
+	Do_send(&handle, buf, *size+MESSAGE_META_OFF,
+			MSG_DONTWAIT);
+
+	return SUCCESS; 
 }
 
 int CBB_tcp::

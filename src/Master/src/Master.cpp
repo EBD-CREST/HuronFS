@@ -198,10 +198,11 @@ CBB::CBB_error Master::_parse_register_IOnode(extended_IO_task* new_task)
 	size_t 	total_memory	=0;
 	char*	uri		=nullptr;
 
+	new_task->pop(total_memory);
 	new_task->pop_string(&uri);
+
 	std::string uri_string=std::string(uri);
 	_LOG("register IOnode uri=%s\n",uri);
-	new_task->pop(total_memory);
 
 	extended_IO_task* output=init_response_task(new_task);
 	output->push_back(_add_IOnode(uri, total_memory, new_task->get_handle()));
@@ -213,10 +214,9 @@ CBB::CBB_error Master::_parse_register_IOnode(extended_IO_task* new_task)
 //S: SUCCESS: int
 CBB::CBB_error Master::_parse_new_client(extended_IO_task* new_task)
 {
-	//char * uri=nullptr;	
-	//new_task->pop_string(&uri);
-	//std::string ip=std::string(uri);
-	_LOG("new client\n");
+	char * uri=nullptr;	
+	new_task->pop_string(&uri);
+	_LOG("new client uri=%s\n", uri);
 
 	extended_IO_task* output=init_response_task(new_task);
 

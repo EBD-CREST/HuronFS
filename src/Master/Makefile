@@ -11,6 +11,8 @@ COMMON = ../Common/Server.o \
 	 ../Common/CBB_heart_beat.o \
 	 ../Common/CBB_serialization.o \
 	 ../Common/CBB_profiling.o \
+	 ../Common/Comm_basic.o \
+	 ../Common/CBB_IO_task.o \
 	 ../Common/CBB_tcp.o
 
 SRC = Master.cpp \

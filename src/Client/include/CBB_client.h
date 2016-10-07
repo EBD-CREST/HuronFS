@@ -161,13 +161,13 @@ namespace CBB
 		inline Common::comm_handle_t CBB_client::
 			_get_master_handle_from_path(const std::string& path)const
 		{
-			return master_handle_list.at(_get_master_number_from_path(path)).master_handle;
+			return &master_handle_list.at(_get_master_number_from_path(path)).master_handle;
 		}
 
 		inline Common::comm_handle_t CBB_client::
 			_get_master_handle_from_master_number(int master_number)const
 		{
-			return master_handle_list.at(master_number).master_handle;
+			return &master_handle_list.at(master_number).master_handle;
 		}
 
 		inline Common::comm_handle_t CBB_client::

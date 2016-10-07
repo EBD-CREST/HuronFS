@@ -50,17 +50,21 @@ namespace CBB
 		virtual CBB_error
 			Close(comm_handle_t handle)override;
 
-		comm_handle_t 
-			connect_to_server(const char* server_addr,
-					  int	      server_port)
-			throw(std::runtime_error); 
+		virtual CBB_error
+			Connect(const char*	uri,
+				int		port,
+				ref_comm_handle_t handle,
+				void* 		buf,
+				size_t*		size)
+			throw(std::runtime_error)override; 
 
 		virtual CBB_error 
 			init_protocol()
 			throw(std::runtime_error)override;
 
 		virtual CBB_error 
-			init_server(comm_handle_t server_handle)
+			init_server_handle(ref_comm_handle_t server_handle,
+				           int		      port)
 			throw(std::runtime_error)override;
 
 		virtual CBB_error
@@ -68,19 +72,15 @@ namespace CBB
 
 		virtual CBB_error
 			get_uri_from_handle(comm_handle_t handle,
-					char**	uri)override;
-
-		virtual comm_handle_t create_handle()override;
+					    char**	  uri)override;
 
 		virtual bool compare_handle(comm_handle_t src,
-				comm_handle_t des)override;
-
-		virtual comm_handle_t copy_handle(comm_handle_t src,
 				comm_handle_t des)override;
 			private:
 
 		int 	create_socket(const struct sockaddr_in& addr)
 			throw(std::runtime_error);
+
 			private:
 				struct sockaddr_in client_addr;
 		};
@@ -124,14 +124,6 @@ namespace CBB
 				return src->socket == des->socket;
 			}
 
-		inline comm_handle_t CBB_tcp::
-			copy_handle(comm_handle_t src,
-				comm_handle_t des)
-			{
-				des->socket=src->socket;
-				des->port=src->port;
-				return des;
-			}
 	}
 }
 #endif

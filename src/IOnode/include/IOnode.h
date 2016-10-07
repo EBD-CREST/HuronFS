@@ -37,7 +37,8 @@ namespace CBB
 				virtual ~IOnode();
 				int start_server();
 
-				typedef std::map<ssize_t, Common::comm_handle_t> node_handle_pool_t; //map node id: handle
+				typedef std::map<ssize_t, Common::comm_handle> node_handle_pool_t; //map node id: handle
+				typedef std::map<ssize_t, Common::comm_handle_t> handle_ptr_pool_t; //map node id: handle
 				typedef std::map<ssize_t, std::string> node_ip_t; //map node id: ip
 
 				//nested class
@@ -85,7 +86,7 @@ namespace CBB
 					int 			main_flag; //main replica indicator
 					ssize_t 		file_no;
 					block_info_t  		blocks;
-					node_handle_pool_t 	IOnode_pool;
+					handle_ptr_pool_t 	IOnode_pool;
 				};
 
 				//map: file_no: struct file
@@ -185,8 +186,8 @@ namespace CBB
 				std::string		   my_uri;
 				std::string		   master_uri;
 
-				Common::comm_handle_t	   master_handle;
-				Common::comm_handle_t	   my_handle;
+				Common::comm_handle	   master_handle;
+				Common::comm_handle	   my_handle;
 
 				std::string 	   _mount_point;
 				node_handle_pool_t IOnode_handle_pool;

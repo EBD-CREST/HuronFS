@@ -19,7 +19,7 @@ namespace CBB
 		class opened_file_info;
 		class CBB_client;
 
-		typedef std::map<ssize_t, Common::comm_handle_t> IOnode_fd_map_t;
+		typedef std::map<ssize_t, Common::comm_handle> IOnode_fd_map_t;
 		typedef std::set<int> _opened_fd_t;
 		typedef std::map<std::string, file_meta*> _path_file_meta_map_t; //map path, fd
 
@@ -37,12 +37,12 @@ namespace CBB
 				void set_master_handle(Common::comm_handle_t handle);
 				Common::comm_handle_t get_master_handle();
 				IOnode_fd_map_t& get_IOnode_list();
-				CBB_error insert_IOnode(ssize_t IOnode_id,
+				Common::comm_handle_t insert_IOnode(ssize_t IOnode_id,
 							Common::comm_handle_t IOnode_handle);
 			private:
-				IOnode_fd_map_t IOnode_list; //map IOnode id: fd
-				int 		id;
-				Common::comm_handle_t   master_handle;
+				IOnode_fd_map_t       IOnode_list; //map IOnode id: fd
+				int 		      id;
+				Common::comm_handle   master_handle;
 		};
 
 		class  block_info
@@ -106,13 +106,13 @@ namespace CBB
 		inline void SCBB::
 			set_master_handle(Common::comm_handle_t handle)	
 		{
-			this->master_handle=handle;
+			copy_handle(this->master_handle, handle);
 		}
 
 		inline Common::comm_handle_t file_meta::
 			get_master_handle()
 		{
-			return this->corresponding_SCBB->master_handle;
+			return &this->corresponding_SCBB->master_handle;
 		}
 
 		inline int file_meta::
@@ -120,12 +120,13 @@ namespace CBB
 		{
 			return this->corresponding_SCBB->id;
 		}
-		inline CBB_error SCBB::
+		inline Common::comm_handle_t SCBB::
 			insert_IOnode(ssize_t IOnode_id,
 				      Common::comm_handle_t IOnode_handle)
 		{
-			this->IOnode_list.insert(std::make_pair(IOnode_id, IOnode_handle));
-			return SUCCESS;
+			Common::comm_handle_t ret=
+				&(this->IOnode_list.insert(std::make_pair(IOnode_id, *IOnode_handle)).first->second);
+			return ret;
 		}
 
 		inline IOnode_fd_map_t& SCBB::
@@ -137,7 +138,7 @@ namespace CBB
 		inline Common::comm_handle_t SCBB::
 			get_master_handle()
 		{
-			return this->master_handle;
+			return &this->master_handle;
 		}
 	}
 }

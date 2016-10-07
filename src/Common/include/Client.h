@@ -39,12 +39,14 @@ namespace CBB
 				int release_communication_queue(communication_queue_t* queue);
 				int release_communication_queue(extended_IO_task* task);
 				extended_IO_task* allocate_new_query(comm_handle_t handle);
+				extended_IO_task* allocate_new_query(const char* uri, int port);
 				extended_IO_task* allocate_new_query_preallocated(comm_handle_t handle, int id);
 				int send_query(extended_IO_task* query);
 				extended_IO_task* get_query_response(extended_IO_task* query)throw(std::runtime_error);
 				int response_dequeue(extended_IO_task* response);
 				int dequeue(extended_IO_task* response);
 				int print_handle_error(extended_IO_task* response);
+				int connect_to_server(const char* uri, int port, extended_IO_task* new_task);
 
 				communication_queue_t* get_input_queue_from_query(extended_IO_task* query);
 				communication_queue_t* get_output_queue_from_query(extended_IO_task* query);
@@ -61,6 +63,18 @@ namespace CBB
 			_DEBUG("lock queue %p\n", new_queue);
 			extended_IO_task* query_task=new_queue->allocate_tmp_node();
 			query_task->set_handle(handle);
+			query_task->set_receiver_id(0);
+			return query_task;
+		}
+
+		inline extended_IO_task* Client::
+			allocate_new_query(const char* uri,
+					   int	       port)
+		{
+			communication_queue_t* new_queue=get_new_communication_queue();
+			_DEBUG("lock queue %p\n", new_queue);
+			extended_IO_task* query_task=new_queue->allocate_tmp_node();
+			query_task->setup_new_connection(uri, port);
 			query_task->set_receiver_id(0);
 			return query_task;
 		}

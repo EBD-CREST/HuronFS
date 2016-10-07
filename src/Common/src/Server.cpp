@@ -18,6 +18,7 @@ Server::Server(int communication_thread_number, int port)throw(std::runtime_erro
 	_communication_input_queue(communication_thread_number),
 	_communication_output_queue(communication_thread_number),
 	_server_handle(),
+	server_port(port),
 	_threads_handle_map(communication_thread_number)
 {
 	for(int i=0;i<communication_thread_number; ++i)
@@ -26,7 +27,6 @@ Server::Server(int communication_thread_number, int port)throw(std::runtime_erro
 		_communication_input_queue[i].set_queue_id(i);
 	}
 	init_protocol();
-	_server_handle.port=port;
 }
 
 Server::~Server()
@@ -54,7 +54,7 @@ void Server::_init_server()throw(std::runtime_error)
 
 void Server::_setup_server()
 {
-	init_server(&_server_handle);
+	init_server_handle(_server_handle, this->server_port);
 }
 
 int Server::start_server()
@@ -109,8 +109,9 @@ input_from_network(comm_handle_t handle,
 			return FAILURE; 
 		}
 		_DEBUG("A New Client\n"); 
-		handle->socket=socket;
-		Server::_add_handle(handle);
+		comm_handle new_handle;
+		new_handle.socket=socket;
+		Server::_add_handle(&new_handle);
 	}
 	else
 	{
@@ -152,13 +153,30 @@ int Server::input_from_producer(communication_queue_t* input_queue)
 	{
 		extended_IO_task* new_task=input_queue->get_task();
 		_DEBUG("new IO task\n");
-		try
+		if(new_task->is_new_connection())
 		{
-			send(new_task);
+			new_task->clear_new_conection();
+			comm_handle handle;
+
+			Connect(new_task->get_uri(),
+					new_task->get_port(),
+					handle, 
+					new_task->get_message(),
+					reinterpret_cast<size_t*>(
+						new_task->get_message()+MESSAGE_SIZE_OFF));
+
+			Server::_add_handle(&handle);
 		}
-		catch(std::runtime_error& e)
+		else
 		{
-			node_failure_handler(new_task->get_handle());
+			try
+			{
+				send(new_task);
+			}
+			catch(std::runtime_error& e)
+			{
+				node_failure_handler(new_task->get_handle());
+			}
 		}
 		input_queue->task_dequeue();
 	}
