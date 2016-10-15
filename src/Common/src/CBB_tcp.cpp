@@ -85,14 +85,8 @@ throw(std::runtime_error)
 
 	//bad hack
 	char* my_uri=nullptr;
-	void* end_of_buf=buf+MESSAGE_META_OFF;
 	get_uri_from_handle(&handle, &my_uri);
-	size_t uri_len = strlen(my_uri)+1;
-	memcpy(end_of_buf+(*size), &uri_len, sizeof(uri_len));
-	*size+=sizeof(uri_len);
-	memcpy(end_of_buf+(*size), my_uri, uri_len);
-	*size+=uri_len;
-
+	push_back_uri(my_uri, buf, size)
 	//init_message
 	Do_send(&handle, buf, *size+MESSAGE_META_OFF,
 			MSG_DONTWAIT);

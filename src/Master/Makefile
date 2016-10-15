@@ -13,7 +13,7 @@ COMMON = ../Common/Server.o \
 	 ../Common/CBB_profiling.o \
 	 ../Common/Comm_basic.o \
 	 ../Common/CBB_IO_task.o \
-	 ../Common/CBB_tcp.o
+	 ../Common/CBB_cci.o
 
 SRC = Master.cpp \
       master_main.cpp \
@@ -25,7 +25,7 @@ vpath %.cpp $(SRC_DIR)
 vpath %.h $(HEADER_DIR)
 
 $(MAIN):$(OBJ) $(COMMON)
-	$(CC) -o $@ $^ -lpthread
+	$(CC) -o $@ $^ $(LIBRARIES)
 
 %.o:%.cpp
 	$(CC) -c $(SERVER_WAIT_FLAG) $(DEP_FLAG) $(FLAG) $(INCLUDE_PATH) -o $@ $<

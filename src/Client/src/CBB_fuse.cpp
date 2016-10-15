@@ -25,7 +25,7 @@ struct fuse_operations CBB_oper;
 extern char* mount_point;
 
 
-#if 1
+#if 0
 #define start_record()
 
 #define end_record()	

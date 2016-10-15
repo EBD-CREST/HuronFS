@@ -34,13 +34,14 @@ basic_IO_task::basic_IO_task(int id, basic_IO_task* next):
 	*sender_id=get_id();
 }
 
-send_buffer_element::send_buffer_element(const char* buffer, size_t size):
+send_buffer_element::send_buffer_element(char* buffer, size_t size):
 	buffer(buffer),
 	size(size)
 {}
 
 extended_IO_task::extended_IO_task():
 	basic_IO_task(),
+	mode(RMA_READ),
 	extended_size(reinterpret_cast<size_t*>(get_message()+EXTENDED_SIZE_OFF)),
 	send_buffer(),
 	receive_buffer(nullptr),

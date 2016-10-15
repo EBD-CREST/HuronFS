@@ -17,7 +17,7 @@ namespace CBB
 	namespace Client
 	{
 		class CBB_client:
-			private Common::Client
+			public Common::Client
 		{
 
 			public:

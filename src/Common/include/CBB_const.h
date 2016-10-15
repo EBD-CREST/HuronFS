@@ -12,16 +12,16 @@ const int MASTER_CONN_PORT = 7001;
 //the port number used by IONode
 const int IONODE_PORT = 7000; 
 //the port number used for exchanging URI in CCI
-const int CCI_PORT = 9001;
+const int URI_EXCHANGE_PORT = 9001;
 //the maximum IOnode under each master
 const int MAX_IONODE = 1000;
 //the size of basic message in communication
-const int MAX_BASIC_MESSAGE_SIZE = 1*MB;
+const int MAX_BASIC_MESSAGE_SIZE = 4*KB;
 
 const int RECEIVER_ID_OFF = 0;
-const int SENDER_ID_OFF = RECEIVER_ID_OFF+sizeof(int);
-const int MESSAGE_SIZE_OFF = SENDER_ID_OFF+sizeof(int);
-const int EXTENDED_SIZE_OFF = MESSAGE_SIZE_OFF+sizeof(size_t);
+const int SENDER_ID_OFF = RECEIVER_ID_OFF + sizeof(int);
+const int MESSAGE_SIZE_OFF = SENDER_ID_OFF + sizeof(int);
+const int EXTENDED_SIZE_OFF = MESSAGE_SIZE_OFF + sizeof(size_t);
 const int MESSAGE_META_OFF = EXTENDED_SIZE_OFF + sizeof(size_t);
 const int RECV_MESSAGE_OFF = MESSAGE_META_OFF - sizeof(int);
 //const int CLIENT_PORT = 8001;
@@ -55,7 +55,7 @@ const int MEMORY = 10000;
 const int MAX_BLOCK_NUMBER = 1000; 
 //the size of block used by all the file
 //important
-const size_t BLOCK_SIZE = 5*MB;
+const size_t BLOCK_SIZE = 1*MB;
 //the maximum file size supported;
 //the number = block size * max block number
 //not used
@@ -90,7 +90,7 @@ const int MAX_CONNECT_TIME = 10;
 const int CONNECT_WAIT_TIME=1000;
 //the size of IO buffer in each Client
 //used in buffered IO
-const size_t STREAM_BUFFER_SIZE = 2*BLOCK_SIZE;
+const size_t STREAM_BUFFER_SIZE = BLOCK_SIZE;
 //the maximum size of data in each transfer 
 const size_t MAX_TRANSFER_SIZE = STREAM_BUFFER_SIZE;
 
@@ -200,6 +200,9 @@ const int DATA_SYNC_WRITE=1;
 
 const int URI_MAX = 1000;
 const int TIMEOUT_SEC=1;
-const int SETUP_CONNECTION = 1;
-const int NORMAL_IO=2;
+const bool SETUP_CONNECTION = true;
+const bool NORMAL_IO=false;
+
+const int RMA_READ=0;
+const int RMA_WRITE=1;
 #endif

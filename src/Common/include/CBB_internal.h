@@ -29,7 +29,7 @@
 
 	#define CBB_REAL(name) __real_P_ ## name
 
-	#define	CBB_FUNC_P(ret,name,args)                                                                        \
+	#define	CBB_FUNC_P(ret,name,args)                                                                       \
 		typedef ret (*__real_ ## name) args;                                                            \
 		__real_ ## name __real_P_ ## name=NULL;
 
@@ -39,8 +39,8 @@
 			__real_P_ ## func = reinterpret_cast<__real_ ## func>(dlsym(RTLD_NEXT, #func));         \
 			if(!(__real_P_## func))                                                                 \
 			{                                                                                       \
-				fprintf(stderr, "CBB failed to map symbol: %s\n", #func);                        \
-				exit(1);                                                                        \
+				fprintf(stderr, "CBB failed to map symbol: %s\n", #func);                       \
+				exit(EXIT_FAILURE);                                                             \
 			}                                                                                       \
 		}
 

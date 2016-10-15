@@ -13,7 +13,7 @@ namespace CBB
 	namespace Common
 	{
 		class Client: 
-			protected CBB_communication_thread, 
+			public CBB_communication_thread, 
 			protected CBB_fault_tolerance
 		{
 			public:
@@ -47,6 +47,7 @@ namespace CBB
 				int dequeue(extended_IO_task* response);
 				int print_handle_error(extended_IO_task* response);
 				int connect_to_server(const char* uri, int port, extended_IO_task* new_task);
+				int cleanup_after_large_transfer(extended_IO_task* handle);
 
 				communication_queue_t* get_input_queue_from_query(extended_IO_task* query);
 				communication_queue_t* get_output_queue_from_query(extended_IO_task* query);
@@ -139,6 +140,14 @@ namespace CBB
 			communication_queue_t& output_queue=_communication_output_queue.at(task->get_id());
 			return release_communication_queue(&output_queue);
 		}
+		inline int Client::
+			cleanup_after_large_transfer(extended_IO_task* query)
+			{
+#ifdef CCI
+				deregister_mem(&(query->handle));
+#endif
+				return SUCCESS;
+			}
 	}
 }
 

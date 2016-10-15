@@ -42,6 +42,7 @@ namespace CBB
 				virtual communication_queue_t* get_communication_queue_from_handle(comm_handle_t handle)=0;
 
 				size_t send(extended_IO_task* new_task)throw(std::runtime_error);
+				size_t send_rma(extended_IO_task* new_task) throw(std::runtime_error);
 				size_t receive_message(comm_handle_t handle,
 						extended_IO_task* new_task)throw(std::runtime_error);
 				static void* sender_thread_function(void*);

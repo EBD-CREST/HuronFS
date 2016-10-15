@@ -1,4 +1,9 @@
 #include <pthread.h>
+#include <regex>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/epoll.h>
+#include <sys/eventfd.h>
 
 #include "comm_type/cci.h"
 
@@ -6,25 +11,25 @@ using namespace std;
 using namespace CBB;
 using namespace CBB::Common;
 
-CBB_cci::CBB_cci():
-	Comm_basic(),
-	endpoint(nullptr),
-{}
-
-string CBB_cci::
-get_uri(const char* 	server_addr,
-	int 		server_port)
+CBB_error CBB_cci::
+get_uri_from_server(const char* server_addr,
+		    int 	server_port,
+		    char*	uri_buf)
 throw(std::runtime_error)
 {
 	int count	  = 0; 
 	struct sockaddr_in addr;
 	int socket	  = 0;
 	size_t len	  = 0;
-	char   uri_buf[URI_MAX]=0;
+	struct sockaddr_in client_addr;
 
 	addr.sin_family      = AF_INET;  
 	addr.sin_addr.s_addr = htons(INADDR_ANY);  
 	addr.sin_port 	     = htons(server_port);  
+
+	client_addr.sin_family      = AF_INET;  
+	client_addr.sin_addr.s_addr = htons(INADDR_ANY);  
+	client_addr.sin_port 	    = htons(0);  
 
 	if (0 == inet_aton(server_addr, &addr.sin_addr))
 	{
@@ -36,7 +41,7 @@ throw(std::runtime_error)
 	socket= create_socket(client_addr);
 
 	while( MAX_CONNECT_TIME > ++count &&
-			0 !=  connect(handle->socket, 
+			0 !=  connect(socket, 
 				reinterpret_cast<struct sockaddr*>(
 					const_cast<struct sockaddr_in*>(&addr)),
 				sizeof(addr)))
@@ -52,11 +57,11 @@ throw(std::runtime_error)
 		throw std::runtime_error("Can not Connect to Server"); 
 	}
 
-	recv_by_tcp(socket, len, sizeof(len));
+	recv_by_tcp(socket, reinterpret_cast<char*>(&len), sizeof(len));
 	recv_by_tcp(socket, uri_buf, len);
 	close(socket);
 
-	return string(uri_buf); 
+	return SUCCESS;
 }
 
 size_t CBB_cci::
@@ -67,6 +72,8 @@ send_by_tcp(int     	  sockfd,
 
 	const char* buff_tmp=buf;
 	size_t length=len;
+	ssize_t ret;
+
 	while(0 != length && 
 			0 != (ret=send(sockfd, buff_tmp, length, MSG_DONTWAIT)))
 	{
@@ -92,8 +99,10 @@ recv_by_tcp(int      sockfd,
 	    size_t   len)
 {
 
-	const char* buff_tmp=buf;
+	char* buff_tmp=buf;
 	size_t length=len;
+	ssize_t ret=0;
+
 	while(0 != length && 
 			0 != (ret=recv(sockfd, buff_tmp, length, MSG_WAITALL)))
 	{
@@ -114,40 +123,75 @@ recv_by_tcp(int      sockfd,
 }
 
 CBB_error CBB_cci::
-connect_to_server(comm_handle_t handle)
-	throw(std::runtime_error)
+start_uri_exchange_server()
+throw(std::runtime_error)
 {
-	comm_handle_t new_handle=
-	struct timeval timeout;
-	cci_conn_attribute_t attr=CCI_CONN_ATTR_RO;
-	set_timer(&timeout);
+	struct sockaddr_in server_addr;
+	struct epoll_event event; 
+	int ret;
 
-	string server_uri=get_uri(server_addr, CCI_PORT);
-	ret = cci_connect(endpoint, server_uri.c_str(), nullptr, 0, attr, nullptr,
-			0, &timeout);
-	return 
+	memset(&server_addr, 0, sizeof(server_addr));
+
+	server_addr.sin_family      = AF_INET;  
+	server_addr.sin_addr.s_addr = htons(INADDR_ANY);  
+	server_addr.sin_port 	    = htons(URI_EXCHANGE_PORT);  
+	
+	this->args.socket=create_socket(server_addr);
+	if(0 != listen(this->args.socket,  MAX_QUEUE))
+	{
+		perror("Server Listen PORT ERROR");  
+		throw std::runtime_error("Server Listen PORT ERROR");   
+	}
+	if(-1 == (this->args.epollfd=epoll_create(LENGTH_OF_LISTEN_QUEUE+1)))
+	{
+		perror("epoll_creation"); 
+		throw std::runtime_error("CBB_communication_thread"); 
+	}
+
+	memset(&event, 0, sizeof(event));
+	event.data.fd=this->args.socket;
+	event.events=EPOLLIN; 
+		
+	if( -1 == epoll_ctl(this->args.epollfd, EPOLL_CTL_ADD, this->args.socket, &event)) 
+	{
+		perror("Server Listen PORT ERROR");  
+		throw std::runtime_error("Server Listen PORT ERROR");   
+	}
+
+	this->args.uri=uri;
+	this->args.uri_len=strlen(uri);
+
+	if(0 != 
+		(ret=pthread_create(&(this->exchange_thread), 
+				    nullptr, uri_exchange_thread_fun, &args)))
+	{
+		throw std::runtime_error("create_thread");
+	}
+
+	return SUCCESS;
 }
 
 void* CBB_cci::
-uri_exhange_thread_fun(void* args)
+uri_exchange_thread_fun(void* args)
 {
 	struct epoll_event events[LENGTH_OF_LISTEN_QUEUE]; 
-	struct sockaddr_in client_addr; 
+	struct sockaddr_in client_addr;
 	socklen_t length=sizeof(client_addr);
-	const char* uri=reinterpret_cast<const char* args>(args);
+	struct exchange_args* args_ptr=reinterpret_cast<struct exchange_args*>(args);
+	const char* uri=args_ptr->uri;
+	int epollfd=args_ptr->epollfd;
+	int server_socket=args_ptr->socket;
 	size_t uri_len=strlen(uri);
+	_DEBUG("start uri exchange thread\n");
 	
-	memset(&events, 0, sizeof(events));
-	event[0].data.fd=socket; 
-	event[0].events=EPOLLIN; 
-	epoll_ctl(epollfd, EPOLL_CTL_ADD, socket, &event); 
-
 	while(true)
 	{
 		int nfds=epoll_wait(epollfd, events, LENGTH_OF_LISTEN_QUEUE, -1); 
 		for(int i=0; i<nfds; ++i)
 		{
-			int socket=accept(server_socket,  reinterpret_cast<sockaddr *>(&client_addr),  &length);  
+			int socket=accept(server_socket, 
+					reinterpret_cast<sockaddr *>(&client_addr), 
+					&length);  
 			if( 0 > socket)
 			{
 				fprintf(stderr,  "Server Accept Failed\n");  
@@ -156,20 +200,23 @@ uri_exhange_thread_fun(void* args)
 			}
 			_DEBUG("A New Client\n"); 
 
-			send_by_tcp(socket, uri_len, sizeof(uri_len));
+			send_by_tcp(socket, 
+					reinterpret_cast<char*>(&uri_len), sizeof(uri_len));
 			send_by_tcp(socket, uri, uri_len);
 			close(socket);
 		}
 	}
+	_DEBUG("end thread\n");
 	return nullptr;
 }
 
-int
-init_server()
+int CBB_cci::
+init_protocol()
 	throw(std::runtime_error)
 {
-	int ret;
-	int caps;
+	int   ret	= 0;
+	uint32_t caps	= 0;
+
 	//cci_device_t * const * devices = nullptr;
 
 	/*if (CCI_SUCCESS != 
@@ -181,19 +228,28 @@ init_server()
 	}*/
 
 	if (CCI_SUCCESS != 
-			(ret = cci_init(CCI_ABI_VERSION, 0, &caps))
+			(ret = cci_init(CCI_ABI_VERSION, 0, &caps)))
 	{
 		_DEBUG("cci_init() failed with %s\n",
-				cci_strerror(nullptr, ret));
+				cci_strerror(nullptr, (cci_status)ret));
 		return FAILURE;
 	}
 
 	if (CCI_SUCCESS != 
 			(ret = cci_create_endpoint(nullptr, 
-					 0, &endpoint, nullptr)))
+					 0, &(this->endpoint), nullptr)))
 	{
 		_DEBUG("cci_create_endpoint() failed with %s\n",
-			cci_strerror(nullptr, ret));
+			cci_strerror(nullptr, (cci_status)ret));
+		return FAILURE;
+	}
+
+	if (CCI_SUCCESS !=
+		(ret = cci_get_opt(this->endpoint,
+			  CCI_OPT_ENDPT_URI, &(this->uri))))
+	{
+		_DEBUG("cci_get_opt() failed with %s\n",
+			cci_strerror(nullptr, (cci_status)ret));
 		return FAILURE;
 	}
 	
@@ -202,17 +258,205 @@ init_server()
 }
 
 CBB_error CBB_cci::
-get_uri_from_handle(comm_handle_t handle,
-		    char**	  uri)
+init_server_handle(ref_comm_handle_t server_handle,
+		   int		     port)
+throw(std::runtime_error)
 {
+	return start_uri_exchange_server();
+}
+
+
+CBB_error CBB_cci::
+end_protocol(comm_handle_t server_handle)
+{
+
 	int ret;
 	if (CCI_SUCCESS != 
-			(ret = cci_get_opt(endpoint, CCI_OPT_ENDPT_URI, &uri)))
+			(ret = cci_finalize())) 
 	{
-		_DEBUG("cci_get_opt() failed with %s\n",
-				cci_strerror(nullptr, ret));
+		_DEBUG("cci_finalize() failed with %s\n",
+			cci_strerror(nullptr, (cci_status)ret));
 		return FAILURE;
 	}
-	
+	else
+	{
+		return SUCCESS;
+	}
+}
+
+CBB_error CBB_cci::
+Close(comm_handle_t handle)
+{
+
+	int ret;
+	if (CCI_SUCCESS != 
+			(ret = cci_disconnect(handle->cci_handle))) 
+	{
+		_DEBUG("cci_disconnect() failed with %s\n",
+			cci_strerror(nullptr, (cci_status)ret));
+		return FAILURE;
+	}
+	else
+	{
+		return SUCCESS;
+	}
+	_DEBUG("cci_handle failed %p\n", handle->cci_handle);
 	return SUCCESS;
+}
+
+CBB_error CBB_cci::
+get_uri_from_handle(comm_handle_t       handle,
+		    const char **const  uri)
+{
+	*uri=this->uri;
+	return SUCCESS;
+}
+
+CBB_error CBB_cci::
+Connect(const char* uri,
+	int	    port,
+	ref_comm_handle_t handle,
+	void* 	    buf,
+	size_t*	    size)
+	throw(std::runtime_error)
+{
+	char server_uri[URI_MAX];
+	int ret;
+	if(is_ipaddr(uri))
+	{
+		get_uri_from_server(uri, URI_EXCHANGE_PORT, server_uri);
+	}
+	else
+	{
+		memcpy(server_uri, uri, strlen(uri));
+	}
+
+	struct timeval timeout;
+	cci_conn_attribute_t attr=CCI_CONN_ATTR_RO;
+	set_timer(&timeout);
+
+	push_back_uri(this->uri, buf, size);
+	if(CCI_SUCCESS != 
+			(ret = cci_connect(endpoint, server_uri, 
+					   buf, *size+MESSAGE_META_OFF,
+					   attr, &handle, 0, &timeout)))
+	{
+		_DEBUG("cci_finalize() failed with %s\n",
+			cci_strerror(nullptr, (cci_status)ret));
+		return FAILURE;
+	}
+	return SUCCESS;
+}
+
+size_t CBB_cci:: 
+Recv_large(comm_handle_t handle, 
+	   void*         buffer,
+	   size_t 	 count,
+	   off64_t	 offset)
+throw(std::runtime_error)
+{
+	int ret;
+	cci_connection_t* connection=const_cast<cci_connection_t*>(handle->cci_handle);
+	cci_rma_handle_t* local_rma_handle=const_cast<cci_rma_handle_t*>(handle->local_rma_handle);
+	cci_rma_handle_t* remote_rma_handle=const_cast<cci_rma_handle_t*>(&(handle->remote_rma_handle));
+	//first try with blocking IO
+	_DEBUG("rma read local handle=%p\n", local_rma_handle);
+	if(CCI_SUCCESS != 
+			(ret = cci_rma(connection, nullptr, 0,
+				       local_rma_handle, 0,
+				       remote_rma_handle, offset,
+				       count, &handle, CCI_FLAG_READ|CCI_FLAG_BLOCKING)))
+	{
+		if(CCI_ERR_DISCONNECTED == ret)
+		{
+			_DEBUG("connection close\n");
+			throw std::runtime_error("connection closed");
+		}
+		_DEBUG("cci_rma() failed with %s\n",
+			cci_strerror(nullptr, (cci_status)ret));
+		return FAILURE;
+	}
+	return SUCCESS;
+}
+
+size_t CBB_cci:: 
+Send_large(comm_handle_t handle, 
+	   const void*   buffer,
+	   size_t 	 count,
+	   off64_t	 offset)
+throw(std::runtime_error)
+{
+	int ret;
+	cci_connection_t* connection=const_cast<cci_connection_t*>(handle->cci_handle);
+	cci_rma_handle_t* local_rma_handle=const_cast<cci_rma_handle_t*>(handle->local_rma_handle);
+	cci_rma_handle_t* remote_rma_handle=const_cast<cci_rma_handle_t*>(&handle->remote_rma_handle);
+	//first try with blocking IO
+	_DEBUG("rma write local handle=%p\n", local_rma_handle);
+	if(CCI_SUCCESS != 
+			(ret = cci_rma(connection, nullptr, 0,
+				       local_rma_handle, 0,
+				       remote_rma_handle, offset,
+				       count, &handle, CCI_FLAG_WRITE|CCI_FLAG_BLOCKING)))
+	{
+		if(CCI_ERR_DISCONNECTED == ret)
+		{
+			_DEBUG("connection close\n");
+			throw std::runtime_error("connection closed");
+		}
+		_DEBUG("cci_rma() failed with %s\n",
+			cci_strerror(nullptr, (cci_status)ret));
+		return FAILURE;
+	}
+	return SUCCESS;
+}
+
+size_t CBB_cci::
+Do_recv(comm_handle_t handle, 
+	void* 	      buffer,
+	size_t 	      count,
+	int 	      flag)
+throw(std::runtime_error)
+{
+	if(count > handle->size)
+	{
+		count=handle->size;
+	}
+	memcpy(buffer, handle->buf, count);
+	//bad hack
+	const void**	buf_tmp=(const void**)(&handle->buf);
+	*buf_tmp=(const void*)(handle->buf+count);
+	return count;
+}
+
+size_t CBB_cci::
+Do_send(comm_handle_t 	handle,
+	const void* 	buffer, 
+	size_t 		count, 
+	int 		flag)
+throw(std::runtime_error)
+{
+	int ret;
+	size_t ans=count;
+	_DEBUG("send data to %p\n", handle->cci_handle);
+	while(0 != count)
+	{
+		if(CCI_SUCCESS != 
+			(ret=cci_send(handle->cci_handle,
+				      buffer, count,
+				      handle, CCI_FLAG_BLOCKING|CCI_FLAG_NO_COPY)))
+		{
+			if(CCI_ERR_DISCONNECTED == ret)
+			{
+				_DEBUG("connection close\n");
+				throw std::runtime_error("connection closed");
+			}
+			_DEBUG("cci_send error %s\n",
+					cci_strerror(nullptr, (cci_status)ret));
+		}
+		else
+		{
+			count-=count;
+		}
+	}
+	return ans;
 }

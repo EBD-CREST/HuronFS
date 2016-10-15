@@ -25,6 +25,7 @@ Client::Client(int communication_thread_number):
 	}
 	CBB_communication_thread::setup(&_communication_output_queue,
 			&_communication_input_queue);
+	init_protocol();
 }
 
 Client::~Client()
@@ -38,6 +39,7 @@ int Client::input_from_network(comm_handle_t handle,
 	int to_id=0;
 	communication_queue_t* output_queue=nullptr;
 	extended_IO_task* new_task=nullptr;
+	end_recording();
 	try
 	{
 		Recv(handle, to_id);
@@ -76,7 +78,6 @@ int Client::input_from_producer(communication_queue_t* input_queue)
 		_DEBUG("send request from producer\n");
 		if(new_task->is_new_connection())
 		{
-			new_task->clear_new_conection();
 			connect_to_server(new_task->get_uri(),
 					  new_task->get_port(),
 					  new_task);
@@ -175,12 +176,14 @@ extended_IO_task* Client::get_query_response(extended_IO_task* query)throw(std::
 	_threads_handle_map[query->get_id()]=query->get_handle();
 	_DEBUG("wait on query address %p\n", get_input_queue_from_query(query));
 
+	//ret=get_input_queue_from_query(query)->get_task();
 	do
 	{
 		ret=get_input_queue_from_query(query)->get_task();
-	}while((!compare_handle(query->get_handle(), ret->get_handle()))
-			&& (SUCCESS == print_handle_error(ret))
-			&& (SUCCESS == dequeue(ret)));	
+	}while(!query->is_new_connection() &&
+			(!compare_handle(query->get_handle(), ret->get_handle())) &&
+			(SUCCESS == print_handle_error(ret)) && 
+			(SUCCESS == dequeue(ret)));
 
 	//handle killed
 	if(SOCKET_KILLED == ret->get_error())

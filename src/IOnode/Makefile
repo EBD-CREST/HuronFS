@@ -4,7 +4,7 @@ HEADER_DIR = include
 INCLUDE_PATH = -I./include -I../Common/include
 
 COMMON = ../Common/Server.o \
-	 ../Common/CBB_tcp.o \
+	 ../Common/CBB_cci.o \
 	 ../Common/CBB_communication_thread.o \
 	 ../Common/CBB_request_handler.o \
 	 ../Common/CBB_rwlocker.o \
@@ -26,7 +26,7 @@ vpath %.cpp $(SRC_DIR)
 vpath %.h $(HEADER_DIR)
 
 $(MAIN):$(OBJ) $(COMMON)
-	$(CC) -o $@ $^ -lpthread
+	$(CC) -o $@ $^ $(LIBRARIES)
 
 %.o:%.cpp
 	$(CC) -c $(SERVER_WAIT_FLAG) $(SYNC_FLAG) $(WRITE_BACK) $(DEP_FLAG) $(FLAG) $(INCLUDE_PATH) -o $@ $<

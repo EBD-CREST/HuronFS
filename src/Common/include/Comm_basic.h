@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <exception>
+#include <regex>
 
 #include "CBB_internal.h"
 #include "CBB_const.h"
@@ -31,16 +32,19 @@ namespace CBB
 		struct CBB_handle
 		{
 #ifdef CCI
-			cci_connection_t cci_handle; 
-			cci_rma_handle_t local_rma_handle; 
-			cci_rma_handle_t remote_rma_handle; 
+			cci_connection_t*  	cci_handle; 
+			cci_rma_handle_t*  	local_rma_handle; 
+			cci_rma_handle  	remote_rma_handle; 
+			const void*	 	buf;
+			size_t		 	size;
 #else
-			int 		 socket;
+			int 		 	socket;
 #endif
 		};
 
 		typedef CBB_handle comm_handle;
 		typedef const CBB_handle* comm_handle_t;
+		typedef CBB_handle* free_comm_handle_t;
 		typedef CBB_handle& ref_comm_handle_t;
 
 		class Comm_basic
@@ -99,7 +103,7 @@ namespace CBB
 			virtual CBB_error Close(comm_handle_t handle)=0;
 
 			virtual CBB_error get_uri_from_handle(comm_handle_t handle,
-					char** uri)=0;
+					const char**const  uri)=0;
 
 			virtual bool compare_handle(comm_handle_t src,
 					comm_handle_t des)=0;
@@ -127,7 +131,11 @@ namespace CBB
 			comm_handle_t 
 				copy_handle(ref_comm_handle_t des,
 						comm_handle_t src);
-		private:
+
+			void push_back_uri(const char* uri,
+					   void*   buf,
+					   size_t* size);
+		protected:
 
 			int create_socket(const struct sockaddr_in& addr)
 				throw(std::runtime_error);
@@ -237,6 +245,27 @@ namespace CBB
 				memcpy(&des, src, sizeof(comm_handle));
 				return &des;
 			}
+
+		inline bool
+			is_ipaddr(const char* uri)
+			{
+				static std::regex regex_text("^([0-9]{1,3}\\.){3}[0-9]{1,3}$");
+				std::string ip(uri);
+				return std::regex_match(ip, regex_text); 
+			}
+		inline void Comm_basic::
+			push_back_uri(	const char* uri,
+					void*   buf,
+				        size_t* size)
+			{
+				char* end_of_buf=reinterpret_cast<char*>(buf)+MESSAGE_META_OFF;
+				size_t uri_len = strlen(uri)+1;
+				memcpy(end_of_buf+(*size), &uri_len, sizeof(uri_len));
+				*size+=sizeof(uri_len);
+				memcpy(end_of_buf+(*size), uri, uri_len);
+				*size+=uri_len;
+			}
+
 	}
 }
 

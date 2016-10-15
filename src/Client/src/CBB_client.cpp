@@ -346,6 +346,7 @@ ssize_t CBB_client::_read_from_IOnode(SCBB* corresponding_SCBB,
 	off64_t 	   start_point	=begin(blocks)->start_point;
 	const std::string& node_ip	=begin(node_pool)->second;
 	extended_IO_task*  response	=nullptr;
+	extended_IO_task*  query	=nullptr;
 	comm_handle_t	   IOnode_handle=
 		_get_IOnode_handle(corresponding_SCBB, node_id, node_ip);
 
@@ -359,12 +360,16 @@ ssize_t CBB_client::_read_from_IOnode(SCBB* corresponding_SCBB,
 
 		do
 		{
-			extended_IO_task* query=allocate_new_query(IOnode_handle);
+			query=allocate_new_query(IOnode_handle);
+			query->setup_large_transfer(RMA_READ);
 			query->push_back(READ_FILE);
 			query->push_back(file.file_meta_p->file_no);
 			query->push_back(start_point);
 			query->push_back(offset);
 			query->push_back(IO_size);
+#ifdef CCI
+			query->push_send_buffer(buffer, IO_size);
+#endif
 			send_query(query);
 
 			response=get_query_response(query);
@@ -390,6 +395,7 @@ ssize_t CBB_client::_read_from_IOnode(SCBB* corresponding_SCBB,
 				start_point=find_start_point(blocks, start_point, ret_size);
 				read_size -= ret_size;
 				buffer+=ret_size;
+				cleanup_after_large_transfer(query);
 			}
 		}
 		//*buffer=0;
@@ -417,6 +423,7 @@ ssize_t CBB_client::_write_to_IOnode(SCBB *corresponding_SCBB,
 	comm_handle_t		IOnode_handle	=
 		_get_IOnode_handle(corresponding_SCBB, node_id, node_ip);
 	extended_IO_task* 	response	=nullptr;
+	extended_IO_task* 	query		=nullptr;
 
 	while(0 < write_size)
 	{
@@ -429,13 +436,14 @@ ssize_t CBB_client::_write_to_IOnode(SCBB *corresponding_SCBB,
 		_DEBUG("IO_size=%lu, start_point=%ld, file_no=%ld\n", IO_size, start_point, file.file_meta_p->file_no);
 		do
 		{
-			extended_IO_task* query=allocate_new_query(IOnode_handle);
+			query=allocate_new_query(IOnode_handle);
+			query->setup_large_transfer(RMA_WRITE);
 			query->push_back(WRITE_FILE);
 			query->push_back(file.file_meta_p->file_no);
 			query->push_back(start_point);
 			query->push_back(offset);
 			query->push_back(IO_size);
-			query->push_send_buffer(buffer, IO_size);
+			query->push_send_buffer((char*)buffer, IO_size);
 			send_query(query);
 
 			response=get_query_response(query);
@@ -459,6 +467,7 @@ ssize_t CBB_client::_write_to_IOnode(SCBB *corresponding_SCBB,
 				start_point=find_start_point(blocks, start_point, ret_size);
 				buffer+=ret_size;
 				write_size -= ret_size;
+				cleanup_after_large_transfer(query);
 			}
 		}
 		response_dequeue(response);
@@ -785,6 +794,7 @@ int CBB_client::_getattr(const char* path, struct stat* fstat)throw(std::runtime
 	int ret=master_number;
 	extended_IO_task* response=nullptr;
 
+	end_recording();
 	if(SUCCESS == _get_local_attr(path, fstat))
 	{
 		_DEBUG("use local stat\n");
@@ -800,11 +810,13 @@ int CBB_client::_getattr(const char* path, struct stat* fstat)throw(std::runtime
 			query->push_back(GET_ATTR); 
 			query->push_back_string(path);
 			send_query(query);
+			end_recording();
 			
 			response=get_query_response(query);
 			response->pop(ret);
 			master_handle = _get_master_handle_from_master_number(ret);
 		}while(master_number != ret && response_dequeue(response));
+		end_recording();
 		response->pop(ret);
 		if(SUCCESS == ret)
 		{

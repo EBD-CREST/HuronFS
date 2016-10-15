@@ -5,7 +5,7 @@ MAIN = cbbfs
 COMMON = ../Common/Client.o \
 	 ../Common/CBB_rwlocker.o \
 	 ../Common/CBB_communication_thread.o \
-	 ../Common/CBB_tcp.o\
+	 ../Common/CBB_cci.o\
 	 ../Common/Comm_basic.o\
 	 ../Common/CBB_IO_task.o\
 	 ../Common/CBB_profiling.o
@@ -38,10 +38,10 @@ $(CBB_SLIB):$(LIB_OBJ) $(BASE_OBJ) $(COMMON)
 	ar -r $@ $^
 
 $(CBB_LTLIB):$(LIB_OBJ) $(BASE_OBJ) $(COMMON)
-	$(CC) -Wl,-soname=libCBB.so.0 $(LIB_FLAG) -o $@ $^ -ldl -lpthread
+	$(CC) -Wl,-soname=libCBB.so.0 $(LIB_FLAG) -o $@ $^ -ldl $(LIBRARIES)
 
 $(MAIN):$(FUSE_OBJ) $(BASE_OBJ) $(COMMON) 
-	$(CC) -o $@ $^ -ldl $(FUSE_LIB)
+	$(CC) -o $@ $^ -ldl $(FUSE_LIB) $(LIBRARIES)
 
 $(FUSE_OBJ):$(FUSE_SRC)
 	$(CC) -c $(DEP_FLAG) $(PRELOAD) $(INCLUDE_PATH) $(LIB_FLAG) $(FLAG) $(FUSE_HEADER) -o $@ $< 

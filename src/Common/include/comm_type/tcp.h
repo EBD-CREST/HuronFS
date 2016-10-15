@@ -58,6 +58,14 @@ namespace CBB
 				size_t*		size)
 			throw(std::runtime_error)override; 
 
+		virtual CBB_error
+			Connect_via_ip(	const char*	uri,
+					int		port,
+					ref_comm_handle_t handle,
+					void* 		buf,
+					size_t*		size)
+			throw(std::runtime_error)override; 
+
 		virtual CBB_error 
 			init_protocol()
 			throw(std::runtime_error)override;

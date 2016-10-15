@@ -26,7 +26,6 @@ Server::Server(int communication_thread_number, int port)throw(std::runtime_erro
 		_communication_output_queue[i].set_queue_id(i);
 		_communication_input_queue[i].set_queue_id(i);
 	}
-	init_protocol();
 }
 
 Server::~Server()
@@ -45,7 +44,6 @@ Server::~Server()
 void Server::_init_server()throw(std::runtime_error)
 {
 	configure_dump();
-	_setup_server();
 	CBB_communication_thread::setup(&_communication_output_queue,
 			&_communication_input_queue);
 	CBB_request_handler::set_queues(&_communication_input_queue, &_communication_output_queue);
@@ -59,6 +57,8 @@ void Server::_setup_server()
 
 int Server::start_server()
 {
+	init_protocol();
+	_setup_server();
 	CBB_communication_thread::start_communication_server();
 	CBB_remote_task::start_listening();
 	CBB_communication_thread::_add_handle(&_server_handle);
@@ -155,7 +155,6 @@ int Server::input_from_producer(communication_queue_t* input_queue)
 		_DEBUG("new IO task\n");
 		if(new_task->is_new_connection())
 		{
-			new_task->clear_new_conection();
 			comm_handle handle;
 
 			Connect(new_task->get_uri(),
@@ -171,7 +170,18 @@ int Server::input_from_producer(communication_queue_t* input_queue)
 		{
 			try
 			{
-				send(new_task);
+#ifdef CCI
+				if(0 != new_task->get_extended_data_size())
+				{
+					send_rma(new_task);
+				}
+				else
+				{
+#endif
+					send(new_task);
+#ifdef CCI
+				}
+#endif
 			}
 			catch(std::runtime_error& e)
 			{

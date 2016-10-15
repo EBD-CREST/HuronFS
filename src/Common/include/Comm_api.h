@@ -16,7 +16,14 @@ namespace CBB
 #else
 
 #include "comm_type/cci.h"
+
+namespace CBB
+{
+	namespace Common
+	{
 		typedef CBB_cci CBB_communication;
+	}
+}
 
 #endif
 
