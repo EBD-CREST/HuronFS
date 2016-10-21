@@ -24,9 +24,11 @@ namespace CBB
 				void stop_client();
 				int start_client();
 
-				virtual int input_from_network(Common::comm_handle_t handle,
-						communication_queue_array_t* output_queue)override final;
-				virtual int input_from_producer(communication_queue_t* input_queue)override final;
+				virtual int 
+				input_from_network(Common::comm_handle_t handle,
+					communication_queue_array_t* output_queue)override final;
+				virtual int 
+					input_from_producer(communication_queue_t* input_queue)override final;
 				virtual int output_task_enqueue(extended_IO_task* output_task)override final;
 				virtual communication_queue_t* 
 					get_communication_queue_from_handle(comm_handle_t handle)override final;
@@ -38,9 +40,12 @@ namespace CBB
 				communication_queue_t* get_new_communication_queue();
 				int release_communication_queue(communication_queue_t* queue);
 				int release_communication_queue(extended_IO_task* task);
-				extended_IO_task* allocate_new_query(comm_handle_t handle);
-				extended_IO_task* allocate_new_query(const char* uri, int port);
-				extended_IO_task* allocate_new_query_preallocated(comm_handle_t handle, int id);
+				extended_IO_task* 
+					allocate_new_query(comm_handle_t handle);
+				extended_IO_task* 
+					allocate_new_query(const char* uri, int port);
+				extended_IO_task* 
+					allocate_new_query_preallocated(comm_handle_t handle, int id);
 				int send_query(extended_IO_task* query);
 				extended_IO_task* get_query_response(extended_IO_task* query)throw(std::runtime_error);
 				int response_dequeue(extended_IO_task* response);

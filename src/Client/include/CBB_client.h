@@ -11,6 +11,7 @@
 #include "Client.h"
 #include "CBB_const.h"
 #include "CBB_basic.h"
+//only suppport single thread now
 
 namespace CBB
 {
@@ -146,6 +147,8 @@ namespace CBB
 
 				master_list_t 		master_handle_list;
 				std::string		my_uri;
+				//only suppport single thread now
+				//CBB::Common::string_buf files;
 				//IOnode_fd_map_t 	IOnode_fd_map;
 		};
 		inline int CBB_client::_fd_to_fid(int fd)

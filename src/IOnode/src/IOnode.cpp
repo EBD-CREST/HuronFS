@@ -471,7 +471,10 @@ _receive_data(extended_IO_task* new_task)
 	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n",
 			file_no, start_point, offset, size);
 
+#ifdef CCI
 	extended_IO_task* response=init_response_task(new_task);
+	response->push_back(SUCCESS);//for test
+#endif
 
 	try
 	{
@@ -487,12 +490,17 @@ _receive_data(extended_IO_task* new_task)
 			_DEBUG("receive_data start point %ld, offset %ld, receive size %ld, remaining size %ld\n",
 					start_point, tmp_offset,
 					receive_size, remaining_size);
+#ifdef CCI
 			ssize_t IOsize=update_block_data(blocks,
 					_file, start_point,
 					tmp_offset, receive_size,
 					response);
-					//tcp
-					//new_task);
+#else
+			ssize_t IOsize=update_block_data(blocks,
+					_file, start_point,
+					tmp_offset, receive_size,
+					new_task);
+#endif
 
 			remaining_size	-=IOsize;
 			receive_size	=MIN(
@@ -502,21 +510,27 @@ _receive_data(extended_IO_task* new_task)
 			tmp_offset	=0;
 		}
 		_file.dirty_flag=DIRTY;
-		_sync_data(_file, start_point, 
-				offset, size, response->get_handle());
-				//tcp
-				//offset, size, new_task->get_handle());
+
 #ifdef CCI
 		response->init_response_large_transfer(new_task, RMA_READ);
+#else
+		_sync_data(_file, start_point, 
+				//offset, size, response->get_handle());
+				//tcp
+				offset, size, new_task->get_handle());
 #endif
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
 	{
+		extended_IO_task* response=init_response_task(new_task);
 		response->push_back(FILE_NOT_FOUND);
+		output_task_enqueue(response);
 		ret=FAILURE;
 	}
+#ifdef CCI
 	output_task_enqueue(response);
+#endif
 	return ret;
 }
 
@@ -1130,7 +1144,9 @@ _sync_write_data(data_sync_task* new_task)
 	extended_IO_task* output_task=allocate_data_sync_task();
 	output_task->set_handle(handle);
 	output_task->set_receiver_id(receiver_id);
+#ifdef CCI
 	output_task->set_extended_data_size(new_task->size);
+#endif
 	output_task->push_back(SUCCESS);
 	data_sync_task_enqueue(output_task);
 #ifndef STRICT_SYNC_DATA

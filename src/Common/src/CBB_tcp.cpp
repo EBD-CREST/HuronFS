@@ -84,9 +84,9 @@ throw(std::runtime_error)
 	}
 
 	//bad hack
-	char* my_uri=nullptr;
+	const char* my_uri=nullptr;
 	get_uri_from_handle(&handle, &my_uri);
-	push_back_uri(my_uri, buf, size)
+	push_back_uri(my_uri, buf, size);
 	//init_message
 	Do_send(&handle, buf, *size+MESSAGE_META_OFF,
 			MSG_DONTWAIT);
@@ -219,7 +219,7 @@ throw(std::runtime_error)
 
 CBB_error CBB_tcp::
 get_uri_from_handle(comm_handle_t handle,
-		char**	uri)
+		const char**const	uri)
 {
 	struct sockaddr_in addr;
 	socklen_t len=sizeof(addr);

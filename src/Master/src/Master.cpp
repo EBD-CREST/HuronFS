@@ -539,16 +539,19 @@ CBB::CBB_error Master::_parse_readdir(extended_IO_task* new_task)
 
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
 	_DEBUG("file path=%s\n", real_path.c_str());
-	dir_t files=_get_file_stat_from_dir(relative_path);
+	dir_t files;
+	_get_file_stat_from_dir(relative_path, files);
 	
 	extended_IO_task* output=init_response_task(new_task);
 	output->push_back(SUCCESS);
 	output->push_back(static_cast<int>(files.size()));
+	output->init_response_large_transfer(new_task, RMA_WRITE);
 	for(dir_t::const_iterator it=files.begin();
 			it!=files.end();++it)
 	{
-		output->push_back_string(it->c_str(), it->length());
+		output->push_string_prealloc(*it);
 	}
+	output->setup_prealloc_buffer();
 
 	output_task_enqueue(output);
 	return SUCCESS;
@@ -1624,9 +1627,10 @@ void Master::_send_remove_request(node_info 	*IOnode,
 }
 
 //low performance
-Master::dir_t Master::_get_file_stat_from_dir(const std::string& dir)
+CBB::CBB_error Master::
+_get_file_stat_from_dir(const string& dir,
+			dir_t&	      files)
 {
-	dir_t files;
 	ssize_t start_pos=dir.size();
 	if(dir[start_pos-1] != '/')
 	{
@@ -1656,7 +1660,7 @@ Master::dir_t Master::_get_file_stat_from_dir(const std::string& dir)
 		}
 	}
 	//_file_stat_pool.unlock();
-	return files;
+	return SUCCESS;
 }
 
 CBB::CBB_error

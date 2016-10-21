@@ -6,6 +6,7 @@
 #include <sys/eventfd.h>
 
 #include "comm_type/cci.h"
+#include "cci.h"
 
 using namespace std;
 using namespace CBB;
@@ -228,7 +229,7 @@ init_protocol()
 	}*/
 
 	if (CCI_SUCCESS != 
-			(ret = cci_init(CCI_ABI_VERSION, 0, &caps)))
+		(ret = cci_init(CCI_ABI_VERSION, 0, &caps)))
 	{
 		_DEBUG("cci_init() failed with %s\n",
 				cci_strerror(nullptr, (cci_status)ret));
@@ -236,7 +237,7 @@ init_protocol()
 	}
 
 	if (CCI_SUCCESS != 
-			(ret = cci_create_endpoint(nullptr, 
+		(ret = cci_create_endpoint(nullptr, 
 					 0, &(this->endpoint), nullptr)))
 	{
 		_DEBUG("cci_create_endpoint() failed with %s\n",
@@ -272,7 +273,7 @@ end_protocol(comm_handle_t server_handle)
 
 	int ret;
 	if (CCI_SUCCESS != 
-			(ret = cci_finalize())) 
+		(ret = cci_finalize())) 
 	{
 		_DEBUG("cci_finalize() failed with %s\n",
 			cci_strerror(nullptr, (cci_status)ret));
@@ -290,15 +291,11 @@ Close(comm_handle_t handle)
 
 	int ret;
 	if (CCI_SUCCESS != 
-			(ret = cci_disconnect(handle->cci_handle))) 
+		(ret = cci_disconnect(handle->cci_handle))) 
 	{
 		_DEBUG("cci_disconnect() failed with %s\n",
 			cci_strerror(nullptr, (cci_status)ret));
 		return FAILURE;
-	}
-	else
-	{
-		return SUCCESS;
 	}
 	_DEBUG("cci_handle failed %p\n", handle->cci_handle);
 	return SUCCESS;
@@ -350,6 +347,8 @@ Connect(const char* uri,
 
 size_t CBB_cci:: 
 Recv_large(comm_handle_t handle, 
+	   const unsigned char*   completion,
+	   size_t 	 comp_size,
 	   void*         buffer,
 	   size_t 	 count,
 	   off64_t	 offset)
@@ -362,10 +361,10 @@ throw(std::runtime_error)
 	//first try with blocking IO
 	_DEBUG("rma read local handle=%p\n", local_rma_handle);
 	if(CCI_SUCCESS != 
-			(ret = cci_rma(connection, nullptr, 0,
-				       local_rma_handle, 0,
-				       remote_rma_handle, offset,
-				       count, &handle, CCI_FLAG_READ|CCI_FLAG_BLOCKING)))
+		(ret = cci_rma(connection, completion, comp_size,
+			       local_rma_handle, 0,
+			       remote_rma_handle, offset,
+			       count, local_rma_handle, CCI_FLAG_READ)))
 	{
 		if(CCI_ERR_DISCONNECTED == ret)
 		{
@@ -381,6 +380,8 @@ throw(std::runtime_error)
 
 size_t CBB_cci:: 
 Send_large(comm_handle_t handle, 
+	   const unsigned char*   completion,
+	   size_t 	 comp_size,
 	   const void*   buffer,
 	   size_t 	 count,
 	   off64_t	 offset)
@@ -393,10 +394,10 @@ throw(std::runtime_error)
 	//first try with blocking IO
 	_DEBUG("rma write local handle=%p\n", local_rma_handle);
 	if(CCI_SUCCESS != 
-			(ret = cci_rma(connection, nullptr, 0,
-				       local_rma_handle, 0,
-				       remote_rma_handle, offset,
-				       count, &handle, CCI_FLAG_WRITE|CCI_FLAG_BLOCKING)))
+		(ret = cci_rma(connection, completion, comp_size,
+			       local_rma_handle, 0,
+			       remote_rma_handle, offset,
+			       count, local_rma_handle, CCI_FLAG_WRITE)))
 	{
 		if(CCI_ERR_DISCONNECTED == ret)
 		{
@@ -443,7 +444,7 @@ throw(std::runtime_error)
 		if(CCI_SUCCESS != 
 			(ret=cci_send(handle->cci_handle,
 				      buffer, count,
-				      handle, CCI_FLAG_BLOCKING|CCI_FLAG_NO_COPY)))
+				      nullptr, CCI_FLAG_BLOCKING)))
 		{
 			if(CCI_ERR_DISCONNECTED == ret)
 			{

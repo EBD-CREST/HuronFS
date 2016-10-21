@@ -102,8 +102,9 @@ namespace CBB
 
 			virtual CBB_error Close(comm_handle_t handle)=0;
 
-			virtual CBB_error get_uri_from_handle(comm_handle_t handle,
-					const char**const  uri)=0;
+			virtual CBB_error
+				get_uri_from_handle(comm_handle_t handle,
+						    const char**const uri)=0;
 
 			virtual bool compare_handle(comm_handle_t src,
 					comm_handle_t des)=0;
@@ -249,9 +250,12 @@ namespace CBB
 		inline bool
 			is_ipaddr(const char* uri)
 			{
-				static std::regex regex_text("^([0-9]{1,3}\\.){3}[0-9]{1,3}$");
+				//should use this but disabled because of gcc issue
+				/*static std::regex regex_text("^([0-9]{1,3}\\.){3}[0-9]{1,3}$");
 				std::string ip(uri);
-				return std::regex_match(ip, regex_text); 
+				return std::regex_match(ip, regex_text); */
+				return uri[0]<='9' && uri[0]>='0';
+				
 			}
 		inline void Comm_basic::
 			push_back_uri(	const char* uri,

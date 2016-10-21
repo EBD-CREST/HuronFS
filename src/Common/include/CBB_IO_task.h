@@ -104,6 +104,7 @@ namespace CBB
 
 				int get_mode()const;
 				void init_response_large_transfer(extended_IO_task* request, int mode);
+
 				void setup_large_transfer(int mode);
 				void set_mode(int mode);
 				size_t get_received_data(void* buffer, size_t size);
@@ -114,6 +115,9 @@ namespace CBB
 				const send_buffer_t* get_send_buffer()const;
 				unsigned char* get_receive_buffer(size_t size);
 				void push_send_buffer(char* buf, size_t size);
+				size_t push_string_prealloc(const std::string& string);//push string to prealloc area instead of a given buffer, used in readdir
+				size_t do_push_prealloc(const void* buf, size_t size);
+				void setup_prealloc_buffer();//must be used after all push string prealloc finished
 			private:
 
 				//rma_read; rma_write
@@ -122,6 +126,22 @@ namespace CBB
 				send_buffer_t send_buffer;
 				unsigned char* receive_buffer;
 				unsigned char* current_receive_buffer_ptr;
+				unsigned char  extended_buffer[MAX_EXTENDED_MESSAGE_SIZE];
+		};
+
+		class string_buf
+		{
+			public:
+				string_buf(size_t total_size);
+				~string_buf();
+				size_t pop_string(char** string_ptr);
+				void* get_buffer();
+			private:
+				size_t do_pop(void** buf, size_t size);
+			private:
+				unsigned char*  buf;
+				size_t 		total_size;
+				unsigned char*  cur_ptr;
 		};
 
 		int Send_attr(extended_IO_task* output_task,
@@ -483,10 +503,39 @@ namespace CBB
 			this->mode=mode;
 		}
 
+		inline size_t extended_IO_task::
+			do_push_prealloc(const void* buf, size_t size)
+			{
+				memcpy(extended_buffer+(*extended_size), buf, 
+						size);
+				*(this->extended_size) += size;
+				return size;
+			}
+
+		inline size_t extended_IO_task::
+			push_string_prealloc(const std::string& string)
+		{
+			size_t ret=0;
+			size_t string_size=string.size()+1;
+			ret+=do_push_prealloc(&string_size, sizeof(string_size));
+			ret+=do_push_prealloc(string.c_str(), string_size);
+			return ret;
+		}
+				
+		inline void extended_IO_task::
+			setup_prealloc_buffer()
+		{
+			push_send_buffer(reinterpret_cast<char*>(this->extended_buffer),
+					*(this->extended_size));
+			//bad hack fix later
+			*(this->extended_size)/=2;
+		}
+
 		inline void extended_IO_task::
 			init_response_large_transfer(extended_IO_task* 	request,
 					     	     int 		mode)
 			{
+#ifdef CCI
 				this->mode=mode;
 				request->pop(this->handle.remote_rma_handle);
 				_DEBUG("remote key=%lu %lu %lu %lu\n", 
@@ -494,12 +543,49 @@ namespace CBB
 						handle.remote_rma_handle.stuff[1],
 						handle.remote_rma_handle.stuff[2],
 						handle.remote_rma_handle.stuff[3]);
+#endif
 			}
 
 		inline void extended_IO_task::
 			setup_large_transfer(int mode)
 			{
 				this->mode=mode;
+			}
+		inline string_buf::
+			string_buf(size_t total_size):
+				buf(new unsigned char[total_size]),
+				total_size(total_size),
+				cur_ptr(buf)
+		{}
+
+		inline size_t string_buf::
+			do_pop(void** buf, size_t size)
+			{
+				*buf=cur_ptr;
+				cur_ptr+=size;
+				return size;
+			}
+
+		inline size_t string_buf::
+			pop_string(char** string_ptr)
+			{
+				size_t* size=nullptr;
+				do_pop((void**)&size, sizeof(size_t));
+				_DEBUG("size of string is %lu\n", *size);
+				do_pop((void**)string_ptr, *size);
+				return *size;
+			}
+
+		inline void* string_buf::
+			get_buffer()
+			{
+				return buf;
+			}
+
+		inline string_buf::
+			~string_buf()
+			{
+				delete[] buf;
 			}
 	}
 }

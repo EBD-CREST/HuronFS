@@ -197,7 +197,8 @@ namespace CBB
 				virtual CBB_error node_failure_handler(Common::comm_handle_t handle)override final;
 
 				ssize_t _select_IOnode_for_IO(open_file_info& file);
-				dir_t _get_file_stat_from_dir(const std::string& path);
+				CBB_error _get_file_stat_from_dir(const std::string& path,
+						dir_t& files);
 				CBB_error _setup_queues();
 				node_info* _get_next_IOnode();	
 				int _get_my_thread_id()const;

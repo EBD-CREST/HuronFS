@@ -34,13 +34,12 @@ namespace CBB
 
 		virtual CBB_error Close(comm_handle_t handle)override final;
 
-		virtual CBB_error 
-			get_uri_from_handle(comm_handle_t 	handle,
-					    const char**const   uri)override final;
-
 		virtual bool compare_handle(comm_handle_t src,
 				comm_handle_t des)override final;
 
+		virtual CBB_error
+			get_uri_from_handle(comm_handle_t     handle,
+					    const char**const uri)override final;
 		virtual CBB_error
 			Connect(const char* uri,
 				int	    port,
@@ -73,6 +72,22 @@ namespace CBB
 				  off64_t	offset)
 			throw(std::runtime_error);
 
+		size_t Recv_large(comm_handle_t sockfd, 
+				  const unsigned char*   completion,
+				  size_t	comp_size,
+				  void*         buffer,
+				  size_t 	count,
+				  off64_t	offset)
+			throw(std::runtime_error);
+
+		size_t Send_large(comm_handle_t handle, 
+				  const unsigned char*   completion,
+				  size_t	comp_size,
+				  const void*   buffer,
+				  size_t 	count,
+				  off64_t	offset)
+			throw(std::runtime_error);
+
 
 		CBB_error start_uri_exchange_server()
 			throw(std::runtime_error);
@@ -83,6 +98,7 @@ namespace CBB
 				 	int		flag);
 
 		CBB_error deregister_mem(comm_handle_t handle);
+		CBB_error deregister_mem(cci_rma_handle_t* handle);
 
 		static void*
 			socket_thread_fun(void *obj);
@@ -200,6 +216,27 @@ namespace CBB
 				//forwarding
 				return Send_large(handle, buffer, count, 0);
 			}
+
+		inline size_t CBB_cci:: 
+			Recv_large(comm_handle_t handle, 
+				   void*         buffer,
+				   size_t 	 count,
+				   off64_t	 offset)
+			throw(std::runtime_error)
+			{
+				return Recv_large(handle, nullptr, 0, buffer, count, 0);
+			}
+
+		inline size_t CBB_cci:: 
+			Send_large(comm_handle_t handle, 
+				   const void*   buffer,
+				   size_t 	 count,
+				   off64_t	 offset)
+			throw(std::runtime_error)
+			{
+				return Send_large(handle, nullptr, 0, buffer, count, 0);
+			}
+
 		inline cci_endpoint_t* CBB_cci::
 			get_endpoint()
 		{

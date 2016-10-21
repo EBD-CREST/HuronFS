@@ -60,7 +60,9 @@ CBB_client::CBB_client():
 	_path_file_meta_map(),
 	_client_addr(sockaddr_in()),
 	_initial(false),
-	master_handle_list()
+	master_handle_list(),
+	my_uri()
+	//files(MAX_DIR_FILE_SIZE)
 	//IOnode_fd_map()
 {
 	_DEBUG("start initalizing\n");
@@ -832,12 +834,17 @@ int CBB_client::_getattr(const char* path, struct stat* fstat)throw(std::runtime
 	}
 }
 
-int CBB_client::_readdir(const char * path, dir_t& dir)throw(std::runtime_error)
+int CBB_client::
+_readdir(const char * path, dir_t& dir)
+throw(std::runtime_error)
 
 {
 	int ret=0;
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
+
+	//putting files in class to reduce the latency
+	string_buf files(MAX_DIR_FILE_SIZE);
 
 	for(master_list_t::const_iterator it=master_handle_list.begin();
 			it != master_handle_list.end(); ++it)
@@ -845,6 +852,11 @@ int CBB_client::_readdir(const char * path, dir_t& dir)throw(std::runtime_error)
 		comm_handle_t master_handle=&it->master_handle;
 		extended_IO_task* query=allocate_new_query(master_handle);
 		query->push_back(READ_DIR); 
+#ifdef CCI
+		query->push_send_buffer((char*)files.get_buffer(), 
+				MAX_DIR_FILE_SIZE);
+		query->setup_large_transfer(RMA_DIR);
+#endif
 		query->push_back_string(path);
 		send_query(query);
 
@@ -856,11 +868,18 @@ int CBB_client::_readdir(const char * path, dir_t& dir)throw(std::runtime_error)
 			int count=0;
 			char *path=nullptr;
 			response->pop(count);
+#ifdef TCP
+			response->get_received_data_all(files.get_buffer());
+#endif
 			for(int i=0; i<count; ++i)
 			{
-				response->pop_string(&path);
+				files.pop_string(&path);
 				dir.insert(std::string(path));
 			}
+#ifdef CCI
+			cleanup_after_large_transfer(query);
+#endif
+
 		}
 		else
 		{
