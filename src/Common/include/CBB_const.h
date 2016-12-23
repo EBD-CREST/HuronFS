@@ -21,6 +21,8 @@ const int MAX_BASIC_MESSAGE_SIZE = 4*KB;
 const int MAX_EXTENDED_MESSAGE_SIZE=2*MB;
 //the size of files in a directory
 const int MAX_DIR_FILE_SIZE=MAX_EXTENDED_MESSAGE_SIZE;
+//the max retry for communication
+const int CBB_COMM_RETRY = 10;
 
 const int RECEIVER_ID_OFF = 0;
 const int SENDER_ID_OFF = RECEIVER_ID_OFF + sizeof(int);
@@ -95,7 +97,8 @@ const int CONNECT_WAIT_TIME=1000;
 //the size of IO buffer in each Client
 //used in buffered IO
 //const size_t STREAM_BUFFER_SIZE = BLOCK_SIZE;
-const size_t STREAM_BUFFER_SIZE = 100*MB;
+//const size_t STREAM_BUFFER_SIZE = 100*MB;
+const size_t STREAM_BUFFER_SIZE = 1*MB;
 //the maximum size of data in each transfer 
 const size_t MAX_TRANSFER_SIZE = STREAM_BUFFER_SIZE;
 

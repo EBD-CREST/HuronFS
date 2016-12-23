@@ -22,6 +22,7 @@ int main(int argc, char ** argv)
 	size_t total_size=0;
 	ssize_t ret;
 	struct stat file_stat;
+	char   test;
 	struct timeval st, et;
 	char file_path[PATH_MAX];
 	const char *mount_point=getenv("CBB_CLIENT_MOUNT_POINT");
@@ -33,7 +34,7 @@ int main(int argc, char ** argv)
 	}
 	sprintf(file_path, "%s%s", mount_point, "/test1");
 
-	fd=open(file_path, O_RDONLY);
+	fd=open(file_path, O_WRONLY);
 	fstat(fd, &file_stat);
 	if(NULL == (buffer=malloc(file_stat.st_size)))
 	{
@@ -43,7 +44,20 @@ int main(int argc, char ** argv)
 
 	gettimeofday(&st, NULL);
 
-	if(-1 == (ret=read(fd, buffer, file_stat.st_size)))
+	if(-1 == (ret=write(fd, buffer, file_stat.st_size)))
+	{
+		perror("read");
+		return EXIT_FAILURE;
+	}
+	if(-1 == (ret=lseek(fd, 0, SEEK_SET)))
+	{
+		perror("lseek");
+		return EXIT_FAILURE;
+	}
+	printf("seek to begin\n");
+	printf("read again\n");
+	scanf("%c", &test);
+	if(-1 == (ret=write(fd, buffer, file_stat.st_size)))
 	{
 		perror("read");
 		return EXIT_FAILURE;

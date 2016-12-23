@@ -22,6 +22,14 @@ namespace CBB
 		typedef std::map<ssize_t, Common::comm_handle> IOnode_fd_map_t;
 		typedef std::set<int> _opened_fd_t;
 		typedef std::map<std::string, file_meta*> _path_file_meta_map_t; //map path, fd
+		typedef std::vector<ssize_t> IOnode_list_t;
+		//typedef std::vector<block_info> _block_list_t;
+		typedef std::map<off64_t, size_t> _block_list_t;
+
+		_block_list_t::const_iterator
+			find_block_by_start_point(
+					_block_list_t 	blocks,
+					off64_t		start_point);
 
 		class SCBB
 		{
@@ -39,6 +47,7 @@ namespace CBB
 				IOnode_fd_map_t& get_IOnode_list();
 				Common::comm_handle_t insert_IOnode(ssize_t IOnode_id,
 							Common::comm_handle_t IOnode_handle);
+				Common::comm_handle& get_IOnode_handle(ssize_t IOnode_id);
 			private:
 				IOnode_fd_map_t       IOnode_list; //map IOnode id: fd
 				int 		      id;
@@ -49,8 +58,12 @@ namespace CBB
 		{
 			public:
 				friend class CBB_client;
-				//block_info(ssize_t node_id, off64_t start_point, size_t size);
+				friend _block_list_t::const_iterator
+					find_block_by_start_point(
+							_block_list_t 	blocks,
+							off64_t		start_point);
 				block_info(off64_t start_point, size_t size);
+				friend bool operator == (const block_info& src, const block_info& des);
 			private:
 				//ssize_t node_id;
 				off64_t start_point;
@@ -62,14 +75,14 @@ namespace CBB
 			public:
 				friend class CBB_client;
 				friend class opened_file_info;
-				file_meta(ssize_t file_no,
+				file_meta(ssize_t remote_file_no,
 						size_t block_size,
 						const struct stat* file_stat,
 						SCBB* corresponding_SCBB);
 				Common::comm_handle_t get_master_handle();
 				int get_master_number();
 			private:
-				ssize_t 	file_no;
+				ssize_t 	remote_file_no;
 				int 		open_count;
 				size_t 		block_size;
 				struct stat 	file_stat;
@@ -88,6 +101,9 @@ namespace CBB
 				opened_file_info();
 				opened_file_info(const opened_file_info& src);
 				~opened_file_info();
+				struct stat& get_file_metadata();
+				const struct stat& get_file_metadata()const;
+				ssize_t get_remote_file_no()const;
 			private:
 				const opened_file_info& operator=(const opened_file_info&)=delete;
 				//current offset in file
@@ -95,7 +111,33 @@ namespace CBB
 				int 		fd;
 				int 		flag;
 				file_meta* 	file_meta_p;
+				IOnode_list_t	IOnode_list_cache;
+				_block_list_t	block_list;
 		};
+
+
+		inline struct stat& opened_file_info::
+			get_file_metadata()
+		{
+			return this->file_meta_p->file_stat;
+		}
+		inline const struct stat& opened_file_info::
+			get_file_metadata()const
+		{
+			return this->file_meta_p->file_stat;
+		}
+
+		inline _block_list_t::const_iterator
+			find_block_by_start_point(_block_list_t blocks,
+						  off64_t	start_point)
+		{
+			_block_list_t::const_iterator it=
+				blocks.find(start_point);
+			/*for(;it != std::end(blocks) &&
+				it->start_point != start_point;
+				it ++);*/
+			return it;
+		}
 
 		inline void SCBB::
 			set_id(int id)	
@@ -135,10 +177,26 @@ namespace CBB
 			return this->IOnode_list;
 		}
 
+		inline Common::comm_handle& SCBB::
+			get_IOnode_handle(ssize_t IOnode_id)
+		{
+			return this->IOnode_list[IOnode_id];
+		}
+
 		inline Common::comm_handle_t SCBB::
 			get_master_handle()
 		{
 			return &this->master_handle;
+		}
+		inline ssize_t opened_file_info::
+			get_remote_file_no()const
+		{
+			return this->file_meta_p->remote_file_no;
+		}
+
+		inline bool operator == (const block_info& src, const block_info& des)
+		{
+			return src.start_point == des.start_point;
 		}
 	}
 }

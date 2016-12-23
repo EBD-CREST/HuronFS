@@ -1840,16 +1840,18 @@ CBB::CBB_error Master::_parse_IOnode_failure(extended_IO_task* new_task)
 	return SUCCESS;
 }
 
-void Master::flush_file_stat()
+/*void Master::flush_file_stat()
 {
 	for(auto& file_stat:_file_stat_pool)
 	{
 		_DEBUG("file path %s, address %p\n", file_stat.first.c_str(), &file_stat);
 	}
-}
+}*/
 
-CBB::CBB_error Master::_create_new_backup_file(const string 	&path,
-				    	  mode_t	mode)
+CBB::CBB_error Master::
+_create_new_backup_file(
+		const string 	&path,
+	   	mode_t		mode)
 {
 	std::string file_path=_get_backup_path(path);
 	_DEBUG("create new backup file %s\n", file_path.c_str());

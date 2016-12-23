@@ -30,6 +30,7 @@ export LIBRARIES = -lpthread $(shell pkg-config --libs cci)
 #export FLAG=-O0 -g -Wall -std=c++11 -DDEBUG -DLOG -DTCP
 #export FLAG=-O1 -g -Wall -std=c++11 -DLOG -DCCI $(shell pkg-config --cflags cci)
 export FLAG=-O3 -g -Wall -std=c++11 -DLOG -DCCI $(shell pkg-config --cflags cci)
+#export FLAG=-O0 -g -Wall -std=c++11 -DDEBUG -DLOG -DCCI $(shell pkg-config --cflags cci)
 #export FLAG=-O3 -g -Wall -std=c++11 -DLOG -DTCP
 #export FLAG=-O3 -g -Wall -std=c++11 -DLOG -DTCP
 

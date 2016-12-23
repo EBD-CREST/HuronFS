@@ -8,11 +8,11 @@ block_info::block_info(off64_t start_point,
 	size(size)
 {}
 
-file_meta::file_meta(ssize_t file_no,
+file_meta::file_meta(ssize_t remote_file_no,
 		     size_t block_size,
 		     const struct stat* file_stat,
 		     SCBB* corresponding_SCBB):
-	file_no(file_no),
+	remote_file_no(remote_file_no),
 	open_count(0),
 	block_size(block_size),
 	file_stat(*file_stat),
@@ -36,7 +36,9 @@ opened_file_info::opened_file_info():
 	current_point(0),
 	fd(0),
 	flag(-1),
-	file_meta_p(nullptr)
+	file_meta_p(nullptr),
+	IOnode_list_cache(),
+	block_list()
 {}
 
 opened_file_info::~opened_file_info()
@@ -51,7 +53,9 @@ opened_file_info::opened_file_info(const opened_file_info& src):
 	current_point(src.current_point),
 	fd(src.fd),
 	flag(src.flag),
-	file_meta_p(src.file_meta_p)
+	file_meta_p(src.file_meta_p),
+	IOnode_list_cache(src.IOnode_list_cache),
+	block_list(src.block_list)
 {
 	++file_meta_p->open_count;
 }

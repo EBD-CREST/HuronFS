@@ -24,12 +24,12 @@ namespace CBB
 			public:
 				typedef std::map<int, opened_file_info> _file_list_t; //map fd opened_file_info
 				typedef std::vector<bool> _file_t;
-				typedef std::vector<block_info> _block_list_t;
-				typedef std::map<ssize_t, std::string> _node_pool_t;
 				typedef std::set<std::string> dir_t;
 				typedef std::vector<SCBB> master_list_t;
+				typedef std::map<ssize_t, Common::comm_handle_t> _node_pool_t;
 
 				static const char *CLIENT_MOUNT_POINT;
+				static const char *CLIENT_USING_IONODE_CACHE;
 				static const char *MASTER_IP_LIST;
 
 			public:
@@ -81,44 +81,74 @@ namespace CBB
 				static bool _interpret_path(const char* path);
 				static bool _interpret_fd(int fd);
 				static void _format_path(const char* path, std::string &formatted_path);
-				static void _get_relative_path(const std::string& formatted_path, std::string &true_path);
+				static void _get_relative_path(	const std::string& formatted_path,
+								std::string &true_path);
 				size_t _get_file_size(int fd);
 				int _update_file_size(int fd, size_t size);
 				int _write_update_file_size(opened_file_info& file, size_t size);
+				int _get_IOnode_from_cache();
 			private:
 				//private functions
-				void _get_blocks_from_master(Common::extended_IO_task* response,
-						off64_t start_point,
-						size_t& size,
-						std::vector<block_info> &block,
-						_node_pool_t &node_pool);
+				int _parse_blocks_from_master(
+						Common::extended_IO_task* response,
+						SCBB*		  corresponding_SCBB,
+						off64_t 	  start_point,
+						size_t& 	  size,
+						_block_list_t&    block,
+						_block_list_t&	  block_cache,
+						_node_pool_t&     node_pool,
+						IOnode_list_t&	  IOnode_cache);
 
-				ssize_t _read_from_IOnode(SCBB *corresponding_SCBB,
+				int _get_blocks_from_master(
 						opened_file_info& file,
-						const _block_list_t& blocks,
-						const _node_pool_t& node_pool,
-						char *buffer,
-						size_t size);
+						SCBB* 		  corresponding_SCBB,
+						ssize_t 	  fd,
+						size_t 	  	  size, 
+						_block_list_t&	  blocks,
+						_node_pool_t&	  node_pool,
+						int 		  mode);
 
-				ssize_t _write_to_IOnode(SCBB *corresponding_SCBB,
+				int _get_blocks_from_cache(
 						opened_file_info& file,
-						const _block_list_t& blocks,
-						const _node_pool_t& node_pool,
-						const char *buffer,
-						size_t size);
+						SCBB*		  corresponding_SCBB,
+						size_t 	  	  size,
+						_block_list_t&	  block_list,
+						_node_pool_t&	  node_pool);
+
+				ssize_t _read_from_IOnode(
+						SCBB* 			corresponding_SCBB,
+						opened_file_info& 	file,
+						const _block_list_t& 	blocks,
+						const _node_pool_t& 	node_pool,
+						char *			buffer,
+						size_t 			size);
+
+				ssize_t _write_to_IOnode(
+						SCBB *			corresponding_SCBB,
+						opened_file_info& 	file,
+						const _block_list_t& 	blocks,
+						const _node_pool_t& 	node_pool,
+						const char *		buffer,
+						size_t 			size);
+				bool _using_IOnode_cache()const;
 
 				int _get_fid();
 				int _register_to_master();
 				Common::comm_handle_t
-					_get_IOnode_handle(SCBB* corresponding_SCBB, 
-							   ssize_t IOnode_id,
-							   const std::string& ip);
+					_get_IOnode_handle(SCBB* 	corresponding_SCBB, 
+							   ssize_t 	IOnode_id,
+							   const char*  ip);
 
-				static inline int _fd_to_fid(int fd);
-				static inline int _fid_to_fd(int fid);
+				static int _fd_to_fid(int fd);
+
+				static int _fid_to_fd(int fid);
+
 				int _update_fstat_to_server(opened_file_info& file);
+
 				int _get_local_attr(const char *path, struct stat *file_stat);
-				file_meta* _create_new_file(Common::extended_IO_task* new_task, SCBB* corresponding_SCBB);
+
+				file_meta* _create_new_file(	Common::extended_IO_task* new_task,
+								SCBB* corresponding_SCBB);
 				int _close_local_opened_file(const char* path);
 				Common::comm_handle_t 
 					_get_master_handle_from_path(const std::string& path)const;
@@ -147,6 +177,8 @@ namespace CBB
 
 				master_list_t 		master_handle_list;
 				std::string		my_uri;
+				bool			USING_IONODE_CACHE;
+				
 				//only suppport single thread now
 				//CBB::Common::string_buf files;
 				//IOnode_fd_map_t 	IOnode_fd_map;
@@ -198,6 +230,12 @@ namespace CBB
 		inline SCBB* CBB_client::_get_scbb_from_master_number(int master_number)
 		{
 			return &master_handle_list.at(master_number);
+		}
+
+		inline bool CBB_client::
+			_using_IOnode_cache()const
+		{
+			return this->USING_IONODE_CACHE;
 		}
 
 		/*inline ssize_t CBB_client::_get_IOnode_id(int master_number, ssize_t IOnode_id)const
