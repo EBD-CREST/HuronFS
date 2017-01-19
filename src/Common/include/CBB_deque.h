@@ -1,14 +1,14 @@
 #ifndef CBB_DEQUE_H_
 #define CBB_DEQUE_H_
 
-#include "CBB_rwlocker.h"
+#include "CBB_rwlock.h"
 #include <deque>
 
 namespace CBB
 {
 	namespace Common
 	{
-		template<class Key> class CBB_deque: public CBB_rwlocker
+		template<class Key> class CBB_deque: public CBB_rwlock
 		{
 			public:
 				typedef std::deque<Key> Deque_t;
@@ -32,7 +32,7 @@ namespace CBB
 
 		};
 		template<class Key>CBB_deque<Key>::CBB_deque():
-			CBB_rwlocker(),
+			CBB_rwlock(),
 			_actual_deque()
 		{}
 
@@ -41,33 +41,33 @@ namespace CBB
 
 		inline template<class Key> void CBB_deque<Key>::push_back(const value_type& val)
 		{
-			//CBB_rwlocker::wr_lock();
+			//CBB_rwlock::wr_lock();
 			_actual_deque.push_back(val);
-			//CBB_rwlocker::unlock();
+			//CBB_rwlock::unlock();
 			return;
 		}
 
 		inline template<class Key> void CBB_deque<Key>::push_front(const value_type& val)
 		{
-			//CBB_rwlocker::wr_lock();
+			//CBB_rwlock::wr_lock();
 			_actual_deque.push_front(val);
-			//CBB_rwlocker::unlock();
+			//CBB_rwlock::unlock();
 			return;
 		}
 
 		inline template<class Key> void CBB_deque<Key>::pop_back()
 		{
-			//CBB_rwlocker::wr_lock();
+			//CBB_rwlock::wr_lock();
 			_actual_deque.pop_back();
-			//CBB_rwlocker::unlock();
+			//CBB_rwlock::unlock();
 			return;
 		}
 
 		inline template<class Key> void CBB_deque<Key>::pop_front()
 		{
-			//CBB_rwlocker::wr_lock();
+			//CBB_rwlock::wr_lock();
 			_actual_deque.pop_front();
-			//CBB_rwlocker::unlock();
+			//CBB_rwlock::unlock();
 			return ;
 		}
 
@@ -78,17 +78,17 @@ namespace CBB
 
 		inline template<class Key> typename CBB_deque<Key>::reference CBB_deque<Key>::front()
 		{
-			//CBB_rwlocker::wr_lock();
+			//CBB_rwlock::wr_lock();
 			reference ret=_actual_deque.front();
-			//CBB_rwlocker::unlock();
+			//CBB_rwlock::unlock();
 			return ret;
 		}
 
 		inline template<class Key> typename CBB_deque<Key>::reference CBB_deque<Key>::back()
 		{
-			//CBB_rwlocker::wr_lock();
+			//CBB_rwlock::wr_lock();
 			reference ret=_actual_deque.back();
-			//CBB_rwlocker::unlock();
+			//CBB_rwlock::unlock();
 			return ret;
 		}
 	}

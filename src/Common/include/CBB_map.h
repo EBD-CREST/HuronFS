@@ -4,14 +4,14 @@
 #include <map>
 #include <stdexcept>
 
-#include "CBB_rwlocker.h"
+#include "CBB_rwlock.h"
 #include "CBB_internal.h"
 
 namespace CBB
 {
 	namespace Common
 	{
-		template<class Key, class Value> class CBB_map:public CBB_rwlocker
+		template<class Key, class Value> class CBB_map:public CBB_rwlock
 		{
 			public:
 				typedef std::map<Key, Value> Maptype_t;
@@ -47,40 +47,40 @@ namespace CBB
 
 		template<class Key, class Value> inline std::pair<typename CBB_map<Key, Value>::iterator, bool>CBB_map<Key, Value>::insert(const value_type& value)
 		{
-			CBB_rwlocker::wr_lock();
+			CBB_rwlock::wr_lock();
 			std::pair<iterator, bool> ret=_actual_map.insert(value);
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 			return ret;
 		}
 
 		template<class Key, class Value> inline typename CBB_map<Key, Value>::iterator
 			CBB_map<Key, Value>::find(const Key& key)
 			{
-				CBB_rwlocker::rd_lock();
+				CBB_rwlock::rd_lock();
 				iterator it=_actual_map.find(key);
-				CBB_rwlocker::unlock();
+				CBB_rwlock::unlock();
 				return it;
 			}
 
 		template<class Key, class Value> inline typename CBB_map<Key, Value>::mapped_type&
 			CBB_map<Key, Value>::operator[](const Key& key)
 			{
-				CBB_rwlocker::rd_lock();
+				CBB_rwlock::rd_lock();
 				mapped_type& ret=_actual_map[key];
-				CBB_rwlocker::unlock();
+				CBB_rwlock::unlock();
 				return ret;
 			}
 
 		template<class Key, class Value> inline typename CBB_map<Key, Value>::mapped_type&
 			CBB_map<Key, Value>::at_retry(const Key& key)
 			{
-				CBB_rwlocker::rd_lock();
+				CBB_rwlock::rd_lock();
 				while(true)
 				{
 					try
 					{
 						mapped_type& ret=_actual_map.at(key);
-						CBB_rwlocker::unlock();
+						CBB_rwlock::unlock();
 						return ret;
 					}
 					catch(std::out_of_range)
@@ -93,40 +93,40 @@ namespace CBB
 		template<class Key, class Value> inline typename CBB_map<Key, Value>::mapped_type&
 			CBB_map<Key, Value>::at(const Key& key)throw(std::out_of_range)
 			{
-				CBB_rwlocker::rd_lock();
+				CBB_rwlock::rd_lock();
 				mapped_type& ret=_actual_map.at(key);
-				CBB_rwlocker::unlock();
+				CBB_rwlock::unlock();
 				return ret;
 			}
 
 		template<class Key, class Value> inline typename CBB_map<Key, Value>::const_mapped_type&
 			CBB_map<Key, Value>::at(const Key& key)const throw(std::out_of_range)
 			{
-				CBB_rwlocker::rd_lock();
+				CBB_rwlock::rd_lock();
 				const_mapped_type& ret=_actual_map.at(key);
-				CBB_rwlocker::unlock();
+				CBB_rwlock::unlock();
 				return ret;
 			}
 
 		template<class Key, class Value> inline void CBB_map<Key, Value>::erase(iterator position)
 		{
-			CBB_rwlocker::wr_lock();
+			CBB_rwlock::wr_lock();
 			_actual_map.erase(position);
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 		}
 
 		template<class Key, class Value> inline void CBB_map<Key, Value>::erase(const Key& key)
 		{
-			CBB_rwlocker::wr_lock();
+			CBB_rwlock::wr_lock();
 			_actual_map.erase(key);
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 		}
 
 		template<class Key, class Value> inline typename CBB_map<Key, Value>::size_type CBB_map<Key, Value>::size()const
 		{
-			CBB_rwlocker::rd_lock();
+			CBB_rwlock::rd_lock();
 			size_type size=_actual_map.size();
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 			return size;
 		}
 

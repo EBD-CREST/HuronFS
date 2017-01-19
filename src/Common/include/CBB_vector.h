@@ -4,13 +4,13 @@
 #include <map>
 #include <stdexcept>
 
-#include "CBB_rwlocker.h"
+#include "CBB_rwlock.h"
 
 namespace CBB
 {
 	namespace Common
 	{
-		template<class type> class CBB_vector:public CBB_rwlocker
+		template<class type> class CBB_vector:public CBB_rwlock
 		{
 			public:
 				typedef type value_type;
@@ -44,32 +44,32 @@ namespace CBB
 
 		template<class type> inline typename CBB_vector<type>::reference CBB_vector<type>::at(size_type pos) throw(std::out_of_range)
 		{
-			CBB_rwlocker::rd_lock();
+			CBB_rwlock::rd_lock();
 			reference ret=_actual_vector.at(pos);
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 		}
 
 		template<class type> inline typename CBB_vector<type>::const_reference CBB_vector<type>::at(size_type pos)const throw(std::out_of_range)
 		{
-			CBB_rwlocker::rd_lock();
+			CBB_rwlock::rd_lock();
 			const_reference ret=_actual_vector.at(pos);
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 			return ret;
 		}
 
 		template<class type> inline typename CBB_vector<type>::reference CBB_vector<type>::operator[](size_type pos)
 		{
-			CBB_rwlocker::rd_lock();
+			CBB_rwlock::rd_lock();
 			reference ret=_actual_vector[pos];
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 			return ret;
 		}
 
 		template<class type> inline typename CBB_vector<type>::const_reference CBB_vector<type>::operator[](size_type pos)const
 		{
-			CBB_rwlocker::rd_lock();
+			CBB_rwlock::rd_lock();
 			const_reference ret=_actual_vector[pos];
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 			return ret;
 		}
 
@@ -85,25 +85,25 @@ namespace CBB
 
 		template<class type> inline bool CBB_vector<type>::empty()const
 		{
-			CBB_rwlocker::rd_lock();
+			CBB_rwlock::rd_lock();
 			bool ret=_actual_vector.empty();
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 			return ret;
 		}
 
 		template<class type> inline typename CBB_vector<type>::size_type CBB_vector<type>::size()const
 		{
-			CBB_rwlocker::rd_lock();
+			CBB_rwlock::rd_lock();
 			size_type ret=_actual_vector.size();
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 			return ret;
 		}
 
 		template<class type> inline void CBB_vector<type>::push_back(const type& value)
 		{
-			CBB_rwlocker::wr_lock();
+			CBB_rwlock::wr_lock();
 			_actual_vector.push_back(value);
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 		}
 	}
 }

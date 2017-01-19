@@ -19,6 +19,23 @@ namespace CBB
 		}while(0)				\
 
 
+#define obj_start_recording(obj)		\
+		do{			\
+			record(obj->st);	\
+		}while(0)
+
+#define obj_end_recording(obj)			\
+		do{			\
+			record(obj->et);	\
+			obj->_print_time();	\
+		}while(0)
+	
+#define obj_record_raws(obj)			\
+		do{			\
+			record(obj->raw);	\
+			obj->print_raw_time();\
+		}while(0)
+
 #define start_recording()		\
 		do{			\
 			record(st);	\

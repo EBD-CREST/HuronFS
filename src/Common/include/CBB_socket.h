@@ -2,13 +2,13 @@
 #define CBB_SOCKET_H_
 
 #include <pthread.h>
-#include "CBB_mutex_locker.h"
+#include "CBB_mutex_lock.h"
 
 namespace CBB
 {
 	namespace Common
 	{
-		class CBB_socket:public CBB_mutex_locker
+		class CBB_socket:public CBB_mutex_lock
 		{
 			private:
 				int socket;

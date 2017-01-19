@@ -6,7 +6,7 @@
 #include <sched.h>
 #include <unistd.h>
 
-#include "CBB_mutex_locker.h"
+#include "CBB_mutex_lock.h"
 #include "CBB_const.h"
 #include "string.h"
 #include "CBB_internal.h"

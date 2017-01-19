@@ -177,9 +177,9 @@ static int CBB_getattr(const char* path, struct stat* stbuf)
 	_DEBUG("CBB getattr path=%s\n", path);
 
 	raw_record();
-	start_record();
+	//start_record();
 	int ret=client.getattr(path, stbuf);
-	end_record();
+	//end_record();
 	raw_record();
 	FLUSH_RECORD();
 

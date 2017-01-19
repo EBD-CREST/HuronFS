@@ -5,13 +5,13 @@
 #include <stdexcept>
 #include <pthread.h>
 
-#include "CBB_rwlocker.h"
+#include "CBB_rwlock.h"
 
 namespace CBB
 {
 	namespace Common
 	{
-		template<class Key> class CBB_set:public CBB_rwlocker
+		template<class Key> class CBB_set:public CBB_rwlock
 		{
 			public:
 				typedef std::set<Key> Set_t;
@@ -39,40 +39,40 @@ namespace CBB
 
 		template<class Key> inline std::pair<typename CBB_set<Key>::iterator, bool>CBB_set<Key>::insert(const value_type& value)
 		{
-			CBB_rwlocker::wr_lock();
+			CBB_rwlock::wr_lock();
 			std::pair<iterator, bool> ret=_actual_set.insert(value);
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 			return ret;
 		}
 
 		template<class Key> inline typename CBB_set<Key>::iterator
 			CBB_set<Key>::find(const Key& key)
 			{
-				CBB_rwlocker::wr_lock();
+				CBB_rwlock::wr_lock();
 				iterator ret=_actual_set.find(key);
-				CBB_rwlocker::unlock();
+				CBB_rwlock::unlock();
 				return ret;
 			}
 
 		template<class Key> inline void CBB_set<Key>::erase(iterator position)
 		{
-			CBB_rwlocker::wr_lock();
+			CBB_rwlock::wr_lock();
 			_actual_set.erase(position);
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 		}
 
 		template<class Key> inline void CBB_set<Key>::erase(const Key& key)
 		{
-			CBB_rwlocker::wr_lock();
+			CBB_rwlock::wr_lock();
 			_actual_set.erase(key);
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 		}
 
 		template<class Key> inline typename CBB_set<Key>::size_type CBB_set<Key>::size()const
 		{
-			CBB_rwlocker::rd_lock();
+			CBB_rwlock::rd_lock();
 			size_type ret=_actual_set.size();
-			CBB_rwlocker::unlock();
+			CBB_rwlock::unlock();
 			return ret;
 		}
 

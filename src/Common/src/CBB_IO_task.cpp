@@ -21,6 +21,7 @@ basic_IO_task::basic_IO_task():
 
 basic_IO_task::basic_IO_task(int id, basic_IO_task* next):
 	basic_task(id, next),
+	connection_task(),
 	handle(),
 	message_buffer(),
 	error(),

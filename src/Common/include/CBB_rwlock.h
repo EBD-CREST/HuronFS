@@ -8,11 +8,11 @@ namespace CBB
 {
 	namespace Common
 	{
-		class CBB_rwlocker
+		class CBB_rwlock
 		{
 			public:
-				CBB_rwlocker();
-				virtual ~CBB_rwlocker();
+				CBB_rwlock();
+				virtual ~CBB_rwlock();
 				int rd_lock();
 				int tryrd_lock();
 				int wr_lock();
@@ -20,50 +20,50 @@ namespace CBB
 				int unlock();
 			private:
 #ifdef MUTIPLE_THREAD
-				pthread_rwlock_t locker;
+				pthread_rwlock_t lock;
 #endif
 		};
 
-		inline int CBB_rwlocker::rd_lock()
+		inline int CBB_rwlock::rd_lock()
 		{
 #ifdef MUTIPLE_THREAD
-			return pthread_rwlock_rdlock(&(this->locker));
+			return pthread_rwlock_rdlock(&(this->lock));
 #else
 			return SUCCESS;
 #endif
 		}
 
-		inline int CBB_rwlocker::tryrd_lock()
+		inline int CBB_rwlock::tryrd_lock()
 		{
 #ifdef MUTIPLE_THREAD
-			return pthread_rwlock_tryrdlock(&(this->locker));
+			return pthread_rwlock_tryrdlock(&(this->lock));
 #else
 			return SUCCESS;
 #endif
 		}
 
-		inline int CBB_rwlocker::wr_lock()
+		inline int CBB_rwlock::wr_lock()
 		{
 #ifdef MUTIPLE_THREAD
-			return pthread_rwlock_wrlock(&locker);
+			return pthread_rwlock_wrlock(&lock);
 #else
 			return SUCCESS;
 #endif
 		}
 
-		inline int CBB_rwlocker::trywr_lock()
+		inline int CBB_rwlock::trywr_lock()
 		{
 #ifdef MUTIPLE_THREAD
-			return pthread_rwlock_trywrlock(&locker);
+			return pthread_rwlock_trywrlock(&lock);
 #else
 			return SUCCESS;
 #endif
 		}
 
-		inline int CBB_rwlocker::unlock()
+		inline int CBB_rwlock::unlock()
 		{
 #ifdef MUTIPLE_THREAD
-			return pthread_rwlock_unlock(&locker);
+			return pthread_rwlock_unlock(&lock);
 #else
 			return SUCCESS;
 #endif

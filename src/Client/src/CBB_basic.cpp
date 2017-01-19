@@ -21,9 +21,10 @@ file_meta::file_meta(ssize_t remote_file_no,
 	it(nullptr)
 {}
 
-opened_file_info::opened_file_info(int 		fd,
-				   int 		flag,
-				   file_meta* 	file_meta_p):
+opened_file_info::
+opened_file_info(int 		fd,
+		int 		flag,
+		file_meta* 	file_meta_p):
 	current_point(0),
 	fd(fd),
 	flag(flag),

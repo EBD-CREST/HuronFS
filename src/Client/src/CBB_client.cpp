@@ -963,7 +963,7 @@ throw(std::runtime_error)
 	int ret=master_number;
 	extended_IO_task* response=nullptr;
 
-	end_recording();
+	start_recording();
 	if(SUCCESS == _get_local_attr(path, fstat))
 	{
 		_DEBUG("use local stat\n");
@@ -978,6 +978,7 @@ throw(std::runtime_error)
 			extended_IO_task* query=allocate_new_query(master_handle);
 			query->push_back(GET_ATTR); 
 			query->push_back_string(path);
+			record_raws();
 			send_query(query);
 			end_recording();
 
@@ -1686,9 +1687,9 @@ stat(const char* path, struct stat* buf)
 	{
 		try
 		{
-			//start_recording();
+			start_recording();
 			ret=_stat(path, buf);
-			//end_recording();
+			end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
