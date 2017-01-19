@@ -41,18 +41,22 @@ Can be changed in src/Common/include/CBB_const.h
 In TCP/IP mode 
 
 Master node:
-                port 9000, 9001
+
+* port 9000, 9001
 
 IOnode:
-                port 7000, 7001, 9001
+
+* port 7000, 7001, 9001
 
 In CCI mode
 
 Master node:
-                port 9001
+
+* port 9001
 
 IOnode:
-                port 9001
+
+* port 9001
 
 ### MOUNT SHARED STORAGE
 
@@ -133,11 +137,11 @@ Client:
 On client nodes:
 
 test case:
-
+```shell
 cd tests/test{1,2,3,4}
 make
 ./prepare.sh
-LD_PRELOAD=$BURSTBUFFER_HOME/lib/libCBB.so ./test{1,2,3,4}
+./test{1,2,3,4}
 
 ### 5. run your application:
 On client nodes:
