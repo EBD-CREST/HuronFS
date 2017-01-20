@@ -87,7 +87,7 @@ HuronFS directory path
 The absolute directory path where master node mounts shared storage.
 
     * ####CBB_MASTER_IP_LIST
-The ip list of Master nodes, IMPORTANT.
+The ip list of Master nodes, **IMPORTANT.**
 If you have multiple Masters, separate them by comma.
 In the case of Infiniband, please use the address of IPoIB. The address will be used to initialize the communication when using infiniband, the communication after will use infiniband.
 Please make sure that the list itself and order of the list are the same across all Master nodes and Clients.
@@ -110,7 +110,7 @@ In case of Infiniband please use the IPoIB address
 The absolute directory path where client mounts HuronFS.
 
     * ####CBB_MASTER_IP_LIST
-The ip list of Master nodes, IMPORTANT.
+The ip list of Master nodes, **IMPORTANT.**
 If you have multiple Masters, separate them by comma.
 In the case of Infiniband, please use the address of IPoIB. The address will be used to initialize the communication when using infiniband, the communication after will use infiniband.
 Please make sure that the list itself and order of the list are the same across all Master nodes and Clients.
@@ -118,35 +118,38 @@ Please make sure that the list itself and order of the list are the same across 
     * ####CBB_STREAM_USE_BUFFER
 Set to "true" to use Client local IO buffer for better performance.
 Set to "false" to disable, then all the IO will be committed to remote immediately.
-RECOMMENDED TO SET TO TRUE WHILE USING FUSE.
+**RECOMMENDED TO SET TO TRUE WHILE USING FUSE.**
 
 ### 3. start system:
 Master node:
 
-        ${BURSTBUFFER_HOME}/bin/Master
+        ${HUFS_HOME}/bin/Master
 
 IOnode:
 
-        ${BURSTBUFFER_HOME}/bin/IOnode
+        ${HUFS_HOME}/bin/IOnode
 
 Client:
 
-        ${BURSTBUFFER_HOME}/bin/hufs
+        ${HUFS_HOME}/bin/hufs
 
 ### 4. run test:
 On client nodes:
 
 test case:
-```shell
-cd tests/test{1,2,3,4}
-make
-./prepare.sh
-./test{1,2,3,4}
+       
+       cd tests/test{1,2,3,4}
+       make
+       ./prepare.sh
+       ./test{1,2,3,4}
 
 ### 5. run your application:
 On client nodes:
-using FUSE:
-run it as usual
 
-using LD_PRELOAD:
-        LD_PRELOAD=$BURSTBUFFER_HOME/lib/libCBB.so your_application
+* using FUSE:
+
+    run it as usual
+
+* using LD_PRELOAD:
+
+        LD_PRELOAD=${HUFS_HOME}/lib/libHuFS.so your_application
