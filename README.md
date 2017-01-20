@@ -5,9 +5,9 @@ OVERVIEW:
 
 ![Picture1.jpg](https://bitbucket.org/repo/8xdeRp/images/4105842247-Picture1.jpg)
 
-1. HuronFS is a on-demand distributed burst buffer system to burst I/O throughput. HuronFS supports general TCP/IP protocol that can be widely used. HuronFS also supports high performance network such as Infiniband via CCI framework. HuronFS is an update of CloudBB.
+1. HuronFS is an on-demand distributed burst buffer system to accelerate I/O. HuronFS supports the general TCP/IP protocol that can be widely used. HuronFS also supports high performance network such as Infiniband via the CCI framework. HuronFS is an update of CloudBB.
 
-2. HuronFS consists of the following three kinds of nodes:
+2. HuronFS consists of the following three kind of nodes:
 
     * Master node:
 Master nodes are the metadata servers.
