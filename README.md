@@ -7,7 +7,7 @@ OVERVIEW:
 
 1. HuronFS is an on-demand distributed burst buffer system to accelerate I/O. HuronFS supports the general TCP/IP protocol that can be widely used. HuronFS also supports high performance network such as Infiniband via the CCI framework. HuronFS is an update of CloudBB.
 
-2. HuronFS consists of the following three kind of nodes:
+2. HuronFS consists of the following three kinds of nodes:
 
     * Master node:
 Master nodes are the metadata servers.
@@ -16,22 +16,22 @@ Master nodes manage file meta data and I/O nodes.
 A "Master" application is running on each Master node.
 
     * IOnode:
-Under each Master node, there are multiple IOnodes
-IOnodes are responsible for storing actual data and transferring data with client.
-An "IOnode" application is running, on each I/O node.
+Under each Master node, there are multiple IOnodes.
+IOnodes are responsible for storing actual data and exchanging data with client.
+An "IOnode" application is running on each I/O node.
 
     * Client node:
 Client nodes run user applications.
-User could mount HuronFS via FUSE or use a pre-load library to interact with HuronFS.
+User mounts HuronFS via FUSE or uses a pre-load library to interact with HuronFS.
 
 ### Structure of the Cloud-based burst buffer
 * Master node:
-    * Master: locates in bin, is a binary executable file of Master application.
+    * Master: located in bin, is a binary executable file of Master application.
 * IOnode:
-    * IOnode: locates in bin, is a binary executable file of IOnode application.
+    * IOnode: located in bin, is a binary executable file of IOnode application.
 * Client node:
-    * libHuFS.so: locates in lib, is a dynamic pre-load library used to interact with Master node and I/O nodes.
-    * hufs: locates in bin, is a binary executable file using fuse.
+    * libHuFS.so: located in lib, is a dynamic (preloadable) library used to interact with Master nodes and IOnodes.
+    * hufs: located in bin, is a binary executable file using fuse.
 
 PREPARATION:
 --------------------------------------------------------------------------------------------------------------
@@ -87,9 +87,9 @@ HuronFS directory path
 The absolute directory path where master node mounts shared storage.
 
     * ####CBB_MASTER_IP_LIST
-The ip list of Master nodes, **IMPORTANT.**
-If you have multiple Masters, separate them by comma.
-In the case of Infiniband, please use the address of IPoIB. The address will be used to initialize the communication when using infiniband, the communication after will use infiniband.
+The IP list of Master nodes, **IMPORTANT.**
+If you have multiple Masters, separate them by using commas.
+In the case of Infiniband, please use the address of IPoIB. The IP address will be used to initialize the communication, then further communication will use ibverbs via CCI.
 Please make sure that the list itself and order of the list are the same across all Master nodes and Clients.
 
     * ####CBB_MASTER_BACKUP_POINT
@@ -101,8 +101,8 @@ The absolute directory path where master backup metadata for fault tolerance. Us
 The absolute directory path where IOnode mounts shared storage.
 
     * ####CBB_MASTER_IP
-The ip address of master node that IOnode belongs to.
-In case of Infiniband please use the IPoIB address
+The IP address of master node that IOnode belongs to.
+In case of Infiniband, please use the IPoIB address
 
 * On Client node:
 
@@ -110,9 +110,9 @@ In case of Infiniband please use the IPoIB address
 The absolute directory path where client mounts HuronFS.
 
     * ####CBB_MASTER_IP_LIST
-The ip list of Master nodes, **IMPORTANT.**
-If you have multiple Masters, separate them by comma.
-In the case of Infiniband, please use the address of IPoIB. The address will be used to initialize the communication when using infiniband, the communication after will use infiniband.
+The IP list of Master nodes, **IMPORTANT.**
+If you have multiple Masters, separate them by using commas.
+In the case of Infiniband, please use the address of IPoIB. The IP address will be used to initialize the communication, then further communication will use ibverbs via CCI.
 Please make sure that the list itself and order of the list are the same across all Master nodes and Clients.
 
     * ####CBB_STREAM_USE_BUFFER
