@@ -20,7 +20,7 @@
 using namespace CBB::Common;
 using namespace CBB::Client;
 
-static CBB_stream client;
+extern CBB_stream client;
 struct fuse_operations CBB_oper;
 extern char* mount_point;
 

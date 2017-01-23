@@ -60,6 +60,7 @@ throw(std::runtime_error)
 
 	recv_by_tcp(socket, reinterpret_cast<char*>(&len), sizeof(len));
 	recv_by_tcp(socket, uri_buf, len);
+	uri_buf[len]='\0';
 	close(socket);
 
 	return SUCCESS;
@@ -124,7 +125,7 @@ recv_by_tcp(int      sockfd,
 }
 
 CBB_error CBB_cci::
-start_uri_exchange_server()
+start_uri_exchange_server(int port)
 throw(std::runtime_error)
 {
 	struct sockaddr_in server_addr;
@@ -135,7 +136,7 @@ throw(std::runtime_error)
 
 	server_addr.sin_family      = AF_INET;  
 	server_addr.sin_addr.s_addr = htons(INADDR_ANY);  
-	server_addr.sin_port 	    = htons(URI_EXCHANGE_PORT);  
+	server_addr.sin_port 	    = htons(port);  
 	
 	this->args.socket=create_socket(server_addr);
 	if(0 != listen(this->args.socket,  MAX_QUEUE))
@@ -263,7 +264,7 @@ init_server_handle(ref_comm_handle_t server_handle,
 		   int		     port)
 throw(std::runtime_error)
 {
-	return start_uri_exchange_server();
+	return start_uri_exchange_server(port);
 }
 
 
@@ -321,11 +322,12 @@ Connect(const char* uri,
 	int ret;
 	if(is_ipaddr(uri))
 	{
-		get_uri_from_server(uri, URI_EXCHANGE_PORT, server_uri);
+		get_uri_from_server(uri, port, server_uri);
 	}
 	else
 	{
 		memcpy(server_uri, uri, strlen(uri));
+		server_uri[strlen(uri)]='\0';
 	}
 
 	struct timeval timeout;

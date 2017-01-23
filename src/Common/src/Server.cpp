@@ -11,7 +11,8 @@
 
 using namespace CBB::Common;
 
-Server::Server(int communication_thread_number, int port)throw(std::runtime_error):
+Server::
+Server(int communication_thread_number, int port)throw(std::runtime_error):
 	CBB_communication_thread(),
 	CBB_request_handler(),
 	CBB_remote_task(),

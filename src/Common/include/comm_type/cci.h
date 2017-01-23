@@ -89,7 +89,7 @@ namespace CBB
 			throw(std::runtime_error);
 
 
-		CBB_error start_uri_exchange_server()
+		CBB_error start_uri_exchange_server(int port)
 			throw(std::runtime_error);
 
 		CBB_error register_mem( void*		ptr,

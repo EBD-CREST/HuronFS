@@ -57,6 +57,17 @@ if test -n "$with_fuse"; then
     fi
 fi
 
+AC_ARG_ENABLE([write-back],
+	      [AS_HELP_STRING([--enable-write-back],[ enable write back])],
+	      [ case "${enableval}" in
+	       	yes) write_back=true 
+		AC_MSG_RESULT(writing back on IOnode);;
+       		no)  write_back=false;;
+		*) AC_MSG_FAILURE([bad value ${enableval} for --enable-write-back ], 1) ;;
+	esac],[write_back=false])
+
+AM_CONDITIONAL([WRITE_BACK], [test "x$write_back" = xtrue])
+
 AC_ARG_WITH([CCI],
     [AS_HELP_STRING([--with-CCI(=DIR)],
                     [enable the CCI (installed in DIR)])],

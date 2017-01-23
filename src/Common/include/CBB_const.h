@@ -6,16 +6,27 @@ const size_t MB=KB*1000;
 const size_t GB=MB*1000;
 
 //the port number used by master
-const int MASTER_PORT = 9000; 
+const int MASTER_SOCKET_PORT = 9000; 
 //the port number used to Connect master in each IOnode
 const int MASTER_CONN_PORT = 7001; 
 //the port number used by IONode
-const int IONODE_PORT = 7000; 
+const int IONODE_SOCKET_PORT = 7000; 
 //the port number used on Master for exchanging URI in CCI
-//const int MASTER_URI_EXCHANGE_PORT = 9001;
+const int MASTER_URI_EXCHANGE_PORT = 9001;
 //the port number used on IOnode for exchanging URI in CCI
-//const int IONODE_URI_EXCHANGE_PORT = 9002;
-const int URI_EXCHANGE_PORT = 9001;
+const int IONODE_URI_EXCHANGE_PORT = 9002;
+
+#ifdef CCI
+//const int URI_EXCHANGE_PORT = 9001;
+const int MASTER_PORT = MASTER_URI_EXCHANGE_PORT; 
+//the port number used by IONode
+const int IONODE_PORT = IONODE_URI_EXCHANGE_PORT; 
+#else
+const int MASTER_PORT = MASTER_SOCKET_PORT; 
+//the port number used by IONode
+const int IONODE_PORT = IONODE_SOCKET_PORT; 
+#endif
+
 //the maximum IOnode under each master
 const int MAX_IONODE = 1000;
 //the size of basic message in communication
