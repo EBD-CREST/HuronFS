@@ -46,21 +46,22 @@ const char *mount_point=nullptr;
 #define CHECK_INIT()                                              \
 	do                                                        \
 {                                                                 \
-	if(!_initial)                                             \
+	if(!_thread_started)                                      \
 	{                                                         \
 		printf("init\n");				  \
 		start_threads();				  \
 	}                                                         \
 }while(0)
 
-CBB_client::CBB_client():
+CBB_client::CBB_client()try:
 	Client(CLIENT_QUEUE_NUM),
 	_fid_now(0),
 	_file_list(_file_list_t()),
 	_opened_file(_file_t(MAX_FILE)),
 	_path_file_meta_map(),
 	_client_addr(sockaddr_in()),
-	_initial(false),
+	_initial(true),
+	_thread_started(false),
 	master_handle_list(),
 	my_uri(),
 	USING_IONODE_CACHE(false)
@@ -73,14 +74,31 @@ CBB_client::CBB_client():
 	if(nullptr == (mount_point=getenv(CLIENT_MOUNT_POINT)))
 	{
 		fprintf(stderr, "please set mount point\n");
-		throw std::runtime_error("lack of parameter");
+		_initial=false;
+		return;
 	}
 
-	if((nullptr != (use_IOnode_cache=getenv(CLIENT_USING_IONODE_CACHE)))&&
-			0 == strcmp(use_IOnode_cache, "true"))
+	if((nullptr != (use_IOnode_cache=getenv(CLIENT_USING_IONODE_CACHE))))
 	{
-		_LOG("using IOnode cache\n");
-		USING_IONODE_CACHE=true;
+		if(0 == strncmp(use_IOnode_cache, "true", strlen("true")))
+		{
+			_LOG("using IOnode cache\n");
+			USING_IONODE_CACHE=true;
+		}
+		else
+		{
+			if(0 == strncmp(use_IOnode_cache, "false", strlen("false")))
+			{
+				_LOG("disable IOnode cache\n");
+			}
+			else
+			{
+				_LOG("please set %s to \"true\" or \"false\"\n",
+					CLIENT_USING_IONODE_CACHE);
+				_initial=false;
+				return;
+			}
+		}
 	}
 	//_DEBUG("%s\n", mount_point);
 	memset(&_client_addr, 0, sizeof(_client_addr));
@@ -88,6 +106,12 @@ CBB_client::CBB_client():
 	{
 		_opened_file[i]=false;
 	}
+}
+//try catch of the initialization list
+catch(exception &e)
+{
+	_LOG("error message %s\n", e.what());
+	_initial=false;
 }
 
 void CBB_client::
@@ -102,7 +126,7 @@ start_threads()
 		return;
 	}
 	_DEBUG("initialization finished\n");
-	_initial=true;
+	_thread_started=true;
 }
 
 int CBB_client::
@@ -615,7 +639,8 @@ _get_blocks_from_cache(
 		_node_pool_t&	  node_pool)
 {
 	_DEBUG("getting blocks from cache\n");
-	if(size + file.current_point > file.get_file_metadata().st_size)
+	if(static_cast<ssize_t> (size + file.current_point)
+		> file.get_file_metadata().st_size)
 	{
 		//append new blocks, go to master
 		return FAILURE;

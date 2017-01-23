@@ -115,7 +115,8 @@ namespace CBB
 			this->queue_event_fd=queue_event_fd;
 		}
 
-		template<class task_type> task_parallel_queue<task_type>::task_parallel_queue():
+		template<class task_type> task_parallel_queue<task_type>::
+		task_parallel_queue():
 			queue_head(nullptr),
 			queue_tail(new task_type()),
 			queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
@@ -288,6 +289,11 @@ namespace CBB
 
 		template<class task_type> void task_parallel_queue<task_type>::destory_queue()
 		{
+			if(nullptr != queue_head)
+			{
+				return;
+			}
+
 			basic_task* tmp=nullptr, *next=queue_head.load();
 			while(this->queue_tail.load() != next)
 			{

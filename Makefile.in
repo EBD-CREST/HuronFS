@@ -82,8 +82,8 @@ DIST_COMMON = $(srcdir)/common.mk $(srcdir)/Makefile.in \
 	$(am__configure_deps) $(srcdir)/config.h.in config.guess \
 	config.sub depcomp install-sh missing ltmain.sh
 @DEBUG_TRUE@am__append_1 = -DDEBUG
-@USING_CCI_TRUE@am__append_2 = -DCCI ${CCI_LIB}
-@USING_CCI_TRUE@am__append_3 = -lcci
+@USING_CCI_TRUE@am__append_2 = -DCCI $(CCI_INCLUDE)
+@USING_CCI_TRUE@am__append_3 = ${CCI_LIB} -lcci
 @USING_CCI_FALSE@am__append_4 = -DTCP
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -205,6 +205,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
+CCI_INCLUDE = @CCI_INCLUDE@
 CCI_LIB = @CCI_LIB@
 CFLAGS = @CFLAGS@
 CPP = @CPP@

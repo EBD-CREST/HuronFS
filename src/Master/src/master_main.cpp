@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 		master.start_server(); 
 		master.stop_server(); 
 	}
-	catch(std::runtime_error &e)
+	catch(std::exception &e)
 	{
 		fprintf(stderr, "%s\n", e.what()); 
 		return EXIT_FAILURE;

@@ -324,6 +324,12 @@ static int CBB_ftruncate(const char* path, off_t size, struct fuse_file_info* fi
 
 int main(int argc, char *argv[])
 {
+	if(!client.initalized())
+	{
+		printf("client init error\n");
+		return EXIT_FAILURE;
+	}
+
 	CBB_oper.open=CBB_open;
 	CBB_oper.read=CBB_read;
 	CBB_oper.write=CBB_write;
@@ -345,6 +351,7 @@ int main(int argc, char *argv[])
 	char** fuse_argv=new char*[argc+2];
 	char* single_thread_string="-s";
 	bool daemon_flag=true;
+	
 	for(int i=0; i<argc ;++i)
 	{
 		fuse_argv[i]=argv[i];

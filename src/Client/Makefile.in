@@ -82,8 +82,8 @@ host_triplet = @host@
 DIST_COMMON = $(srcdir)/../../common.mk $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/depcomp
 @DEBUG_TRUE@am__append_1 = -DDEBUG
-@USING_CCI_TRUE@am__append_2 = -DCCI ${CCI_LIB}
-@USING_CCI_TRUE@am__append_3 = -lcci
+@USING_CCI_TRUE@am__append_2 = -DCCI $(CCI_INCLUDE)
+@USING_CCI_TRUE@am__append_3 = ${CCI_LIB} -lcci
 @USING_CCI_FALSE@am__append_4 = -DTCP
 bin_PROGRAMS = hufs$(EXEEXT)
 subdir = src/Client
@@ -136,9 +136,10 @@ libHuFS_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
 	$(CXXFLAGS) $(libHuFS_la_LDFLAGS) $(LDFLAGS) -o $@
 PROGRAMS = $(bin_PROGRAMS)
-am_hufs_OBJECTS = hufs-CBB_fuse.$(OBJEXT)
+am_hufs_OBJECTS = hufs-CBB_fuse.$(OBJEXT) hufs-CBB_basic.$(OBJEXT) \
+	hufs-CBB_client.$(OBJEXT) hufs-CBB_stream.$(OBJEXT)
 hufs_OBJECTS = $(am_hufs_OBJECTS)
-hufs_DEPENDENCIES = libHuFS.la ../Common/libCommon.a
+hufs_DEPENDENCIES = ../Common/libCommon.a
 hufs_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
 	$(CXXFLAGS) $(hufs_LDFLAGS) $(LDFLAGS) -o $@
@@ -273,6 +274,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
+CCI_INCLUDE = @CCI_INCLUDE@
 CCI_LIB = @CCI_LIB@
 CFLAGS = @CFLAGS@
 CPP = @CPP@
@@ -402,10 +404,14 @@ HEADER_DIR = include
 libHuFS_la_SOURCES = CBB_basic.cpp CBB_client.cpp CBB_stream.cpp \
 	CBB_posix.cpp CBB_stdio.cpp CBB_basic.h CBB_client.h \
 	CBB_posix.h CBB_stdio.h CBB_stream.h
-libHuFS_la_LDFLAGS = -version-info 1:0:0
-hufs_SOURCES = src/CBB_fuse.cpp 
+libHuFS_la_LDFLAGS = $(AM_LDFLAGS) -version-info 1:0:0
+hufs_SOURCES = src/CBB_fuse.cpp 	\
+	       src/CBB_basic.cpp	\
+	       src/CBB_client.cpp	\
+	       src/CBB_stream.cpp
+
 hufs_CPPFLAGS = $(AM_CPPFLAGS) -D_FILE_OFFSET_BITS=64
-hufs_LDADD = libHuFS.la ../Common/libCommon.a
+hufs_LDADD = ../Common/libCommon.a
 hufs_LDFLAGS = $(AM_LDFLAGS) -ldl 
 SUBDIRS = ../Common
 all: all-recursive
@@ -546,7 +552,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_posix.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_stdio.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_stream.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hufs-CBB_basic.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hufs-CBB_client.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hufs-CBB_fuse.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hufs-CBB_stream.Po@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -582,6 +591,48 @@ hufs-CBB_fuse.obj: src/CBB_fuse.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/CBB_fuse.cpp' object='hufs-CBB_fuse.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o hufs-CBB_fuse.obj `if test -f 'src/CBB_fuse.cpp'; then $(CYGPATH_W) 'src/CBB_fuse.cpp'; else $(CYGPATH_W) '$(srcdir)/src/CBB_fuse.cpp'; fi`
+
+hufs-CBB_basic.o: src/CBB_basic.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT hufs-CBB_basic.o -MD -MP -MF $(DEPDIR)/hufs-CBB_basic.Tpo -c -o hufs-CBB_basic.o `test -f 'src/CBB_basic.cpp' || echo '$(srcdir)/'`src/CBB_basic.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hufs-CBB_basic.Tpo $(DEPDIR)/hufs-CBB_basic.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/CBB_basic.cpp' object='hufs-CBB_basic.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o hufs-CBB_basic.o `test -f 'src/CBB_basic.cpp' || echo '$(srcdir)/'`src/CBB_basic.cpp
+
+hufs-CBB_basic.obj: src/CBB_basic.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT hufs-CBB_basic.obj -MD -MP -MF $(DEPDIR)/hufs-CBB_basic.Tpo -c -o hufs-CBB_basic.obj `if test -f 'src/CBB_basic.cpp'; then $(CYGPATH_W) 'src/CBB_basic.cpp'; else $(CYGPATH_W) '$(srcdir)/src/CBB_basic.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hufs-CBB_basic.Tpo $(DEPDIR)/hufs-CBB_basic.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/CBB_basic.cpp' object='hufs-CBB_basic.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o hufs-CBB_basic.obj `if test -f 'src/CBB_basic.cpp'; then $(CYGPATH_W) 'src/CBB_basic.cpp'; else $(CYGPATH_W) '$(srcdir)/src/CBB_basic.cpp'; fi`
+
+hufs-CBB_client.o: src/CBB_client.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT hufs-CBB_client.o -MD -MP -MF $(DEPDIR)/hufs-CBB_client.Tpo -c -o hufs-CBB_client.o `test -f 'src/CBB_client.cpp' || echo '$(srcdir)/'`src/CBB_client.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hufs-CBB_client.Tpo $(DEPDIR)/hufs-CBB_client.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/CBB_client.cpp' object='hufs-CBB_client.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o hufs-CBB_client.o `test -f 'src/CBB_client.cpp' || echo '$(srcdir)/'`src/CBB_client.cpp
+
+hufs-CBB_client.obj: src/CBB_client.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT hufs-CBB_client.obj -MD -MP -MF $(DEPDIR)/hufs-CBB_client.Tpo -c -o hufs-CBB_client.obj `if test -f 'src/CBB_client.cpp'; then $(CYGPATH_W) 'src/CBB_client.cpp'; else $(CYGPATH_W) '$(srcdir)/src/CBB_client.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hufs-CBB_client.Tpo $(DEPDIR)/hufs-CBB_client.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/CBB_client.cpp' object='hufs-CBB_client.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o hufs-CBB_client.obj `if test -f 'src/CBB_client.cpp'; then $(CYGPATH_W) 'src/CBB_client.cpp'; else $(CYGPATH_W) '$(srcdir)/src/CBB_client.cpp'; fi`
+
+hufs-CBB_stream.o: src/CBB_stream.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT hufs-CBB_stream.o -MD -MP -MF $(DEPDIR)/hufs-CBB_stream.Tpo -c -o hufs-CBB_stream.o `test -f 'src/CBB_stream.cpp' || echo '$(srcdir)/'`src/CBB_stream.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hufs-CBB_stream.Tpo $(DEPDIR)/hufs-CBB_stream.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/CBB_stream.cpp' object='hufs-CBB_stream.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o hufs-CBB_stream.o `test -f 'src/CBB_stream.cpp' || echo '$(srcdir)/'`src/CBB_stream.cpp
+
+hufs-CBB_stream.obj: src/CBB_stream.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT hufs-CBB_stream.obj -MD -MP -MF $(DEPDIR)/hufs-CBB_stream.Tpo -c -o hufs-CBB_stream.obj `if test -f 'src/CBB_stream.cpp'; then $(CYGPATH_W) 'src/CBB_stream.cpp'; else $(CYGPATH_W) '$(srcdir)/src/CBB_stream.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hufs-CBB_stream.Tpo $(DEPDIR)/hufs-CBB_stream.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/CBB_stream.cpp' object='hufs-CBB_stream.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hufs_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o hufs-CBB_stream.obj `if test -f 'src/CBB_stream.cpp'; then $(CYGPATH_W) 'src/CBB_stream.cpp'; else $(CYGPATH_W) '$(srcdir)/src/CBB_stream.cpp'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo

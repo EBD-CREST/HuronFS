@@ -425,7 +425,7 @@ throw(std::runtime_error)
 	memcpy(buffer, handle->buf, count);
 	//bad hack
 	const void**	buf_tmp=(const void**)(&handle->buf);
-	*buf_tmp=(const void*)(handle->buf+count);
+	*buf_tmp=(const void*)(static_cast<const char*const>(handle->buf)+count);
 	return count;
 }
 

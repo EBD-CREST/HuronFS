@@ -11,7 +11,10 @@ const int MASTER_PORT = 9000;
 const int MASTER_CONN_PORT = 7001; 
 //the port number used by IONode
 const int IONODE_PORT = 7000; 
-//the port number used for exchanging URI in CCI
+//the port number used on Master for exchanging URI in CCI
+//const int MASTER_URI_EXCHANGE_PORT = 9001;
+//the port number used on IOnode for exchanging URI in CCI
+//const int IONODE_URI_EXCHANGE_PORT = 9002;
 const int URI_EXCHANGE_PORT = 9001;
 //the maximum IOnode under each master
 const int MAX_IONODE = 1000;

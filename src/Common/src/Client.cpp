@@ -114,8 +114,8 @@ int Client::start_client()
 communication_queue_t* Client::get_new_communication_queue()
 {
 	auto begin=std::begin(_communication_output_queue), 
-	     queue_ptr=begin,
-	     end=std::end(_communication_output_queue);
+	     queue_ptr=begin;
+	    // end=std::end(_communication_output_queue);
 
 	return &(*queue_ptr);
 	/*while(true)

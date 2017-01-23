@@ -5,7 +5,7 @@ using namespace CBB::Common;
 CBB_request_handler::CBB_request_handler(communication_queue_array_t* input_queue,
 		communication_queue_array_t* output_queue):
 	thread_started(UNSTARTED),
-	handler_thread(),
+	handler_thread(-1),
 	keepAlive(KEEP_ALIVE),
 	input_queue(input_queue),
 	output_queue(output_queue)
@@ -21,10 +21,7 @@ CBB_request_handler::CBB_request_handler():
 
 CBB_request_handler::~CBB_request_handler()
 {
-	if(STARTED == thread_started)
-	{
-		stop_handler();
-	}
+	stop_handler();
 }
 
 int CBB_request_handler::start_handler()
@@ -45,7 +42,14 @@ int CBB_request_handler::stop_handler()
 {
 	keepAlive = NOT_KEEP_ALIVE;
 	void* ret=nullptr;
-	return pthread_join(handler_thread, &ret);
+	if(STARTED == thread_started)
+	{
+		return pthread_join(handler_thread, &ret);
+	}
+	else
+	{
+		return SUCCESS;
+	}
 }
 
 void* CBB_request_handler::handle_routine(void* args)

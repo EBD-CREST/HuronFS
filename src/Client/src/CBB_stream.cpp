@@ -521,8 +521,9 @@ int CBB_stream::_init_buffer_for_writing(stream_info_t* stream)
 	//if there is data remaining in file (current offset < total file size)
 	//and we will write beyond end of current buffered space
 	//then we need to retrive data from remote
-	if(stream->_cur_buf_off() > stream->buffered_data_size &&
-		stream->buf_file_off < stream->file_size)
+	if(stream->_cur_buf_off() > 
+		static_cast<ssize_t>(stream->buffered_data_size) &&
+		stream->buf_file_off < static_cast<ssize_t>(stream->file_size))
 	{
 		_DEBUG("fill buffer before writing buffer offset=%ld, buffered_data_size=%ld", stream->_cur_buf_off(), stream->buffered_data_size);
 		_DEBUG("file offset=%ld, file size=%ld\n", stream->buf_file_off, stream->file_size);

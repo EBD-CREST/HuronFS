@@ -57,37 +57,43 @@ if test -n "$with_fuse"; then
     fi
 fi
 
-AC_ARG_WITH([cci],
-    [AS_HELP_STRING([--with-cci=DIR],
-                    [use the cci installed in DIR])],
-		    [with_cci=${withval}])
-if test -n "${with_cci}" ; then
-    AC_MSG_CHECKING([for cci.h])
-    if test -f "${with_cci}/include/cci.h"; then
-        AC_MSG_RESULT([yes])
-        AC_SUBST([CCI_LIB],
-		["-I${with_cci}/include -L${with_cci}/lib"])
-	cci_found=true
-	using_cci=true
-    else
-        AC_MSG_RESULT([no])
-	if test "x$using_cci" = xtrue
-	then
-        	AC_MSG_FAILURE([Could not find cci.h in ${with_cci}])
+AC_ARG_WITH([CCI],
+    [AS_HELP_STRING([--with-CCI(=DIR)],
+                    [enable the CCI (installed in DIR)])],
+		    [with_cci=${withval}],
+		    [using_cci=false])
+if test -n "${with_cci}"; then 
+	if test "x${with_cci}" != xyes ; then
+		AC_MSG_CHECKING([for cci.h])
+		if test -f "${with_cci}/include/cci.h"; then
+			AC_MSG_RESULT([yes])
+			AC_SUBST([CCI_INCLUDE],
+				 ["-I${with_cci}/include"])
+
+			AC_MSG_CHECKING([for libcci])
+			if test -f "${with_cci}/lib/libcci.so"; then
+				AC_MSG_RESULT([yes])
+				AC_SUBST([CCI_LIB],
+					 ["-L${with_cci}/lib"])
+				using_cci=true
+			else
+				AC_MSG_RESULT([no])
+				AC_MSG_FAILURE([Could not find cci library in ${with_cci}])
+			fi
+		else
+			AC_MSG_RESULT([no])
+			AC_MSG_FAILURE([Could not find cci.h in ${with_cci}])
+		fi
 	else
-		AC_MSG_WARN([Could not find cci.h in ${with_cci}])
-	fi
-	using_cci=false
-    fi
-else
-	if test "x$using_cci" = xtrue
-	then
-		AC_CHECK_HEADERS([cci.h], [], [AC_MSG_FAILURE([Could not find cci.h])])
-	else
-		AC_MSG_RESULT([using tcp])
+		AC_MSG_CHECKING([for cci.h])
+		AC_CHECK_HEADERS([cci.h], [], [AC_MSG_FAILURE([Could not find cci.h], 1)])
+		#check cci library
+		AC_MSG_CHECKING([for libcci])
+		AC_CHECK_LIB([cci], [cci_init], [], [AC_MSG_FAILURE([No libcci.so found], 1)])
 	fi
 fi
 
+AM_CONDITIONAL([USING_CCI], [test "x$using_cci" = xtrue])
 
 AC_ARG_ENABLE([debug],
 	      [AS_HELP_STRING([--enable-debug],[ enable debug])],
@@ -99,16 +105,6 @@ AC_ARG_ENABLE([debug],
 	esac],[debuging=false])
 
 AM_CONDITIONAL([DEBUG], [test "x$debuging" = xtrue])
-
-AC_ARG_ENABLE([cci],
-	      [AS_HELP_STRING([--enable-cci],[ use cci instead of tcp/ip])],
-	      [ case "${enableval}" in
-	       	yes) using_cci=true ;;
-       		no)  using_cci=false;;
-		*) AC_MSG_FAILURE([bad value ${enableval} for --enable-cci], 1) ;;
-	esac],[using_cci=false])
-
-AM_CONDITIONAL([USING_CCI], [test "x$using_cci" = xtrue])
 
 AC_CONFIG_FILES([Makefile
                  src/Client/Makefile

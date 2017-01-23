@@ -193,7 +193,6 @@ void* CBB_communication_thread::receiver_thread_function(void* args)
 {
 	CBB_communication_thread* this_obj=static_cast<CBB_communication_thread*>(args);
 	comm_handle handle;
-	free_comm_handle_t  handle_ptr=nullptr;
 #ifdef TCP
 	struct epoll_event events[LENGTH_OF_LISTEN_QUEUE]; 
 	memset(events, 0, sizeof(struct epoll_event)*(LENGTH_OF_LISTEN_QUEUE)); 
@@ -218,8 +217,9 @@ void* CBB_communication_thread::receiver_thread_function(void* args)
 	cci_event_t* 	event	=nullptr;
 	cci_endpoint_t* endpoint=this_obj->get_endpoint();
 	bool		lock	=false;
+	size_t 	   	auth_size=0;
+	free_comm_handle_t  handle_ptr=nullptr;
 	char       authorization[MAX_BASIC_MESSAGE_SIZE ];
-	size_t 	   auth_size=0;
 
 	while(KEEP_ALIVE == this_obj->keepAlive)
 	{
@@ -365,11 +365,12 @@ send_rma(extended_IO_task* new_task)
 throw(std::runtime_error)
 {
 	size_t ret=0;
+
+#ifdef CCI
 	comm_handle_t handle=new_task->get_handle();
 	const send_buffer_t* send_buffer=new_task->get_send_buffer();
 	size_t count=0;
 
-#ifdef CCI
 	switch(new_task->get_mode())
 	{
 		case RMA_READ:

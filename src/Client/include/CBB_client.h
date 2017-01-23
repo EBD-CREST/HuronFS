@@ -56,6 +56,7 @@ namespace CBB
 				int truncate(const char*path, off64_t size);
 				int ftruncate(int fd, off64_t size);
 				off64_t tell(int fd);
+				bool initalized()const;
 
 			private:
 				int _open(const char *path, int flag, mode_t mode)throw(std::runtime_error);
@@ -174,6 +175,7 @@ namespace CBB
 				_path_file_meta_map_t 	_path_file_meta_map;
 				struct sockaddr_in 	_client_addr;
 				bool 			_initial;
+				bool			_thread_started;
 
 				master_list_t 		master_handle_list;
 				std::string		my_uri;
@@ -236,6 +238,11 @@ namespace CBB
 			_using_IOnode_cache()const
 		{
 			return this->USING_IONODE_CACHE;
+		}
+		inline bool CBB_client::
+			initalized()const
+		{
+			return this->_initial;
 		}
 
 		/*inline ssize_t CBB_client::_get_IOnode_id(int master_number, ssize_t IOnode_id)const
