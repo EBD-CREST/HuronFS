@@ -42,21 +42,22 @@ In TCP/IP mode
 
 Master node:
 
-* port 9000, 9001
+* IN: port 9000
 
 IOnode:
 
-* port 7000, 7001, 9001
+* IN: port 7000
+* OUT: port 7001
 
 In CCI mode
 
 Master node:
 
-* port 9001
+* IN: port 9001
 
 IOnode:
 
-* port 9001
+* IN: port 9002
 
 ### MOUNT SHARED STORAGE
 
@@ -83,39 +84,39 @@ HuronFS directory path
 
 * On master node:
 
-    * ####CBB_MASTER_MOUNT_POINT
+    * ####HUFS_MASTER_MOUNT_POINT
 The absolute directory path where master node mounts shared storage.
 
-    * ####CBB_MASTER_IP_LIST
+    * ####HUFS_MASTER_IP_LIST
 The IP list of Master nodes, **IMPORTANT.**
 If you have multiple Masters, separate them by using commas.
 In the case of Infiniband, please use the address of IPoIB. The IP address will be used to initialize the communication, then further communication will use ibverbs via CCI.
 Please make sure that the list itself and order of the list are the same across all Master nodes and Clients.
 
-    * ####CBB_MASTER_BACKUP_POINT
+    * ####HUFS_MASTER_BACKUP_POINT
 The absolute directory path where master backup metadata for fault tolerance. Use the node local path for better performance.
 
 * On IOnode:
 
-    * ####CBB_IONODE_MOUNT_POINT
+    * ####HUFS_IONODE_MOUNT_POINT
 The absolute directory path where IOnode mounts shared storage.
 
-    * ####CBB_MASTER_IP
+    * ####HUFS_MASTER_IP
 The IP address of master node that IOnode belongs to.
 In case of Infiniband, please use the IPoIB address
 
 * On Client node:
 
-    * ####CBB_CLIENT_MOUNT_POINT
+    * ####HUFS_CLIENT_MOUNT_POINT
 The absolute directory path where client mounts HuronFS.
 
-    * ####CBB_MASTER_IP_LIST
+    * ####HUFS_MASTER_IP_LIST
 The IP list of Master nodes, **IMPORTANT.**
 If you have multiple Masters, separate them by using commas.
 In the case of Infiniband, please use the address of IPoIB. The IP address will be used to initialize the communication, then further communication will use ibverbs via CCI.
 Please make sure that the list itself and order of the list are the same across all Master nodes and Clients.
 
-    * ####CBB_STREAM_USE_BUFFER
+    * ####HUFS_STREAM_USE_BUFFER
 Set to "true" to use Client local IO buffer for better performance.
 Set to "false" to disable, then all the IO will be committed to remote immediately.
 **RECOMMENDED TO SET TO TRUE WHILE USING FUSE.**
