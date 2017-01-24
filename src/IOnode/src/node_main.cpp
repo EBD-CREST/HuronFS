@@ -44,7 +44,7 @@ int parse_opt(int argc, char ** argv)
 int main(int argc, char**argv)
 {
 	const char *_ip=NULL;
-	if(NULL == (_ip=getenv("CBB_MASTER_IP")))
+	if(NULL == (_ip=getenv("HUFS_MASTER_IP")))
 	{
 		fprintf(stderr, "please set master ip\n");
 		return EXIT_FAILURE;

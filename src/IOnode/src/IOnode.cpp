@@ -22,7 +22,7 @@ using namespace CBB::IOnode;
 using namespace CBB::Common;
 using namespace std;
 
-const char *IOnode::IONODE_MOUNT_POINT="CBB_IONODE_MOUNT_POINT";
+const char *IOnode::IONODE_MOUNT_POINT="HUFS_IONODE_MOUNT_POINT";
 
 IOnode::block::
 block(off64_t	 start_point,

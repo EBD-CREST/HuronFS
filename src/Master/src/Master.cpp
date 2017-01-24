@@ -17,11 +17,11 @@ using namespace CBB::Common;
 using namespace CBB::Master;
 using namespace std;
 
-const char *Master::MASTER_MOUNT_POINT	="CBB_MASTER_MOUNT_POINT";
-const char *Master::MASTER_NUMBER	="CBB_MASTER_MY_ID";
-const char *Master::MASTER_TOTAL_NUMBER	="CBB_MASTER_TOTAL_NUMBER";
-const char *Master::MASTER_BACKUP_POINT	="CBB_MASTER_BACKUP_POINT";
-const char *Master::MASTER_IP_LIST	="CBB_MASTER_IP_LIST";
+const char *Master::MASTER_MOUNT_POINT	="HUFS_MASTER_MOUNT_POINT";
+//const char *Master::MASTER_NUMBER	="HUFS_MASTER_MY_ID";
+//const char *Master::MASTER_TOTAL_NUMBER	="HUFS_MASTER_TOTAL_NUMBER";
+const char *Master::MASTER_BACKUP_POINT	="HUFS_MASTER_BACKUP_POINT";
+const char *Master::MASTER_IP_LIST	="HUFS_MASTER_IP_LIST";
 
 Master::Master()throw(CBB_configure_error):
 	Server(MASTER_QUEUE_NUM, MASTER_PORT), 

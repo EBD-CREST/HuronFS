@@ -26,9 +26,9 @@ using namespace CBB::Common;
 using namespace CBB::Client;
 using namespace std;
 
-const char* CBB_client::CLIENT_MOUNT_POINT="CBB_CLIENT_MOUNT_POINT";
-const char* CBB_client::CLIENT_USING_IONODE_CACHE="CBB_USING_IONODE_CACHE";
-const char* CBB_client::MASTER_IP_LIST="CBB_MASTER_IP_LIST";
+const char* CBB_client::CLIENT_MOUNT_POINT="HUFS_CLIENT_MOUNT_POINT";
+const char* CBB_client::CLIENT_USING_IONODE_CACHE="HUFS_USING_IONODE_CACHE";
+const char* CBB_client::MASTER_IP_LIST="HUFS_MASTER_IP_LIST";
 const char *mount_point=nullptr;
 
 /*#define CHECK_INIT()                                                      \
