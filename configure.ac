@@ -12,7 +12,7 @@ LT_INIT
 
 # Checks for programs.
 AC_PROG_CXX
-AC_PROG_CC([icpc g++])
+AC_PROG_CC([g++])
 AC_LANG([C++])
 AC_PROG_MAKE_SET
 
@@ -68,9 +68,9 @@ AC_ARG_ENABLE([write-back],
 
 AM_CONDITIONAL([WRITE_BACK], [test "x$write_back" = xtrue])
 
-AC_ARG_WITH([CCI],
-    [AS_HELP_STRING([--with-CCI(=DIR)],
-                    [enable the CCI (installed in DIR)])],
+AC_ARG_WITH([cci],
+    [AS_HELP_STRING([--with-cci(=DIR)],
+                    [enable the cci (installed in DIR)])],
 		    [with_cci=${withval}],
 		    [using_cci=false])
 if test -n "${with_cci}"; then 
@@ -116,6 +116,11 @@ AC_ARG_ENABLE([debug],
 	esac],[debuging=false])
 
 AM_CONDITIONAL([DEBUG], [test "x$debuging" = xtrue])
+
+#check gcc version, must use version larger than 4.9, for the 4.8 has incomplete support for re
+AM_CONDITIONAL(GCC_VER_49, [test `g++ -dumpversion | gawk '{print $1>=4.9?"1":"0"}'` = 1])
+AM_COND_IF(GCC_VER_49, [AC_MSG_RESULT([Have g++ version larger than 4.9])],
+		[AC_MSG_FAILURE([Need g++ version larger than 4.9], 1)])
 
 AC_CONFIG_FILES([Makefile
                  src/Client/Makefile
