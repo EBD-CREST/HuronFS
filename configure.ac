@@ -8,13 +8,14 @@ AC_INIT([HuronFS], [0.1], [xu.t.aa@m.titech.ac.jp])
 AC_CONFIG_SRCDIR([src/Master/src/Master_basic.cpp])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
-LT_INIT
+AC_CONFIG_MACRO_DIRS([m4])
 
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC([g++])
 AC_LANG([C++])
 AC_PROG_MAKE_SET
+LT_INIT
 
 # Checks for libraries.
 AC_CHECK_LIB([dl], [dlsym], [], [AC_MSG_FAILURE([No libdl found], 1)])
