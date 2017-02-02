@@ -32,11 +32,15 @@ namespace CBB
 				virtual int output_task_enqueue(extended_IO_task* output_task)override final;
 				virtual communication_queue_t* 
 					get_communication_queue_from_handle(comm_handle_t handle)override final;
+				virtual int node_failure_handler(extended_IO_task* task)override final;
+				//unused, didn't implement, don't use
 				virtual int node_failure_handler(comm_handle_t handle)override final;
+				virtual int connection_failure_handler(extended_IO_task* task)override final;
 
 				virtual int _report_IOnode_failure(comm_handle_t handle)=0;
 
-				int reply_with_handle_error(extended_IO_task* input_task);
+				int reply_with_handle_error(extended_IO_task* input_task,
+							    int		      error);
 				communication_queue_t* get_new_communication_queue();
 				int release_communication_queue(communication_queue_t* queue);
 				int release_communication_queue(extended_IO_task* task);

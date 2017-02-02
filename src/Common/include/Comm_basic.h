@@ -94,7 +94,8 @@ namespace CBB
 				throw(std::runtime_error)=0;
 
 			virtual CBB_error 
-				init_server_handle(ref_comm_handle_t server_handle,
+				init_server_handle(ref_comm_handle_t  server_handle,
+						   const std::string& my_uri,
 					           int		      port)
 				throw(std::runtime_error)=0;
 
@@ -104,7 +105,7 @@ namespace CBB
 
 			virtual CBB_error
 				get_uri_from_handle(comm_handle_t handle,
-						    const char**const uri)=0;
+						    const char**  uri)=0;
 
 			virtual bool compare_handle(comm_handle_t src,
 					comm_handle_t des)=0;
@@ -136,6 +137,8 @@ namespace CBB
 			void push_back_uri(const char* uri,
 					   void*   buf,
 					   size_t* size);
+
+
 		protected:
 
 			int create_socket(const struct sockaddr_in& addr)
@@ -251,10 +254,10 @@ namespace CBB
 			is_ipaddr(const char* uri)
 			{
 				//should use this but disabled because of gcc issue
-				/*static std::regex regex_text("^([0-9]{1,3}\\.){3}[0-9]{1,3}$");
+				static std::regex regex_text("^([0-9]{1,3}\\.){3}[0-9]{1,3}$");
 				std::string ip(uri);
-				return std::regex_match(ip, regex_text); */
-				return uri[0]<='9' && uri[0]>='0';
+				return std::regex_match(ip, regex_text); 
+				//return uri[0]<='9' && uri[0]>='0';
 				
 			}
 		inline void Comm_basic::
@@ -269,7 +272,6 @@ namespace CBB
 				memcpy(end_of_buf+(*size), uri, uri_len);
 				*size+=uri_len;
 			}
-
 	}
 }
 

@@ -110,13 +110,13 @@ namespace CBB
 			return this->id;
 		}
 
-		template<class task_type> inline void task_parallel_queue<task_type>::set_queue_event_fd(int queue_event_fd)
+		template<class task_type> inline void task_parallel_queue<task_type>::
+			set_queue_event_fd(int queue_event_fd)
 		{
 			this->queue_event_fd=queue_event_fd;
 		}
 
-		template<class task_type> task_parallel_queue<task_type>::
-		task_parallel_queue():
+		template<class task_type> task_parallel_queue<task_type>::task_parallel_queue():
 			queue_head(nullptr),
 			queue_tail(new task_type()),
 			queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
@@ -236,6 +236,7 @@ namespace CBB
 			}
 			task_type* new_task=static_cast<task_type*>(queue_tail.load()->get_next());
 			this->queue_tail.store(new_task);
+			_DEBUG("get task %p\n", new_task);
 			return new_task;
 		}
 
@@ -266,7 +267,9 @@ namespace CBB
 
 		template<class task_type> int task_parallel_queue<task_type>::task_enqueue_signal_notification()
 		{
-			this->queue_head.store(this->queue_tmp_head.load());
+			_DEBUG("task enqueue of queue %p task %p\n", this, queue_head.load());
+			this->queue_head.store(static_cast<task_type*>(
+						this->queue_head.load()->get_next()));
 #ifndef BUSY_WAIT
 			pthread_cond_signal(&queue_empty);
 #endif
@@ -275,13 +278,15 @@ namespace CBB
 
 		template<class task_type> int task_parallel_queue<task_type>::task_enqueue()
 		{
-			this->queue_head.store(this->queue_tmp_head.load());
+			_DEBUG("task enqueue of queue %p task %p\n", this, queue_head.load());
+			this->queue_head.store(static_cast<task_type*>(
+						this->queue_head.load()->get_next()));
 			static uint64_t notification=1;
 
-			_DEBUG("task enqueue\n");
 			if(-1 == write(this->queue_event_fd, &notification, sizeof(uint64_t)))
 			{
-				perror("write");
+				perror("enqueue notification");
+				_DEBUG("queue fd %d\n", this->queue_event_fd);
 				return FAILURE;
 			}
 			return SUCCESS;
@@ -289,11 +294,6 @@ namespace CBB
 
 		template<class task_type> void task_parallel_queue<task_type>::destory_queue()
 		{
-			if(nullptr != queue_head)
-			{
-				return;
-			}
-
 			basic_task* tmp=nullptr, *next=queue_head.load();
 			while(this->queue_tail.load() != next)
 			{

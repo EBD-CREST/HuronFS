@@ -71,9 +71,11 @@ namespace CBB
 				int get_error()const;
 				void set_error(int error);
 				void swap_sender_receiver();
+				bool has_error()const;
 			public:
 				comm_handle handle;
 				unsigned char message_buffer[MAX_BASIC_MESSAGE_SIZE];//the first few bytes are reserved for message meta
+				//set to SUCCESS or SOCKET_KILLED
 				int error;
 				//remote id refers to the queue which communicates with
 				int* receiver_id; //offset = 0
@@ -408,6 +410,12 @@ namespace CBB
 		{
 			*(this->receiver_id)=*(this->sender_id);
 			*(this->sender_id)=get_id();
+		}
+
+		inline bool basic_IO_task::
+			has_error()const
+		{
+			return SUCCESS != this->error;
 		}
 
 		inline size_t extended_IO_task::

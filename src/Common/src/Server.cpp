@@ -42,24 +42,35 @@ Server::~Server()
 	}
 }
 
-void Server::_init_server()throw(std::runtime_error)
+void Server::
+_init_server()throw(std::runtime_error)
 {
-	configure_dump();
+	init_protocol();
+	_setup_server();
 	CBB_communication_thread::setup(&_communication_output_queue,
 			&_communication_input_queue);
-	CBB_request_handler::set_queues(&_communication_input_queue, &_communication_output_queue);
+	CBB_request_handler::set_queues(&_communication_input_queue,
+			&_communication_output_queue);
+	configure_dump();
 	return; 
 }
 
 void Server::_setup_server()
 {
-	init_server_handle(_server_handle, this->server_port);
+	init_server_handle(_server_handle, 
+			my_uri,
+			this->server_port);
+	if(0 == my_uri.length())
+	{
+		const char *tmp_uri=nullptr;
+		get_uri_from_handle(&this->_server_handle,
+				&tmp_uri);
+		my_uri=std::string(tmp_uri);
+	}
 }
 
 int Server::start_server()
 {
-	init_protocol();
-	_setup_server();
 	CBB_communication_thread::start_communication_server();
 	CBB_remote_task::start_listening();
 	CBB_communication_thread::_add_handle(&_server_handle);
@@ -83,7 +94,10 @@ int Server::_recv_real_path(extended_IO_task* new_task, std::string& real_path)
 	return SUCCESS;
 }
 
-int Server::_recv_real_relative_path(extended_IO_task* new_task, std::string& real_path, std::string& relative_path)
+int Server::
+_recv_real_relative_path(extended_IO_task* new_task,
+		std::string& real_path,
+		std::string& relative_path)
 {
 	char* path=nullptr;
 	new_task->pop_string(&path);
@@ -102,14 +116,15 @@ input_from_network(comm_handle_t handle,
 	{
 		struct sockaddr_in client_addr; 
 		socklen_t length=sizeof(client_addr);
-		int socket=accept(_server_handle.socket,  reinterpret_cast<sockaddr *>(&client_addr),  &length);  
+		int socket=accept(_server_handle.socket,
+			reinterpret_cast<sockaddr *>(&client_addr),  &length);  
 		if( 0 > socket)
 		{
 			fprintf(stderr,  "Server Accept Failed\n");  
 			Close(handle); 
 			return FAILURE; 
 		}
-		_DEBUG("A New Client\n"); 
+		_DEBUG("A New Client socket %d\n", socket); 
 		comm_handle new_handle;
 		new_handle.socket=socket;
 		Server::_add_handle(&new_handle);
@@ -158,14 +173,22 @@ int Server::input_from_producer(communication_queue_t* input_queue)
 		{
 			comm_handle handle;
 
-			Connect(new_task->get_uri(),
-					new_task->get_port(),
-					handle, 
-					new_task->get_message(),
-					reinterpret_cast<size_t*>(
-						new_task->get_message()+MESSAGE_SIZE_OFF));
+			try
+			{
+				Connect(new_task->get_uri(),
+						new_task->get_port(),
+						handle, 
+						new_task->get_message(),
+						reinterpret_cast<size_t*>(
+							new_task->get_message()+MESSAGE_SIZE_OFF));
 
-			Server::_add_handle(&handle);
+				Server::_add_handle(&handle);
+			}
+			catch(std::runtime_error &e)
+			{
+				_LOG("connect to %s error\n", new_task->get_uri());
+				connection_failure_handler(new_task);
+			}
 		}
 		else
 		{
@@ -186,7 +209,7 @@ int Server::input_from_producer(communication_queue_t* input_queue)
 			}
 			catch(std::runtime_error& e)
 			{
-				node_failure_handler(new_task->get_handle());
+				node_failure_handler(new_task);
 			}
 		}
 		input_queue->task_dequeue();
@@ -214,7 +237,8 @@ int Server::send_input_for_handle_error(comm_handle_t handle)
 	return SUCCESS;
 }
 
-communication_queue_t* Server::get_communication_queue_from_handle(comm_handle_t handle)
+communication_queue_t* Server::
+get_communication_queue_from_handle(comm_handle_t handle)
 {
 	for(threads_handle_map_t::iterator it=begin(_threads_handle_map);
 			end(_threads_handle_map) != it; ++it)
@@ -227,9 +251,24 @@ communication_queue_t* Server::get_communication_queue_from_handle(comm_handle_t
 	return nullptr;
 }
 
-int Server::node_failure_handler(comm_handle_t node_handle)
+int Server::
+node_failure_handler(extended_IO_task* input_task)
 {
 	//dummy code
-	//_DEBUG("IOnode failed id=%d\n", node_handle);
-	return send_input_for_handle_error(node_handle);
+	_DEBUG("node failed %p\n", input_task->get_handle());
+	return send_input_for_handle_error(input_task->get_handle());
+}
+
+int Server::
+node_failure_handler(comm_handle_t handle)
+{
+	_DEBUG("node failed %p\n", handle);
+	return send_input_for_handle_error(handle);
+}
+
+int Server::
+connection_failure_handler(extended_IO_task* input_task)
+{
+	_LOG("connection failed\n");
+	return SUCCESS;
 }

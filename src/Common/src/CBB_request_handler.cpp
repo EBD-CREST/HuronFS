@@ -31,7 +31,9 @@ int CBB_request_handler::start_handler()
 		return FAILURE;
 	}
 	int ret=SUCCESS;;
-	if(0 == (ret=pthread_create(&handler_thread, nullptr, handle_routine, static_cast<void*>(this))))
+	if(0 == (ret=pthread_create(&handler_thread,
+				nullptr, handle_routine, 
+				static_cast<void*>(this))))
 	{
 		thread_started=STARTED;
 	}

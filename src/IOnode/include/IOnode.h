@@ -20,6 +20,7 @@
 #include "Server.h"
 #include "CBB_data_sync.h"
 #include "Comm_api.h"
+#include "CBB_error.h"
 
 namespace CBB
 {
@@ -110,6 +111,8 @@ namespace CBB
 				virtual int remote_task_handler(Common::remote_task* new_task)override final;
 				virtual int data_sync_parser(Common::data_sync_task* new_task)override final;
 				virtual void configure_dump()override final;
+				virtual CBB_error connection_failure_handler(
+						Common::extended_IO_task* new_task)override final;
 
 				int _send_data(Common::extended_IO_task* new_task);
 				int _receive_data(Common::extended_IO_task* new_task);
@@ -183,7 +186,6 @@ namespace CBB
 				int 		   _MAX_BLOCK_NUMBER;
 				size_t 		   _memory; //remain available memory; 
 
-				std::string		   my_uri;
 				std::string		   master_uri;
 
 				Common::comm_handle	   master_handle;
@@ -192,10 +194,12 @@ namespace CBB
 				std::string 	   _mount_point;
 				node_handle_pool_t IOnode_handle_pool;
 		};
+
 		inline int IOnode::block::lock()
 		{
 			return pthread_mutex_lock(&locker);
 		}
+
 		inline int IOnode::block::unlock()
 		{
 			return pthread_mutex_unlock(&locker);

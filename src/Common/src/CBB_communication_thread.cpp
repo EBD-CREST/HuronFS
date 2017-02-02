@@ -10,499 +10,485 @@ using namespace CBB::Common;
 using namespace std;
 
 CBB_communication_thread::CBB_communication_thread()throw(std::runtime_error):
-	keepAlive(KEEP_ALIVE),
-	sender_epollfd(-1),
-	receiver_epollfd(-1),
-	_handle_pool(),
-	thread_started(UNSTARTED),
-	input_queue(nullptr),
-	output_queue(nullptr),
-	sender_thread(),
-	receiver_thread(),
-	fd_queue_map()
+    keepAlive(KEEP_ALIVE),
+    sender_epollfd(-1),
+    receiver_epollfd(-1),
+    _handle_pool(),
+    thread_started(UNSTARTED),
+    input_queue(nullptr),
+    output_queue(nullptr),
+    sender_thread(),
+    receiver_thread(),
+    fd_queue_map()
 {}
 
 CBB_communication_thread::~CBB_communication_thread()
 {
-	for(handle_pool_t::iterator it=_handle_pool.begin(); 
-			it!=_handle_pool.end(); ++it)
-	{
-		try
-		{
-			//inform each client that server is shutdown
-			Send(*it, sizeof(int));
-			Send(*it, I_AM_SHUT_DOWN); 
-			//close handle
-			Close(*it); 
-		}
-		catch(std::runtime_error& e)
-		{
-			;//ignore
-		}
-
-	}
-	stop_communication_server();
-	close(sender_epollfd);
-	close(receiver_epollfd);
-	for(auto const fd:fd_queue_map)
-	{
-		close(fd.first);
-	}
+    stop_communication_server();
+    close(sender_epollfd);
+    close(receiver_epollfd);
+    for (auto const fd : fd_queue_map)
+    {
+        close(fd.first);
+    }
 }
 
-int CBB_communication_thread::start_communication_server()
+int CBB_communication_thread::
+start_communication_server()
 {
-	int ret=SUCCESS;
+    int ret = SUCCESS;
 
-	if(nullptr == input_queue || nullptr == output_queue)
-	{
-		return FAILURE;
-	}
+    if (nullptr == input_queue || nullptr == output_queue)
+    {
+        return FAILURE;
+    }
 
-	if(-1 == (sender_epollfd=epoll_create(LENGTH_OF_LISTEN_QUEUE+1)))
-	{
-		perror("epoll_creation"); 
-		throw std::runtime_error("CBB_communication_thread"); 
-	}
+    if (-1 == (sender_epollfd = epoll_create(LENGTH_OF_LISTEN_QUEUE + 1)))
+    {
+        perror("epoll_creation");
+        throw std::runtime_error("CBB_communication_thread");
+    }
 
-	if(-1 == (receiver_epollfd=epoll_create(LENGTH_OF_LISTEN_QUEUE+1)))
-	{
-		perror("epoll_creation"); 
-		throw std::runtime_error("CBB_communication_thread"); 
-	}
+    if (-1 == (receiver_epollfd = epoll_create(LENGTH_OF_LISTEN_QUEUE + 1)))
+    {
+        perror("epoll_creation");
+        throw std::runtime_error("CBB_communication_thread");
+    }
 
-	set_event_fd();
+    set_event_fd();
 
-	if(0 == (ret=pthread_create(&sender_thread, nullptr, sender_thread_function, this)))
-	{
-		thread_started=STARTED;
-	}
-	if(0 == (ret=pthread_create(&receiver_thread, nullptr, receiver_thread_function, this)))
-	{
-		thread_started=STARTED;
-	}
-	else
-	{
-		perror("pthread_create");
-	}
-	return ret;
+    if (0 == (ret = pthread_create(&sender_thread, nullptr, sender_thread_function, this)))
+    {
+        thread_started = STARTED;
+    }
+    if (0 == (ret = pthread_create(&receiver_thread, nullptr, receiver_thread_function, this)))
+    {
+        thread_started = STARTED;
+    }
+    else
+    {
+        perror("pthread_create");
+    }
+    return ret;
 }
 
 int CBB_communication_thread::stop_communication_server()
 {
-	keepAlive=NOT_KEEP_ALIVE;
-	void* ret=nullptr;
+    keepAlive = NOT_KEEP_ALIVE;
+    void *ret = nullptr;
 
-	if(STARTED == thread_started)
-	{
-		pthread_join(receiver_thread, &ret);
-		pthread_join(sender_thread, &ret);
-		//pthread_join(queue_event_wait_thread, &ret);
-		thread_started = UNSTARTED;
-	}
-	return SUCCESS;
+    if (STARTED == thread_started)
+    {
+        pthread_join(receiver_thread, &ret);
+        pthread_join(sender_thread, &ret);
+        //pthread_join(queue_event_wait_thread, &ret);
+        thread_started = UNSTARTED;
+    }
+    return SUCCESS;
 }
 
 int CBB_communication_thread::_add_event_socket(int socket)
 {
-	struct epoll_event event; 
-	memset(&event, 0, sizeof(event));
-	event.data.fd=socket; 
-	event.events=EPOLLIN; 
-	return epoll_ctl(sender_epollfd, EPOLL_CTL_ADD, socket, &event); 
+    struct epoll_event event;
+    memset(&event, 0, sizeof(event));
+    event.data.fd = socket;
+    event.events = EPOLLIN;
+    return epoll_ctl(sender_epollfd, EPOLL_CTL_ADD, socket, &event);
 }
 
 int CBB_communication_thread::_add_handle(comm_handle_t handle)
 {
 #ifdef TCP
-	struct epoll_event event; 
-	_DEBUG("add handle socket=%d\n", handle->socket);
-	memset(&event, 0, sizeof(event));
-	event.data.fd=handle->socket; 
-	event.events=EPOLLIN; 
-	_handle_pool.insert(handle); 
-	return epoll_ctl(receiver_epollfd, EPOLL_CTL_ADD, handle->socket, &event); 
+    struct epoll_event event;
+    _DEBUG("add handle socket=%d\n", handle->socket);
+    memset(&event, 0, sizeof(event));
+    event.data.fd = handle->socket;
+    event.events = EPOLLIN;
+    _handle_pool.insert(handle);
+    return epoll_ctl(receiver_epollfd, EPOLL_CTL_ADD, handle->socket, &event);
 #else
-	return SUCCESS;
+    return SUCCESS;
 #endif
 }
 
 int CBB_communication_thread::_add_handle(comm_handle_t handle, int op)
 {
 #ifdef TCP
-	struct epoll_event event; 
-	_DEBUG("add handle socket=%d\n", handle->socket);
-	memset(&event, 0, sizeof(event));
-	event.data.fd=handle->socket;
-	event.events=EPOLLIN|op; 
-	_handle_pool.insert(handle); 
-	return epoll_ctl(receiver_epollfd, EPOLL_CTL_ADD, handle->socket, &event); 
+    struct epoll_event event;
+    _DEBUG("add handle socket=%d\n", handle->socket);
+    memset(&event, 0, sizeof(event));
+    event.data.fd = handle->socket;
+    event.events = EPOLLIN | op;
+    _handle_pool.insert(handle);
+    return epoll_ctl(receiver_epollfd, EPOLL_CTL_ADD, handle->socket, &event);
 #else
-	return SUCCESS;
+    return SUCCESS;
 #endif
 }
 
 int CBB_communication_thread::_delete_handle(comm_handle_t handle)
 {
 #ifdef TCP
-	struct epoll_event event; 
-	event.data.fd=handle->socket; 
-	event.events=EPOLLIN;
-	_handle_pool.erase(handle); 
-	return epoll_ctl(receiver_epollfd, EPOLL_CTL_DEL, handle->socket, &event); 
+    struct epoll_event event;
+    event.data.fd = handle->socket;
+    event.events = EPOLLIN;
+    _handle_pool.erase(handle);
+    return epoll_ctl(receiver_epollfd, EPOLL_CTL_DEL, handle->socket, &event);
 #else
-	return SUCCESS;
+    return SUCCESS;
 #endif
 }
 
-void* CBB_communication_thread::sender_thread_function(void* args)
+void *CBB_communication_thread::sender_thread_function(void *args)
 {
-	CBB_communication_thread* this_obj=static_cast<CBB_communication_thread*>(args);
-	struct epoll_event events[LENGTH_OF_LISTEN_QUEUE]; 
-	memset(events, 0, sizeof(struct epoll_event)*(LENGTH_OF_LISTEN_QUEUE)); 
-	uint64_t queue_notification;
-	while(KEEP_ALIVE == this_obj->keepAlive)
-	{
-		int nfds=epoll_wait(this_obj->sender_epollfd, events, LENGTH_OF_LISTEN_QUEUE, -1); 
-		obj_record_raws(this_obj);
-		obj_start_recording(this_obj);
-		obj_end_recording(this_obj);
-		for(int i=0; i<nfds; ++i)
-		{
-			int socket=events[i].data.fd;
-			_DEBUG("socket %d\n", socket);
-			fd_queue_map_t::const_iterator it=this_obj->fd_queue_map.find(socket);
-			if(this_obj->fd_queue_map.end() != it)
-			{
-				_DEBUG("task from socket received\n");
-				read(socket, &queue_notification, sizeof(uint64_t));
-				this_obj->input_from_producer(it->second);
-			}
-			else
-			{
-				_DEBUG("error\n");
-			}
-		}
-		obj_end_recording(this_obj);
-		obj_record_raws(this_obj);
-	}
-	return nullptr;
+    CBB_communication_thread *this_obj = static_cast<CBB_communication_thread *>(args);
+    struct epoll_event events[LENGTH_OF_LISTEN_QUEUE];
+    memset(events, 0, sizeof(struct epoll_event) * (LENGTH_OF_LISTEN_QUEUE));
+    uint64_t queue_notification;
+    while (KEEP_ALIVE == this_obj->keepAlive)
+    {
+        int nfds = epoll_wait(this_obj->sender_epollfd, events, LENGTH_OF_LISTEN_QUEUE, -1);
+        obj_record_raws(this_obj);
+        obj_start_recording(this_obj);
+        obj_end_recording(this_obj);
+        for (int i = 0; i < nfds; ++i)
+        {
+            int socket = events[i].data.fd;
+            _DEBUG("socket %d\n", socket);
+            fd_queue_map_t::const_iterator it = this_obj->fd_queue_map.find(socket);
+            if (this_obj->fd_queue_map.end() != it)
+            {
+                _DEBUG("task from socket received\n");
+                read(socket, &queue_notification, sizeof(uint64_t));
+                this_obj->input_from_producer(it->second);
+            }
+            else
+            {
+                _DEBUG("error\n");
+            }
+        }
+        obj_end_recording(this_obj);
+        obj_record_raws(this_obj);
+    }
+    return nullptr;
 }
 
-void* CBB_communication_thread::receiver_thread_function(void* args)
+void *CBB_communication_thread::receiver_thread_function(void *args)
 {
-	CBB_communication_thread* this_obj=static_cast<CBB_communication_thread*>(args);
-	comm_handle handle;
+    CBB_communication_thread *this_obj = static_cast<CBB_communication_thread *>(args);
+    comm_handle handle;
 #ifdef TCP
-	struct epoll_event events[LENGTH_OF_LISTEN_QUEUE]; 
-	memset(events, 0, sizeof(struct epoll_event)*(LENGTH_OF_LISTEN_QUEUE)); 
+    struct epoll_event events[LENGTH_OF_LISTEN_QUEUE];
+    memset(events, 0, sizeof(struct epoll_event) * (LENGTH_OF_LISTEN_QUEUE));
 
-	while(KEEP_ALIVE == this_obj->keepAlive)
-	{
-		int nfds=epoll_wait(this_obj->receiver_epollfd, events, LENGTH_OF_LISTEN_QUEUE, -1); 
-		obj_record_raws(this_obj);
-		obj_start_recording(this_obj);
-		obj_end_recording(this_obj);
-		for(int i=0; i<nfds; ++i)
-		{
-				handle.socket=events[i].data.fd;
-				_DEBUG("task from handle received\n");
-				_DEBUG("socket %d\n", handle.socket);
-				this_obj->input_from_network(&handle, this_obj->output_queue);
-		}
-		obj_end_recording(this_obj);
-	}
+    while (KEEP_ALIVE == this_obj->keepAlive)
+    {
+        int nfds = epoll_wait(this_obj->receiver_epollfd, events, LENGTH_OF_LISTEN_QUEUE, -1);
+        obj_record_raws(this_obj);
+        obj_start_recording(this_obj);
+        obj_end_recording(this_obj);
+        for (int i = 0; i < nfds; ++i)
+        {
+            handle.socket = events[i].data.fd;
+            _DEBUG("task from handle received\n");
+            _DEBUG("socket %d\n", handle.socket);
+            this_obj->input_from_network(&handle, this_obj->output_queue);
+        }
+        obj_end_recording(this_obj);
+    }
 #else
-	int 		ret	=0;
-	cci_event_t* 	event	=nullptr;
-	cci_endpoint_t* endpoint=this_obj->get_endpoint();
-	bool		lock	=false;
-	size_t 	   	auth_size=0;
-	free_comm_handle_t  handle_ptr=nullptr;
-	char       authorization[MAX_BASIC_MESSAGE_SIZE ];
+    int 		ret	= 0;
+    cci_event_t 	*event	= nullptr;
+    cci_endpoint_t *endpoint = this_obj->get_endpoint();
+    bool		lock	= false;
+    size_t 	   	auth_size = 0;
+    free_comm_handle_t  handle_ptr = nullptr;
+    char       authorization[MAX_BASIC_MESSAGE_SIZE ];
 
-	while(KEEP_ALIVE == this_obj->keepAlive)
-	{
-		ret = cci_get_event(endpoint, &event);
-		if (CCI_SUCCESS != ret) 
-		{
-			if (CCI_EAGAIN != ret) 
-			{
-				_DEBUG("cci_get_event() returned %s\n",
-						cci_strerror(endpoint, static_cast<cci_status>(ret)));
-			}
-			continue;
-		}
-		switch(event->type)
-		{
-			case CCI_EVENT_CONNECT_REQUEST:
-				{
-					_DEBUG("cci_event_connect_request\n");
-					if(!lock)
-					{
-						ret = cci_accept(event, nullptr);
-						if (ret != CCI_SUCCESS) 
-						{
-							_DEBUG("cci_accept() returned %s\n",
-									cci_strerror(endpoint, 
-										static_cast<cci_status>(ret)));
-						}
-						else
-						{
-							auth_size=event->request.data_len;
-							memcpy(authorization, event->request.data_ptr, auth_size);
-							lock=true;
-						}
-					}
-					else
-					{
-						cci_reject(event);
-					}
-				}
-				break;
-			case CCI_EVENT_ACCEPT:
-				//ignore
-				handle.cci_handle=event->accept.connection;
-				handle.buf=authorization;
-				handle.size=auth_size;
-				this_obj->input_from_network(&handle, this_obj->output_queue);
-				lock=false;
-				_DEBUG("cci_event_accept %p\n",
-						event->recv.connection);
-				break;
-			case CCI_EVENT_SEND:
-				_DEBUG("cci_send finished\n");
-					
-				if(nullptr != (handle.local_rma_handle=
-						reinterpret_cast<cci_rma_handle_t*>(event->send.context)))
-				{
-					this_obj->deregister_mem(&handle);
-				}
-				break;
-			case CCI_EVENT_RECV:
-				obj_record_raws(this_obj);
-				obj_start_recording(this_obj);
-				obj_end_recording(this_obj);
-				_DEBUG("cci_recv finished from %p\n", 
-						event->recv.connection);
-				handle.cci_handle=event->recv.connection;
-				handle.buf=event->recv.ptr;
-				handle.size=event->recv.len;
-				this_obj->input_from_network(&handle, this_obj->output_queue);
-				obj_end_recording(this_obj);
-				break;
-			case CCI_EVENT_CONNECT:
-				_DEBUG("cci_event_connect finished\n");
-				handle_ptr=reinterpret_cast<free_comm_handle_t>(event->connect.context);
-				handle_ptr->cci_handle=event->connect.connection;
-				break;
+    while (KEEP_ALIVE == this_obj->keepAlive)
+    {
+        ret = cci_get_event(endpoint, &event);
+        if (CCI_SUCCESS != ret)
+        {
+            if (CCI_EAGAIN != ret)
+            {
+                _DEBUG("cci_get_event() returned %s\n",
+                       cci_strerror(endpoint, static_cast<cci_status>(ret)));
+            }
+            continue;
+        }
+        switch (event->type)
+        {
+        case CCI_EVENT_CONNECT_REQUEST:
+        {
+            _DEBUG("cci_event_connect_request\n");
+            if (!lock)
+            {
+                ret = cci_accept(event, nullptr);
+                if (ret != CCI_SUCCESS)
+                {
+                    _DEBUG("cci_accept() returned %s\n",
+                           cci_strerror(endpoint,
+                                        static_cast<cci_status>(ret)));
+                }
+                else
+                {
+                    auth_size = event->request.data_len;
+                    memcpy(authorization, event->request.data_ptr, auth_size);
+                    lock = true;
+                }
+            }
+            else
+            {
+                cci_reject(event);
+            }
+        }
+        break;
+        case CCI_EVENT_ACCEPT:
+            //ignore
+            handle.cci_handle = event->accept.connection;
+            handle.buf = authorization;
+            handle.size = auth_size;
+            this_obj->input_from_network(&handle, this_obj->output_queue);
+            lock = false;
+            _DEBUG("cci_event_accept %p\n",
+                   event->recv.connection);
+            break;
+        case CCI_EVENT_SEND:
+            _DEBUG("cci_send finished\n");
 
-			default:
-				_DEBUG("ignoring event type %s\n", cci_event_type_str(event->type));
-		}
-		cci_return_event(event);
-	}
+            if (nullptr != (handle.local_rma_handle =
+                                reinterpret_cast<cci_rma_handle_t *>(event->send.context)))
+            {
+                this_obj->deregister_mem(&handle);
+            }
+            break;
+        case CCI_EVENT_RECV:
+            obj_record_raws(this_obj);
+            obj_start_recording(this_obj);
+            obj_end_recording(this_obj);
+            _DEBUG("cci_recv finished from %p\n",
+                   event->recv.connection);
+            handle.cci_handle = event->recv.connection;
+            handle.buf = event->recv.ptr;
+            handle.size = event->recv.len;
+            this_obj->input_from_network(&handle, this_obj->output_queue);
+            obj_end_recording(this_obj);
+            break;
+        case CCI_EVENT_CONNECT:
+            _DEBUG("cci_event_connect finished\n");
+            handle_ptr = reinterpret_cast<free_comm_handle_t>(event->connect.context);
+            handle_ptr->cci_handle = event->connect.connection;
+            break;
+
+        default:
+            _DEBUG("ignoring event type %s\n", cci_event_type_str(event->type));
+        }
+        cci_return_event(event);
+    }
 #endif
-	return nullptr;
+    return nullptr;
 }
 
 size_t CBB_communication_thread::
-send(extended_IO_task* new_task)
+send(extended_IO_task *new_task)
 throw(std::runtime_error)
 {
-	size_t ret=0;
-	comm_handle_t handle=new_task->get_handle();
-	end_recording();
-	_DEBUG("send message size=%ld, element=%p\n", new_task->get_message_size(), new_task);
-	_DEBUG("send message to id =%d from %d\n", new_task->get_receiver_id(), new_task->get_sender_id());
+    size_t ret = 0;
+    comm_handle_t handle = new_task->get_handle();
+    end_recording();
+    _DEBUG("send message size=%ld, element=%p\n", new_task->get_message_size(), new_task);
+    _DEBUG("send message to id =%d from %d\n", new_task->get_receiver_id(), new_task->get_sender_id());
 
-	if(0 != new_task->get_extended_data_size())
-	{
+    if (0 != new_task->get_extended_data_size())
+    {
 #ifdef TCP
-		//tcp
-		ret+=Sendv(handle,
-				new_task->get_message(),
-				new_task->get_message_size()+
-				MESSAGE_META_OFF);
-		_DEBUG("send extended message size=%ld\n", new_task->get_extended_data_size());
-		const send_buffer_t* send_buffer=new_task->get_send_buffer();
-		for(auto& buf:*send_buffer)
-		{
-			_DEBUG("send size=%ld\n", buf.size);
-			ret+=Send_large(handle, buf.buffer, buf.size);
-		}
+        //tcp
+        ret += Sendv(handle,
+                     new_task->get_message(),
+                     new_task->get_message_size() +
+                     MESSAGE_META_OFF);
+        _DEBUG("send extended message size=%ld\n", new_task->get_extended_data_size());
+        const send_buffer_t *send_buffer = new_task->get_send_buffer();
+        for (auto &buf : *send_buffer)
+        {
+            _DEBUG("send size=%ld\n", buf.size);
+            ret += Send_large(handle, buf.buffer, buf.size);
+        }
 #else
-		//cci
-		const send_buffer_t* send_buffer=new_task->get_send_buffer();
-		for(auto& buf:*send_buffer)
-		{
-			_DEBUG("register size=%ld\n", buf.size);
-			register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE|CCI_FLAG_READ);
-		}
-		
-		new_task->push_back(*(handle->local_rma_handle));
-		ret+=Sendv(handle,
-				new_task->get_message(),
-				new_task->get_message_size()+
-				MESSAGE_META_OFF);
-		_DEBUG("send extended message size=%ld\n", new_task->get_extended_data_size());
+        //cci
+        const send_buffer_t *send_buffer = new_task->get_send_buffer();
+        for (auto &buf : *send_buffer)
+        {
+            _DEBUG("register size=%ld\n", buf.size);
+            register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE | CCI_FLAG_READ);
+        }
+
+        new_task->push_back(*(handle->local_rma_handle));
+        ret += Sendv(handle,
+                     new_task->get_message(),
+                     new_task->get_message_size() +
+                     MESSAGE_META_OFF);
+        _DEBUG("send extended message size=%ld\n", new_task->get_extended_data_size());
 #endif
 
-	}
-	else
-	{
-		ret+=Sendv(handle,
-				new_task->get_message(),
-				new_task->get_message_size()+
-				MESSAGE_META_OFF);
-	}
-	end_recording();
-	return ret;
+    }
+    else
+    {
+        ret += Sendv(handle,
+                     new_task->get_message(),
+                     new_task->get_message_size() +
+                     MESSAGE_META_OFF);
+    }
+    end_recording();
+    return ret;
 }
 
 size_t CBB_communication_thread::
-send_rma(extended_IO_task* new_task)
+send_rma(extended_IO_task *new_task)
 throw(std::runtime_error)
 {
-	size_t ret=0;
+    size_t ret = 0;
 
 #ifdef CCI
-	comm_handle_t handle=new_task->get_handle();
-	const send_buffer_t* send_buffer=new_task->get_send_buffer();
-	size_t count=0;
+    comm_handle_t handle = new_task->get_handle();
+    const send_buffer_t *send_buffer = new_task->get_send_buffer();
+    size_t count = 0;
 
-	switch(new_task->get_mode())
-	{
-		case RMA_READ:
-			count=send_buffer->size();
-			for(auto& buf:*send_buffer)
-			{
-				_DEBUG("register size=%ld\n", buf.size);
-				//DELETE debug
-				register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE|CCI_FLAG_READ);
-				if(0 != --count || 0 == new_task->get_message_size())
-				{
-					Recv_large(handle, nullptr, buf.size, ret); 
-				}
-				else
-				{
-					_DEBUG("send completion\n");
-					Recv_large(handle, new_task->get_message(),
-						new_task->get_total_message_size(),
-						nullptr, buf.size, ret); 
+    switch (new_task->get_mode())
+    {
+    case RMA_READ:
+        count = send_buffer->size();
+        for (auto &buf : *send_buffer)
+        {
+            _DEBUG("register size=%ld\n", buf.size);
+            //DELETE debug
+            register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE | CCI_FLAG_READ);
+            if (0 != --count || 0 == new_task->get_message_size())
+            {
+                Recv_large(handle, nullptr, buf.size, ret);
+            }
+            else
+            {
+                _DEBUG("send completion\n");
+                Recv_large(handle, new_task->get_message(),
+                           new_task->get_total_message_size(),
+                           nullptr, buf.size, ret);
 
-				}
-				ret+=buf.size;
-			}
-			
-			break;
-		case RMA_WRITE:
-			count=send_buffer->size();
-			for(auto& buf:*send_buffer)
-			{
-				_DEBUG("register size=%ld\n", buf.size);
-				//DELETE debug
-				register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE|CCI_FLAG_READ);
+            }
+            ret += buf.size;
+        }
 
-				if(0 != --count || 0 == new_task->get_message_size())
-				{
-					Send_large(handle, nullptr, buf.size, ret); 
-				}
-				else
-				{
-					_DEBUG("send completion\n");
-					Send_large(handle, new_task->get_message(),
-							new_task->get_total_message_size(),
-							nullptr, buf.size, ret); 
-				}
-				ret+=buf.size;
-			}
-			break;
-	}
+        break;
+    case RMA_WRITE:
+        count = send_buffer->size();
+        for (auto &buf : *send_buffer)
+        {
+            _DEBUG("register size=%ld\n", buf.size);
+            //DELETE debug
+            register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE | CCI_FLAG_READ);
 
-	/*if(0 != new_task->get_message_size())
-	{
-		Sendv(handle, new_task->get_message(),
-			new_task->get_total_message_size());
-	}*/
+            if (0 != --count || 0 == new_task->get_message_size())
+            {
+                Send_large(handle, nullptr, buf.size, ret);
+            }
+            else
+            {
+                _DEBUG("send completion\n");
+                Send_large(handle, new_task->get_message(),
+                           new_task->get_total_message_size(),
+                           nullptr, buf.size, ret);
+            }
+            ret += buf.size;
+        }
+        break;
+    }
+
+    /*if(0 != new_task->get_message_size())
+    {
+    	Sendv(handle, new_task->get_message(),
+    		new_task->get_total_message_size());
+    }*/
 
 #endif
-	return ret;
+    return ret;
 }
 
 size_t CBB_communication_thread::
 receive_message(comm_handle_t 		handle,
-		extended_IO_task* 	new_task)
+                extended_IO_task 	*new_task)
 throw(std::runtime_error)
 {
-	size_t ret=0;
+    size_t ret = 0;
 
-	ret=Recvv_pre_alloc(handle, new_task->get_message()+SENDER_ID_OFF, RECV_MESSAGE_OFF); 
-	new_task->swap_sender_receiver();//swap sender receiver id
-	_DEBUG("receive basic message size=%ld to %d element=%p extended_size=%ld\n", new_task->get_message_size(),
-			new_task->get_receiver_id(), new_task, new_task->get_extended_data_size());
-	ret+=Recvv_pre_alloc(handle, new_task->get_basic_message(), new_task->get_message_size());
+    ret = Recvv_pre_alloc(handle, new_task->get_message() + SENDER_ID_OFF, RECV_MESSAGE_OFF);
+    new_task->swap_sender_receiver();//swap sender receiver id
+    _DEBUG("receive basic message size=%ld to %d element=%p extended_size=%ld\n", new_task->get_message_size(),
+           new_task->get_receiver_id(), new_task, new_task->get_extended_data_size());
+    ret += Recvv_pre_alloc(handle, new_task->get_basic_message(), new_task->get_message_size());
 
-	new_task->set_handle(handle);
+    new_task->set_handle(handle);
 
 #ifdef TCP
-	if(0 != new_task->get_extended_data_size())
-	{
-		size_t tmp_size=Recv_large(handle,
-				new_task->get_receive_buffer(MAX_TRANSFER_SIZE),
-				new_task->get_extended_data_size());
-		_DEBUG("receive extended message size=%ld, ret=%ld\n", 
-				new_task->get_extended_data_size(), tmp_size);
-		ret+=tmp_size;
-	}
+    if (0 != new_task->get_extended_data_size())
+    {
+        size_t tmp_size = Recv_large(handle,
+                                     new_task->get_receive_buffer(MAX_TRANSFER_SIZE),
+                                     new_task->get_extended_data_size());
+        _DEBUG("receive extended message size=%ld, ret=%ld\n",
+               new_task->get_extended_data_size(), tmp_size);
+        ret += tmp_size;
+    }
 #endif
-	return ret;
+    return ret;
 }
 
-void CBB_communication_thread::set_queues(communication_queue_array_t* input_queues,
-		communication_queue_array_t* output_queues)
+void CBB_communication_thread::set_queues(communication_queue_array_t *input_queues,
+        communication_queue_array_t *output_queues)
 {
-	this->input_queue=input_queues;
-	this->output_queue=output_queues;
+    this->input_queue = input_queues;
+    this->output_queue = output_queues;
 }
 
 int CBB_communication_thread::set_event_fd()throw(std::runtime_error)
 {
-	for(auto &queue: *input_queue)
-	{
-		int queue_event_fd=0;
-		if(-1 == (queue_event_fd=eventfd(0,0)))
-		{
-			perror("eventfd");
-			throw std::runtime_error("CBB_communication_thread"); 
-		}
-		queue.set_queue_event_fd(queue_event_fd);
-		_add_event_socket(queue_event_fd);
-		fd_queue_map.insert(make_pair(queue_event_fd, &queue));
-	}
-	return SUCCESS;
+    for (auto &queue : *input_queue)
+    {
+        int queue_event_fd = 0;
+        if (-1 == (queue_event_fd = eventfd(0, 0)))
+        {
+            perror("eventfd");
+            throw std::runtime_error("CBB_communication_thread");
+        }
+        queue.set_queue_event_fd(queue_event_fd);
+        _add_event_socket(queue_event_fd);
+        fd_queue_map.insert(make_pair(queue_event_fd, &queue));
+	_DEBUG("set up fd for queue %p fd %d\n",
+			&queue, queue_event_fd);
+    }
+    return SUCCESS;
 }
 
-int CBB::Common::Send_attr(extended_IO_task* output_task, const struct stat* file_stat)
+int CBB::Common::Send_attr(extended_IO_task *output_task, const struct stat *file_stat)
 {
-	output_task->push_back(file_stat->st_mode);    /* protection */
-	output_task->push_back(file_stat->st_uid);     /* user ID of owner */
-	output_task->push_back(file_stat->st_gid);     /* group ID of owner */
-	output_task->push_back(file_stat->st_size);    /* total size, in bytes */
-	output_task->push_back(file_stat->st_atime);   /* time of last access */
-	output_task->push_back(file_stat->st_mtime);   /* time of last modification */
-	output_task->push_back(file_stat->st_ctime);   /* time of last status change */
-	return SUCCESS;
+    output_task->push_back(file_stat->st_mode);    /* protection */
+    output_task->push_back(file_stat->st_uid);     /* user ID of owner */
+    output_task->push_back(file_stat->st_gid);     /* group ID of owner */
+    output_task->push_back(file_stat->st_size);    /* total size, in bytes */
+    output_task->push_back(file_stat->st_atime);   /* time of last access */
+    output_task->push_back(file_stat->st_mtime);   /* time of last modification */
+    output_task->push_back(file_stat->st_ctime);   /* time of last status change */
+    return SUCCESS;
 }
 
-int CBB::Common::Recv_attr(extended_IO_task* new_task, struct stat* file_stat)
+int CBB::Common::Recv_attr(extended_IO_task *new_task, struct stat *file_stat)
 {
-	new_task->pop(file_stat->st_mode);    /* protection */
-	new_task->pop(file_stat->st_uid);     /* user ID of owner */
-	new_task->pop(file_stat->st_gid);     /* group ID of owner */
-	new_task->pop(file_stat->st_size);    /* total size, in bytes */
-	new_task->pop(file_stat->st_atime);   /* time of last access */
-	new_task->pop(file_stat->st_mtime);   /* time of last modification */
-	new_task->pop(file_stat->st_ctime);   /* time of last status change */
-	return SUCCESS;
+    new_task->pop(file_stat->st_mode);    /* protection */
+    new_task->pop(file_stat->st_uid);     /* user ID of owner */
+    new_task->pop(file_stat->st_gid);     /* group ID of owner */
+    new_task->pop(file_stat->st_size);    /* total size, in bytes */
+    new_task->pop(file_stat->st_atime);   /* time of last access */
+    new_task->pop(file_stat->st_mtime);   /* time of last modification */
+    new_task->pop(file_stat->st_ctime);   /* time of last status change */
+    return SUCCESS;
 }

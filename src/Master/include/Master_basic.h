@@ -53,11 +53,11 @@ namespace CBB
 				const std::string& get_uri()const;
 			private:
 				Common::comm_handle	handle;
-				ssize_t 	node_id;
-				std::string 	uri; 
-				file_no_pool_t 	stored_files; 
-				size_t 		avaliable_memory; 
-				size_t 		total_memory;
+				ssize_t 		node_id;
+				std::string 		uri; 
+				file_no_pool_t 		stored_files; 
+				size_t 			avaliable_memory; 
+				size_t 			total_memory;
 		}; 
 
 		class Master_file_stat

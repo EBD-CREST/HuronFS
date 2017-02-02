@@ -125,7 +125,8 @@ recv_by_tcp(int      sockfd,
 }
 
 CBB_error CBB_cci::
-start_uri_exchange_server(int port)
+start_uri_exchange_server(const std::string& 	my_uri,
+		          int 			port)
 throw(std::runtime_error)
 {
 	struct sockaddr_in server_addr;
@@ -137,6 +138,15 @@ throw(std::runtime_error)
 	server_addr.sin_family      = AF_INET;  
 	server_addr.sin_addr.s_addr = htons(INADDR_ANY);  
 	server_addr.sin_port 	    = htons(port);  
+
+	if (0 != my_uri.length())
+	{
+		if (0 == inet_aton(my_uri.c_str(), &server_addr.sin_addr))
+		{
+			perror("Server IP Address Error"); 
+			throw std::runtime_error("Server IP Address Error");
+		}
+	}
 	
 	this->args.socket=create_socket(server_addr);
 	if(0 != listen(this->args.socket,  MAX_QUEUE))
@@ -260,11 +270,12 @@ init_protocol()
 }
 
 CBB_error CBB_cci::
-init_server_handle(ref_comm_handle_t server_handle,
-		   int		     port)
+init_server_handle(ref_comm_handle_t  server_handle,
+		   const std::string& my_uri,
+		   int		      port)
 throw(std::runtime_error)
 {
-	return start_uri_exchange_server(port);
+	return start_uri_exchange_server(my_uri, port);
 }
 
 
@@ -304,7 +315,7 @@ Close(comm_handle_t handle)
 
 CBB_error CBB_cci::
 get_uri_from_handle(comm_handle_t       handle,
-		    const char **const  uri)
+		    const char **const	uri)
 {
 	*uri=this->uri;
 	return SUCCESS;

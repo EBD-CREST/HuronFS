@@ -148,11 +148,19 @@ _register_to_master()
 		query->push_back(NEW_CLIENT);
 		send_query(query);
 
-		extended_IO_task* response=get_query_response(query);
-		response->pop(ret);
-		master_handle_list.push_back(SCBB(counter++, response->get_handle()));
+		try
+		{
+			extended_IO_task* response=get_query_response(query);
+			response->pop(ret);
+			master_handle_list.push_back(SCBB(counter++, response->get_handle()));
 
-		response_dequeue(response);
+			response_dequeue(response);
+		}
+		catch(std::runtime_error &e)
+		{
+			_LOG("failed to connect to Master %s\n", master_ip);
+			return -1;
+		}
 	}
 	return ret;
 }

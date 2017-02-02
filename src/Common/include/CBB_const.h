@@ -53,16 +53,24 @@ const int SERVER_THREAD_NUM = 1;
 const int CLIENT_THREAD_NUM = 1;
 
 //the number of queue used to send heart beat in Master= 1
-const int HEART_BEAT_QUEUE_NUM = 1;
+const int HEART_BEAT_THREAD_NUM = 1;
 //the number of queue used to send data synchronization in IOnode= 1
-const int DATA_SYNC_QUEUE_NUM = 1;
+const int DATA_SYNC_THREAD_NUM = 1;
+//the number of queue used to send heart beat in Master= 1
+const int CONNECTION_THREAD_NUM=1;
 
 //the number of communication queues used in master
 //the number = # of handler threads in server + # of queue used to send heart beat
-const int MASTER_QUEUE_NUM=SERVER_THREAD_NUM+HEART_BEAT_QUEUE_NUM;
+const int MASTER_QUEUE_NUM=SERVER_THREAD_NUM+HEART_BEAT_THREAD_NUM+CONNECTION_THREAD_NUM;
+//the index of connection queue 
+const int CONNECTION_QUEUE_NUM=SERVER_THREAD_NUM;
+//the index of heart beat queue in Master
+const int MASTER_HEART_BEAT_QUEUE_NUM=CONNECTION_QUEUE_NUM+CONNECTION_THREAD_NUM;
 //the number of communication queues used in IOnode 
 //the number = # of handler threads in server + # of remote handler
-const int IONODE_QUEUE_NUM=SERVER_THREAD_NUM+DATA_SYNC_QUEUE_NUM;
+const int IONODE_QUEUE_NUM=SERVER_THREAD_NUM+DATA_SYNC_THREAD_NUM+CONNECTION_THREAD_NUM;
+//the index of data sync queue in IOnode
+const int IONODE_DATA_SYNC_QUEUE_NUM=CONNECTION_QUEUE_NUM+CONNECTION_THREAD_NUM;
 //the number of communication queues used in client
 //the number = # of handler threads in client 
 const int CLIENT_QUEUE_NUM=CLIENT_THREAD_NUM;
@@ -174,7 +182,6 @@ const int OUT_OF_DATE = 54;
 const int SEND_META = 55;
 const int RECV_META = 56;
 const int NO_NEED_META = 57;
-const int SOCKET_KILLED = 58;
 const int EXISTING = 1;
 const int NOT_EXIST = 0;
 
@@ -194,6 +201,9 @@ const int MYSELF = -1;
 const int KEEP_ALIVE = 0;
 const int NOT_KEEP_ALIVE =1;
 
+//connection errors
+const int SOCKET_KILLED = 1;
+const int CONNECTION_SETUP_FAILED= 2;
 //flags
 //const int SEND = 0;
 //const int RECV_EXTENDED_MESSAGE = 1;

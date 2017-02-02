@@ -123,7 +123,6 @@ throw(std::runtime_error):
 	_current_block_number(0), 
 	_MAX_BLOCK_NUMBER(MAX_BLOCK_NUMBER), 
 	_memory(MEMORY), 
-	my_uri(),
 	master_uri(),
 	master_handle(),
 	my_handle(),
@@ -149,6 +148,7 @@ throw(std::runtime_error):
 	{
 		throw;
 	}
+
 	_mount_point=string(IOnode_mount_point);
 }
 
@@ -156,8 +156,8 @@ int IOnode::
 _setup_queues()
 {
 	CBB_data_sync::
-	set_queues(&_communication_input_queue.at(DATA_SYNC_QUEUE_NUM),
-	  	  &_communication_output_queue.at(DATA_SYNC_QUEUE_NUM));
+	set_queues(&_communication_input_queue.at(IONODE_DATA_SYNC_QUEUE_NUM),
+	  	  &_communication_output_queue.at(IONODE_DATA_SYNC_QUEUE_NUM));
 	return SUCCESS;
 }
 
@@ -204,19 +204,25 @@ throw(std::runtime_error)
 { 
 	_LOG("start registration\n");
 
-	extended_IO_task* output=allocate_output_task(SERVER_THREAD_NUM);
+	extended_IO_task* output=get_connection_task();
 	output->setup_new_connection(master_uri.c_str(), MASTER_PORT);
 	output->push_back(REGISTER);
 	output->push_back(_memory);
-	output_task_enqueue(output);
+	connection_task_enqueue(output);
 
 	extended_IO_task* response=
-		get_communication_input_queue(SERVER_THREAD_NUM)->get_task();
+		get_connection_response();
+
+	if(response->has_error())
+	{
+		throw std::runtime_error("connect to master failed");
+	}
+
 	ssize_t id=-1;
 	response->pop(id);
 	master_handle=*response->get_handle();
 
-	get_communication_input_queue(SERVER_THREAD_NUM)->task_dequeue();
+	connection_task_dequeue(response);
 	_LOG("registration finished, id=%ld\n", id);
 	return id; 
 }
@@ -285,7 +291,8 @@ _parse_request(extended_IO_task* new_task)
 	case REMOVE_IONODE:
 		_remove_IOnode(new_task);	break;
 	default:
-		_DEBUG("unrecognized command\n"); break; 
+		_DEBUG("unrecognized command %d\n",
+			request); break; 
 	}
 	return ans; 
 }
@@ -303,11 +310,14 @@ _promoted_to_primary(extended_IO_task* new_task)
 	try
 	{
 		file& file_info=_files.at(file_no);
-		_get_replica_node_info(new_task, file_info);
 
-		add_data_sync_task(DATA_SYNC_INIT,
-			&file_info, 0, 0, -1, 0,
-			&IOnode_handle_pool.at(new_node_id));
+		if(my_node_id != new_node_id)
+		{
+			_get_replica_node_info(new_task, file_info);
+			add_data_sync_task(DATA_SYNC_INIT,
+					&file_info, 0, 0, -1, 0,
+					&IOnode_handle_pool.at(new_node_id));
+		}
 	}
 	catch(std::runtime_error&e) {
 		_DEBUG("try to connect to IOnode failed!!\n");
@@ -374,6 +384,10 @@ _register_new_IOnode(extended_IO_task* new_task)
 	_LOG("register new IOnode %ld \n", new_IOnode_id);
 
 	IOnode_handle_pool.insert(std::make_pair(new_IOnode_id, *handle));
+	extended_IO_task* output=init_response_task(new_task);
+	output->push_back(SUCCESS);
+
+	output_task_enqueue(output);
 	return SUCCESS;
 }
 
@@ -483,7 +497,9 @@ _receive_data(extended_IO_task* new_task)
 		block_info_t &blocks=_file.blocks;
 		size_t receive_size=
 			(offset + size) > BLOCK_SIZE?BLOCK_SIZE-offset:size;
+		//the tmp variables for receiving data
 		off64_t tmp_offset=offset;
+		off64_t tmp_start_point=start_point;
 
 		while(0 < remaining_size)
 		{
@@ -492,12 +508,12 @@ _receive_data(extended_IO_task* new_task)
 					receive_size, remaining_size);
 #ifdef CCI
 			ssize_t IOsize=update_block_data(blocks,
-					_file, start_point,
+					_file, tmp_start_point,
 					tmp_offset, receive_size,
 					response);
 #else
 			ssize_t IOsize=update_block_data(blocks,
-					_file, start_point,
+					_file, tmp_start_point,
 					tmp_offset, receive_size,
 					new_task);
 #endif
@@ -506,7 +522,7 @@ _receive_data(extended_IO_task* new_task)
 			receive_size	=MIN(
 					remaining_size,
 					static_cast<ssize_t>(BLOCK_SIZE));
-			start_point	+=IOsize+tmp_offset;
+			tmp_start_point	+=IOsize+tmp_offset;
 			tmp_offset	=0;
 		}
 		_file.dirty_flag=DIRTY;
@@ -597,6 +613,7 @@ _open_file(extended_IO_task* new_task)
 	char 	*path_buffer	=nullptr; 
 	int 	exist_flag	=0;
 	int 	count		=0;
+
 	new_task->pop(file_no);
 	new_task->pop(flag);
 	new_task->pop(exist_flag);
@@ -634,8 +651,9 @@ _get_replica_node_info(extended_IO_task* new_task,
 	return SUCCESS;
 }
 
-int IOnode::_get_IOnode_info(extended_IO_task*	new_task, 
-			     file& 		_file)
+int IOnode::
+_get_IOnode_info(extended_IO_task* new_task, 
+		 file& 		   _file)
 {
 	comm_handle_t 
 		new_handle	=nullptr;
@@ -646,17 +664,24 @@ int IOnode::_get_IOnode_info(extended_IO_task*	new_task,
 	new_task->pop_string(&node_ip);
 	node_handle_pool_t::const_iterator it;
 
-	_DEBUG("try to connect to %s\n", node_ip);
-	
-	if(end(IOnode_handle_pool) == (it=IOnode_handle_pool.find(node_id)))
+	if(my_node_id != node_id)
 	{
-		new_handle=_connect_to_new_IOnode(node_id, my_node_id, node_ip);
+		_DEBUG("try to connect to %s\n", node_ip);
+
+		if(end(IOnode_handle_pool) == (it=IOnode_handle_pool.find(node_id)))
+		{
+			new_handle=_connect_to_new_IOnode(node_id, my_node_id, node_ip);
+		}
+		else
+		{
+			new_handle=&(it->second);
+		}
+		_file.IOnode_pool.insert(std::make_pair(node_id, new_handle));
 	}
 	else
 	{
-		new_handle=&(it->second);
+		_DEBUG("new node is myself\n");
 	}
-	_file.IOnode_pool.insert(std::make_pair(node_id, new_handle));
 	return SUCCESS;
 }
 
@@ -668,20 +693,21 @@ _connect_to_new_IOnode(ssize_t 		destination_node_id,
 	int ret;
 	_DEBUG("connect to destination node id %ld\n", destination_node_id);
 
-	extended_IO_task* output=allocate_output_task(0);
+	extended_IO_task* output=get_connection_task();
 	output->setup_new_connection(node_ip, IONODE_PORT);
 	output->push_back(NEW_IONODE);
 	output->push_back(my_node_id);
 	output_task_enqueue(output);
 
 	extended_IO_task* response=
-		get_communication_input_queue(0)->get_task();
+		get_connection_response();
 	response->pop(ret);
 
 	comm_handle_t IOnode_handle=
 		&(IOnode_handle_pool.insert(
 		make_pair(destination_node_id, 
 			*response->get_handle())).first->second);
+	connection_task_dequeue(response);
 	return IOnode_handle;
 }
 
@@ -942,9 +968,12 @@ int IOnode::_flush_file(extended_IO_task* new_task)
 int IOnode::
 _register_new_client(extended_IO_task* new_task)
 {
-
+	char* client_uri=nullptr;
 	//getpeername(new_task->get_handle(), reinterpret_cast<sockaddr*>(&addr), &len); 
-	//_LOG("new client sockfd=%d ip=%s\n", new_task->get_handle(), inet_ntoa(addr.sin_addr));
+	_LOG("new client sockfd=%p\n", new_task->get_handle());
+	new_task->pop_string(&client_uri);
+	_LOG("client uri %s\n", client_uri);
+
 	extended_IO_task* output=init_response_task(new_task);
 	output->push_back(SUCCESS);
 	output_task_enqueue(output);
@@ -1258,11 +1287,24 @@ _get_sync_data(extended_IO_task* new_task)
 	return ret;
 }
 
-void IOnode::configure_dump()
+void IOnode::
+configure_dump()
 {
 	_LOG("under master %s\n", master_uri.c_str());
 	_LOG("mount point=%s\n", _mount_point.c_str());
 	_LOG("max block %d\n", _MAX_BLOCK_NUMBER);
 	_LOG("avaliable memory %ld\n", _memory); //remain available memory; 
-	_LOG("my uri=%s\n", my_uri.c_str());
+	_LOG("my uri=%s\n", Server::_get_my_uri());
+}
+
+CBB::CBB_error IOnode::
+connection_failure_handler(extended_IO_task* input_task)
+{
+	communication_queue_t& 	input_queue	=_communication_input_queue.at(input_task->get_id());
+	extended_IO_task* 	new_task	=input_queue.allocate_tmp_node();
+
+	//reply with node failure
+	new_task->set_error(CONNECTION_SETUP_FAILED);
+	input_queue.task_enqueue_signal_notification();
+	return SUCCESS;
 }

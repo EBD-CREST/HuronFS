@@ -46,7 +46,7 @@ int main(int argc, char**argv)
 	const char *_ip=NULL;
 	if(NULL == (_ip=getenv("HUFS_MASTER_IP")))
 	{
-		fprintf(stderr, "please set master ip\n");
+		fprintf(stderr, "ERROR !! please set master ip\n");
 		return EXIT_FAILURE;
 	}
 	std::string master_ip(_ip); 
@@ -65,8 +65,10 @@ int main(int argc, char**argv)
 	}
 	catch(std::runtime_error&e)
 	{
-		fprintf(stderr, e.what());
-		return EXIT_FAILURE;
+		fprintf(stderr, 
+			"ERROR !! IOnode set up failed\n%s\n",
+			e.what());
+		exit(EXIT_FAILURE);
 	}
 	return EXIT_SUCCESS;
 }

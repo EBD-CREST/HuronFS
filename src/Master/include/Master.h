@@ -112,6 +112,8 @@ namespace CBB
 						const char* file_relative_path,
 						size_t offset)throw(std::runtime_error);
 
+				node_info* _get_node_info_from_handle(Common::comm_handle_t handle);
+
 				void _send_block_info(Common::extended_IO_task* new_task,
 						size_t file_size,
 						const node_info_pool_t& node_info_pool,
@@ -122,12 +124,14 @@ namespace CBB
 						node_info* current_node,
 						const block_list_t& block_info,
 						const node_info_pool_t& node_info_set);
-				CBB_error _send_replica_nodes_info(Common::extended_IO_task* output, const node_info_pool_t& IOnodes_set);
+				CBB_error _send_replica_nodes_info(Common::extended_IO_task* output,
+						const node_info_pool_t& IOnodes_set);
 
 
 				ssize_t _add_IOnode(const std::string& node_ip,
 						    size_t avaliable_memory,
 						    Common::comm_handle_t handle);
+
 				ssize_t _delete_IOnode(Common::comm_handle_t handle);
 				const node_info_pool_t& _open_file(const char* file_path,
 								   int flag,
@@ -194,6 +198,7 @@ namespace CBB
 				virtual std::string _get_real_path(const std::string& path)const override final;
 				virtual CBB_error remote_task_handler(Common::remote_task* new_task)override final;
 				virtual CBB_error get_IOnode_handle_map(handle_map_t& map)override final;
+				virtual CBB_error node_failure_handler(Common::extended_IO_task* handle)override final;
 				virtual CBB_error node_failure_handler(Common::comm_handle_t handle)override final;
 
 				ssize_t _select_IOnode_for_IO(open_file_info& file);
@@ -229,7 +234,6 @@ namespace CBB
 				ssize_t 	   _current_file_no; 
 				std::string 	   _mount_point;
 				std::string 	   metadata_backup_point;
-				std::string 	   my_uri;
 				int 		   master_number;
 				int 		   master_total_size;
 

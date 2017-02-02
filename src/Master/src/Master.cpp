@@ -81,8 +81,10 @@ Master::Master()throw(CBB_configure_error):
 
 CBB::CBB_error Master::_setup_queues()
 {
-	CBB_heart_beat::set_queues(Server::get_communication_input_queue(HEART_BEAT_QUEUE_NUM),
-			Server::get_communication_output_queue(HEART_BEAT_QUEUE_NUM));
+	CBB_heart_beat::set_queues(Server::get_communication_input_queue(
+				MASTER_HEART_BEAT_QUEUE_NUM),
+			Server::get_communication_output_queue(
+				MASTER_HEART_BEAT_QUEUE_NUM));
 	return SUCCESS;
 }
 
@@ -913,13 +915,13 @@ CBB::CBB_error Master::_parse_rename_migrating(extended_IO_task* new_task)
 
 CBB::CBB_error Master::_parse_node_failure(extended_IO_task* new_task)
 {
-	comm_handle_t			handle	=new_task->get_handle();
-	IOnode_handle_t::const_iterator	it	=_IOnode_handle.find(handle);
+	comm_handle_t	handle		=new_task->get_handle();
+	node_info* 	failed_node 	=_get_node_info_from_handle(handle);
 
 	_LOG("parsing node failure\n");
-	if(end(_IOnode_handle) != it)
+	if(nullptr != failed_node)
 	{
-		return _IOnode_failure_handler(it->second);
+		return _IOnode_failure_handler(failed_node);
 	}
 	else
 	{
@@ -1038,11 +1040,15 @@ CBB::CBB_error Master::_send_remove_IOnode_request(node_info* removed_IOnode)
 
 	for(auto& IOnode:_registered_IOnodes)
 	{
-		extended_IO_task* output=allocate_output_task(_get_my_thread_id());
-		output->set_handle(IOnode.second->handle);
-		output->push_back(REMOVE_IONODE);
-		output->push_back(removed_IOnode->node_id);
-		output_task_enqueue(output);
+		if(removed_IOnode != IOnode.second)
+		{
+			//send the remove request to all other IOnodes
+			extended_IO_task* output=allocate_output_task(_get_my_thread_id());
+			output->set_handle(IOnode.second->handle);
+			output->push_back(REMOVE_IONODE);
+			output->push_back(removed_IOnode->node_id);
+			output_task_enqueue(output);
+		}
 	}
 
 	return SUCCESS;
@@ -1078,7 +1084,8 @@ CBB::CBB_error Master::_unregister_IOnode(node_info* IOnode_info)
 
 CBB::CBB_error Master::_remove_IOnode(node_info* IOnode_info)
 {
-	if(_current_IOnode->first == IOnode_info->node_id)
+	if(0 != _registered_IOnodes.size() && 
+		_current_IOnode->first == IOnode_info->node_id)
 	{
 		//current_IOnode is the node to be removed
 		//go to next IOnode
@@ -1122,10 +1129,11 @@ CBB::CBB_error Master::_close_client(comm_handle_t handle)
 	//S: start point: off64_t
 	//S: node id: ssize_t
 //S: SUCCESS: int
-void Master::_send_block_info(Common::extended_IO_task	*output,
-			      size_t 			file_size,
-			      const node_info_pool_t	&node_info_pool,
-			      const block_list_t 	&block_list)const
+void Master::
+_send_block_info(Common::extended_IO_task*	output,
+	      	 size_t 			file_size,
+		 const node_info_pool_t&	node_info_pool,
+		 const block_list_t&		block_list)const
 {
 	output->push_back(SUCCESS);
 	output->push_back(file_size);
@@ -1187,11 +1195,11 @@ void Master::_send_append_request(ssize_t file_no,
 	//S: data size: size_t
 	//S: SUCCESS: int
 	//R: ret
-CBB::CBB_error
-Master::_send_open_request_to_IOnodes(struct open_file_info  &file,
-				      node_info		     *current_node_info,
-				      const block_list_t     &block_info,
-			 	      const node_info_pool_t &IOnodes_set)
+CBB::CBB_error Master::
+_send_open_request_to_IOnodes(struct open_file_info  &file,
+			      node_info		     *current_node_info,
+			      const block_list_t     &block_info,
+		 	      const node_info_pool_t &IOnodes_set)
 {
 	//send read request to each IOnode
 	//buffer requset, file_no, open_flag, exist_flag, file_path, start_point, block_size
@@ -1227,9 +1235,9 @@ Master::_send_open_request_to_IOnodes(struct open_file_info  &file,
 	return SUCCESS; 
 }
 
-CBB::CBB_error 
-Master::_send_replica_nodes_info(extended_IO_task 	*output,
-				 const node_info_pool_t &IOnodes_set)
+CBB::CBB_error Master::
+_send_replica_nodes_info(extended_IO_task 	*output,
+			 const node_info_pool_t &IOnodes_set)
 {
 	output->push_back(MAIN_REPLICA);
 	output->push_back(static_cast<int>(IOnodes_set.size()));
@@ -1241,9 +1249,10 @@ Master::_send_replica_nodes_info(extended_IO_task 	*output,
 	return SUCCESS;
 }
 
-ssize_t Master::_add_IOnode(const string  &node_uri,
-			    size_t 	  total_memory,
-			    comm_handle_t handle)
+ssize_t Master::
+_add_IOnode(const string  &node_uri,
+	    size_t 	  total_memory,
+	    comm_handle_t handle)
 {
 	ssize_t id=0; 
 	if(-1 == (id=_get_node_id()))
@@ -1254,34 +1263,38 @@ ssize_t Master::_add_IOnode(const string  &node_uri,
 	{
 		return -1;
 	}
-	_registered_IOnodes.insert(std::make_pair(id, new node_info(id, node_uri, total_memory, handle)));
+	_registered_IOnodes.insert(std::make_pair(id,
+				new node_info(id, node_uri, total_memory, handle)));
 	node_info *node=_registered_IOnodes.at(id); 
-	_IOnode_handle.insert(std::make_pair(handle, node)); 
+	//get the actual handle address from inserted node info
+	comm_handle_t node_handle=&node->handle;
+	_IOnode_handle.insert(std::make_pair(node_handle, node)); 
 	Server::_add_handle(handle); 
 	return id; 
 }
 
 ssize_t Master::_delete_IOnode(comm_handle_t handle)
 {
-	node_info *node=_IOnode_handle.at(handle);
+	node_info *node=_get_node_info_from_handle(handle);
 	ssize_t id=node->node_id;
 	_registered_IOnodes.erase(id);
 	Server::_delete_handle(handle); 
 	Close(handle); 
-	_IOnode_handle.erase(handle); 
+	_IOnode_handle.erase(&node->handle); 
 	_node_id_pool[id]=false;
 	delete node;
 	return id;
 }
 
-const node_info_pool_t& Master::_open_file(const char 	*file_path,
-					   int 		flag,
-					   ssize_t	&file_no,
-					   int 		exist_flag,
-					   mode_t 	mode)
-					   throw(std::runtime_error,
-						 std::invalid_argument,
-						 std::bad_alloc)
+const node_info_pool_t& Master::
+_open_file(const char 	*file_path,
+	   int 		flag,
+	   ssize_t	&file_no,
+	   int 		exist_flag,
+	   mode_t 	mode)
+throw(std::runtime_error,
+	std::invalid_argument,
+	std::bad_alloc)
 {
 	file_stat_pool_t::iterator it; 
 	open_file_info *file=nullptr; 
@@ -1368,26 +1381,27 @@ ssize_t Master::_get_file_no()
 	return -1;
 }
 
-void Master::_release_file_no(ssize_t file_no)
+void Master::
+_release_file_no(ssize_t file_no)
 {
 	--_file_number;
 	_file_no_pool[file_no]=false;
 	return;
 }
 
-Master::IOnode_t::iterator Master::_find_by_uri(const string &uri)
+Master::IOnode_t::iterator Master::
+_find_by_uri(const string &uri)
 {
 	IOnode_t::iterator it=_registered_IOnodes.begin();
 	for(; it != _registered_IOnodes.end() && ! (it->second->uri == uri); ++it);
 	return it;
 }
 
-open_file_info* 
-Master::_create_new_open_file_info(ssize_t 		file_no,
-				   int 			flag,
-				   Master_file_stat	*stat)
-				   throw(invalid_argument,
-					 runtime_error)
+open_file_info* Master::
+_create_new_open_file_info(ssize_t 		file_no,
+			   int 			flag,
+			   Master_file_stat	*stat)
+throw(invalid_argument, runtime_error)
 {
 	try
 	{
@@ -1434,11 +1448,11 @@ Master::_create_new_open_file_info(ssize_t 		file_no,
 	}
 }
 
-Master_file_stat*
-Master::_create_new_file_stat(const char 	*relative_path,
-			      int 		exist_flag,
-		       	      mode_t 		mode)
-			      throw(std::invalid_argument)
+Master_file_stat* Master::
+_create_new_file_stat(const char 	*relative_path,
+		      int 		exist_flag,
+	       	      mode_t 		mode)
+throw(std::invalid_argument)
 {
 	string relative_path_string 	=string(relative_path);
 	string real_path		=_get_real_path(relative_path_string);
@@ -1466,10 +1480,11 @@ Master::_create_new_file_stat(const char 	*relative_path,
 	return &new_file_stat;
 }
 
-node_info* Master::_select_IOnode(ssize_t 		file_no,
-				  int 			num_of_nodes,
-				  node_info_pool_t 	&node_info_pool)
-				  throw(std::runtime_error)
+node_info* Master::
+_select_IOnode(ssize_t 		file_no,
+	       int 		num_of_nodes,
+	       node_info_pool_t	&node_info_pool)
+throw(std::runtime_error)
 {
 	if(0 == _registered_IOnodes.size())
 	{
@@ -1523,13 +1538,14 @@ Master::_create_block_list(size_t 		file_size,
 	return SUCCESS;
 }
 
-CBB::CBB_error
-Master::_allocate_new_blocks_for_writing(open_file_info 	&file,
-					 off64_t 		start_point,
-					 size_t 		size)
+CBB::CBB_error Master::
+_allocate_new_blocks_for_writing(open_file_info 	&file,
+				 off64_t 		start_point,
+				 size_t 		size)
 {
 	off64_t current_point=get_block_start_point(start_point, size);
-	block_list_t::iterator current_block=file.block_list.find(current_point); ssize_t remaining_size=size;
+	block_list_t::iterator current_block=
+		file.block_list.find(current_point); ssize_t remaining_size=size;
 	if(end(file.block_list) != current_block)
 	{
 		if(size + start_point < current_block->first + current_block->second)
@@ -1577,16 +1593,18 @@ Master::_allocate_new_blocks_for_writing(open_file_info 	&file,
 	}
 }*/
 
-void Master::_append_block(struct open_file_info &file,
-			   off64_t 		 start_point,
-			   size_t 		 size)
+void Master::
+_append_block(struct open_file_info& file,
+	      off64_t 		     start_point,
+	      size_t 		     size)
 {
 	_DEBUG("append block=%ld\n", start_point);
 	file.block_list.insert(std::make_pair(start_point, size));
 	//file.IOnodes_set.insert(node_id);
 }
 
-CBB::CBB_error Master::_remove_open_file(ssize_t file_no)
+CBB::CBB_error Master::
+_remove_open_file(ssize_t file_no)
 {
 	File_t::iterator it=_buffered_files.find(file_no);
 	if(_buffered_files.end() != it)
@@ -1597,7 +1615,8 @@ CBB::CBB_error Master::_remove_open_file(ssize_t file_no)
 	return SUCCESS;
 }
 
-CBB::CBB_error Master::_remove_open_file(open_file_info* file_info)
+CBB::CBB_error Master::
+_remove_open_file(open_file_info* file_info)
 {
 	ssize_t file_no=file_info->file_no;
 
@@ -1618,8 +1637,9 @@ CBB::CBB_error Master::_remove_open_file(open_file_info* file_info)
 	return SUCCESS;
 }
 
-void Master::_send_remove_request(node_info 	*IOnode,
-				  ssize_t 	file_no)
+void Master::
+_send_remove_request(node_info 	*IOnode,
+		     ssize_t 	file_no)
 {
 	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
 	output->set_handle(IOnode->handle);
@@ -1666,8 +1686,8 @@ _get_file_stat_from_dir(const string& dir,
 	return SUCCESS;
 }
 
-CBB::CBB_error
-Master::_buffer_all_meta_data_from_remote(const char* mount_point)
+CBB::CBB_error Master::
+_buffer_all_meta_data_from_remote(const char* mount_point)
 throw(CBB_configure_error)
 {
 	char file_path[PATH_MAX];
@@ -1683,7 +1703,9 @@ throw(CBB_configure_error)
 	_LOG("start to buffer file status from remote\n");
 	struct stat file_status;
 	lstat(file_path, &file_status);
-	file_stat_pool_t::iterator it=_file_stat_pool.insert(std::make_pair("/", Master_file_stat(file_status, "/", EXISTING))).first;
+	file_stat_pool_t::iterator it=
+		_file_stat_pool.insert(
+				std::make_pair("/", Master_file_stat(file_status, "/", EXISTING))).first;
 	it->second.set_file_full_path(it);
 	size_t len=strlen(mount_point);
 	if('/' != file_path[len])
@@ -1696,12 +1718,12 @@ throw(CBB_configure_error)
 	return ret;
 }
 
-CBB::CBB_error 
-Master::_dfs_items_in_remote(DIR 	*current_remote_directory,
-			     char	*file_path,
-			     const char	*file_relative_path,
-			     size_t 	offset)
-			     throw(std::runtime_error)
+CBB::CBB_error Master::
+_dfs_items_in_remote(DIR 	*current_remote_directory,
+		     char	*file_path,
+		     const char	*file_relative_path,
+		     size_t 	offset)
+throw(std::runtime_error)
 {
 	const struct dirent* dir_item=nullptr;
 	while(nullptr != (dir_item=readdir(current_remote_directory)))
@@ -1717,7 +1739,10 @@ Master::_dfs_items_in_remote(DIR 	*current_remote_directory,
 		{
 			struct stat file_status;
 			lstat(file_path, &file_status);
-			file_stat_pool_t::iterator it=_file_stat_pool.insert(std::make_pair(file_relative_path, Master_file_stat(file_status, dir_item->d_name, EXISTING))).first;
+			file_stat_pool_t::iterator it=
+				_file_stat_pool.insert(std::make_pair(
+					file_relative_path, Master_file_stat(
+						file_status, dir_item->d_name, EXISTING))).first;
 			it->second.set_file_full_path(it);
 		}
 		if(DT_DIR == dir_item->d_type)
@@ -1735,7 +1760,8 @@ Master::_dfs_items_in_remote(DIR 	*current_remote_directory,
 	return SUCCESS;
 }
 
-CBB::CBB_error Master::get_IOnode_handle_map(handle_map_t& handle_map)
+CBB::CBB_error Master::
+get_IOnode_handle_map(handle_map_t& handle_map)
 {
 	for(const auto& IOnode:_IOnode_handle)
 	{
@@ -1744,14 +1770,24 @@ CBB::CBB_error Master::get_IOnode_handle_map(handle_map_t& handle_map)
 	return SUCCESS;
 }
 
-CBB::CBB_error Master::node_failure_handler(comm_handle_t node_handle)
+CBB::CBB_error Master::
+node_failure_handler(extended_IO_task* new_task)
 {
 	//dummy code
-	_DEBUG("IOnode failed handle=%p\n", node_handle);
-	return send_input_for_handle_error(node_handle);
+	_DEBUG("IOnode failed from task handle=%p\n", new_task->get_handle());
+	return send_input_for_handle_error(new_task->get_handle());
 }
 
-CBB::CBB_error Master::_remote_rename(Common::remote_task* new_task)
+CBB::CBB_error Master::
+node_failure_handler(comm_handle_t handle)
+{
+	//dummy code
+	_DEBUG("IOnode failed handle=%p\n", handle);
+	return send_input_for_handle_error(handle);
+}
+
+CBB::CBB_error Master::
+_remote_rename(Common::remote_task* new_task)
 {
 	string 	*old_name	=static_cast<string*>(new_task->get_task_data());
 	string	*new_name	=static_cast<string*>(new_task->get_extended_task_data());
@@ -1908,10 +1944,10 @@ Master::_update_backup_file_size(const string 	&path,
 	}
 }
 
-CBB::CBB_error
-Master::_set_master_number_size(const char*	master_ip_list,
-			        int&		master_number,
-			        int&		master_total_size)
+CBB::CBB_error Master::
+_set_master_number_size(const char*	master_ip_list,
+			int&		master_number,
+			int&		master_total_size)
 {
 	//struct hostent* ip_list_ent	=get_my_ip_list();	
 	struct ifaddrs* interface_array =nullptr;
@@ -1944,7 +1980,7 @@ Master::_set_master_number_size(const char*	master_ip_list,
 				if(temp_attr->s_addr == master_addr.s_addr)
 				{
 					master_number = master_total_size;
-					my_uri=string(inet_ntoa(*temp_attr));
+					Server::_set_uri(inet_ntoa(*temp_attr));
 					set=true;
 				}
 
@@ -1967,11 +2003,26 @@ Master::_set_master_number_size(const char*	master_ip_list,
 		return FAILURE;
 	}
 }
+
 void Master::configure_dump()
 {
 	_LOG("master number=%d\n", this->master_number);
 	_LOG("master mount point=%s\n",this->_mount_point.c_str());
 	_LOG("master metadata backup point=%s\n",metadata_backup_point.c_str());
 	_LOG("master total size=%d\n", this->master_total_size);
+	_LOG("my uri=%s\n", Server::_get_my_uri());
 	return;
+}
+
+node_info* Master::
+_get_node_info_from_handle(comm_handle_t handle)
+{
+	for(auto IOnode:_IOnode_handle)
+	{
+		if(compare_handle(IOnode.first, handle))
+		{
+			return IOnode.second;
+		}
+	}
+	return nullptr;
 }

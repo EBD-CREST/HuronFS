@@ -55,7 +55,9 @@ int main(int argc, char **argv)
 	}
 	catch(std::exception &e)
 	{
-		fprintf(stderr, "%s\n", e.what()); 
+		fprintf(stderr, 
+			"ERROR !! Master set up failed\n%s\n",
+			e.what());
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS; 

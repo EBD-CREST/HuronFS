@@ -26,8 +26,9 @@ namespace CBB
 			throw(std::runtime_error)override final;
 
 		virtual CBB_error 
-			init_server_handle(ref_comm_handle_t server_handle,
-					   int		     port)
+			init_server_handle(ref_comm_handle_t  server_handle,
+					   const std::string& my_uri,
+					   int		      port)
 			throw(std::runtime_error)override final;
 
 		virtual CBB_error end_protocol(comm_handle_t server_handle)override final;
@@ -39,7 +40,7 @@ namespace CBB
 
 		virtual CBB_error
 			get_uri_from_handle(comm_handle_t     handle,
-					    const char**const uri)override final;
+					    const char**      uri)override final;
 		virtual CBB_error
 			Connect(const char* uri,
 				int	    port,
@@ -89,7 +90,8 @@ namespace CBB
 			throw(std::runtime_error);
 
 
-		CBB_error start_uri_exchange_server(int port)
+		CBB_error start_uri_exchange_server(const std::string& 	my_uri,
+						    int 		port)
 			throw(std::runtime_error);
 
 		CBB_error register_mem( void*		ptr,
@@ -104,6 +106,9 @@ namespace CBB
 			socket_thread_fun(void *obj);
 		
 		cci_endpoint_t* get_endpoint();
+
+		virtual const char*
+			get_my_uri()const;
 
 		private:
 
@@ -241,6 +246,12 @@ namespace CBB
 			get_endpoint()
 		{
 			return this->endpoint;
+		}
+
+		inline const char* CBB_cci::
+			get_my_uri()const
+		{
+			return this->uri;
 		}
 
 

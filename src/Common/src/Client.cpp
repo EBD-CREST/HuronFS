@@ -64,7 +64,7 @@ int Client::input_from_network(comm_handle_t handle,
 			new_task->set_handle(handle);
 		}
 		new_task->set_error(SOCKET_KILLED);
-		node_failure_handler(handle);
+		//node_failure_handler(handle);
 	}
 	output_queue->task_enqueue_signal_notification();
 	return SUCCESS;
@@ -78,9 +78,19 @@ int Client::input_from_producer(communication_queue_t* input_queue)
 		_DEBUG("send request from producer\n");
 		if(new_task->is_new_connection())
 		{
-			connect_to_server(new_task->get_uri(),
-					  new_task->get_port(),
-					  new_task);
+			try
+			{
+				connect_to_server(new_task->get_uri(),
+						new_task->get_port(),
+						new_task);
+			}
+			catch(std::runtime_error& e)
+			{
+				//for client if server cannot be connected
+				//we return an error code to client;
+				_LOG("Connection error %s\n", e.what());
+				node_failure_handler(new_task);
+			}
 		}
 		else
 		{
@@ -92,8 +102,7 @@ int Client::input_from_producer(communication_queue_t* input_queue)
 			{
 				//for client if server died before data is sent;
 				//we return an error code to client;
-				reply_with_handle_error(new_task);
-				node_failure_handler(new_task->get_handle());
+				node_failure_handler(new_task);
 			}
 		}
 		input_queue->task_dequeue();
@@ -152,25 +161,42 @@ communication_queue_t* Client::get_communication_queue_from_handle(comm_handle_t
 	//return &_communication_input_queue.at(0);
 }
 
-int Client::reply_with_handle_error(extended_IO_task* input_task)
+int Client::
+reply_with_handle_error(extended_IO_task* input_task,
+			int		  error)
 {
 	int 			index		=input_task->get_id();
 	communication_queue_t& 	input_queue	=_communication_input_queue.at(index);
 	extended_IO_task* 	new_task	=input_queue.allocate_tmp_node();
 
-	new_task->set_error(SOCKET_KILLED);
+	new_task->set_error(error);
 	input_queue.task_enqueue_signal_notification();
 	return SUCCESS;
 }
 
-int Client::node_failure_handler(comm_handle_t node_handle)
+int Client::node_failure_handler(extended_IO_task* task)
 {
-	//dummy code
-	_DEBUG("IOnode failed handle=%p\n", node_handle);
+	_DEBUG("IOnode failed handle=%p\n", task->get_handle());
+	reply_with_handle_error(task, SOCKET_KILLED);
 	return SUCCESS;
 }
 
-extended_IO_task* Client::get_query_response(extended_IO_task* query)throw(std::runtime_error)
+int Client::
+node_failure_handler(comm_handle_t handle)
+{
+	_DEBUG("Unimplemented, don't use\n");
+	return SUCCESS;
+}
+
+int Client::connection_failure_handler(extended_IO_task* task)
+{
+	_DEBUG("Connection set up failed handle=%p\n", task->get_handle());
+	return reply_with_handle_error(task, CONNECTION_SETUP_FAILED);
+}
+
+extended_IO_task* Client::
+get_query_response(extended_IO_task* query)
+throw(std::runtime_error)
 {
 	extended_IO_task* ret=nullptr;
 	_threads_handle_map[query->get_id()]=query->get_handle();
@@ -186,7 +212,7 @@ extended_IO_task* Client::get_query_response(extended_IO_task* query)throw(std::
 			(SUCCESS == dequeue(ret)));
 
 	//handle killed
-	if(SOCKET_KILLED == ret->get_error())
+	if(ret->has_error())
 	{
 		response_dequeue(ret);
 		release_communication_queue(query);
@@ -208,14 +234,21 @@ connect_to_server(const char* 	   uri,
 
 	comm_handle handle;
 
-	Connect(uri, port,
-		handle, 
-		new_task->get_message(),
-		reinterpret_cast<size_t*>(
-			new_task->get_message()
-		+MESSAGE_SIZE_OFF));
-	new_task->set_handle(&handle);
-	CBB_communication_thread::_add_handle(&handle);
+	try
+	{
+		Connect(uri, port,
+				handle, 
+				new_task->get_message(),
+				reinterpret_cast<size_t*>(
+					new_task->get_message()
+					+MESSAGE_SIZE_OFF));
+		new_task->set_handle(&handle);
+		CBB_communication_thread::_add_handle(&handle);
+	}
+	catch(std::runtime_error& e)
+	{
+		connection_failure_handler(new_task);
+	}
 
 	return SUCCESS;
 }

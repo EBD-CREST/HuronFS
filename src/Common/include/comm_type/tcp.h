@@ -63,7 +63,8 @@ namespace CBB
 			throw(std::runtime_error)override;
 
 		virtual CBB_error 
-			init_server_handle(ref_comm_handle_t server_handle,
+			init_server_handle(ref_comm_handle_t  server_handle,
+					   const std::string& my_uri,
 				           int		      port)
 			throw(std::runtime_error)override;
 
@@ -72,10 +73,14 @@ namespace CBB
 		
 		virtual CBB_error
 			get_uri_from_handle(comm_handle_t handle,
-					    const char**const   uri)override;
+					    const char**  uri)override;
 
 		virtual bool compare_handle(comm_handle_t src,
 				comm_handle_t des)override;
+
+		virtual const char* 
+			get_my_uri()const;
+
 			private:
 
 		int 	create_socket(const struct sockaddr_in& addr)
@@ -120,9 +125,15 @@ namespace CBB
 		inline bool CBB_tcp::
 			compare_handle(comm_handle_t src,
 				comm_handle_t des)
-			{
-				return src->socket == des->socket;
-			}
+		{
+			return src->socket == des->socket;
+		}
+
+		inline const char* CBB_tcp::
+			get_my_uri()const
+		{
+			return inet_ntoa(this->client_addr.sin_addr);
+		}
 
 	}
 }

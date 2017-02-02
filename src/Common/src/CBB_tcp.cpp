@@ -18,8 +18,9 @@ throw(std::runtime_error)
 
 
 CBB_error CBB_tcp::
-init_server_handle(ref_comm_handle_t server_handle,
-	           int port)
+init_server_handle(ref_comm_handle_t  server_handle,
+		   const std::string& my_uri,
+	           int 		      port)
 throw(std::runtime_error)
 {
 
@@ -28,6 +29,15 @@ throw(std::runtime_error)
 	server_addr.sin_family 	    = AF_INET;  
 	server_addr.sin_addr.s_addr = htons(INADDR_ANY);  
 	server_addr.sin_port	    = htons(port);  
+
+	/*if (0 != my_uri.length())
+	{
+		if (0 == inet_aton(my_uri.c_str(), &server_addr.sin_addr))
+		{
+			perror("Server IP Address Error"); 
+			throw std::runtime_error("Server IP Address Error");
+		}
+	}*/
 
 	//create socket, throw rumtime error
 	server_handle.socket=create_socket(server_addr);
@@ -82,6 +92,7 @@ throw(std::runtime_error)
 		perror("Can not Connect to Server");  
 		throw std::runtime_error("Can not Connect to Server"); 
 	}
+	_DEBUG("Connection established %d\n", handle.socket);
 
 	//bad hack
 	const char* my_uri=nullptr;
@@ -219,7 +230,7 @@ throw(std::runtime_error)
 
 CBB_error CBB_tcp::
 get_uri_from_handle(comm_handle_t handle,
-		const char**const	uri)
+		    const char**  uri)
 {
 	struct sockaddr_in addr;
 	socklen_t len=sizeof(addr);
