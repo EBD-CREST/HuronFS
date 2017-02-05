@@ -35,17 +35,23 @@ namespace CBB
 			cci_connection_t*  	cci_handle; 
 			cci_rma_handle_t*  	local_rma_handle; 
 			cci_rma_handle  	remote_rma_handle; 
+			//use for the uri
 			const void*	 	buf;
 			size_t		 	size;
+			void dump_remote_key()const;
+			void dump_local_key() const;
 #else
 			int 		 	socket;
 #endif
+			//define in each protocal
+			CBB_handle& operator = (const CBB_handle& src);
 		};
 
 		typedef CBB_handle comm_handle;
 		typedef const CBB_handle* comm_handle_t;
 		typedef CBB_handle* free_comm_handle_t;
 		typedef CBB_handle& ref_comm_handle_t;
+		typedef const CBB_handle& const_ref_comm_handle_t;
 
 		class Comm_basic
 		{
@@ -129,10 +135,6 @@ namespace CBB
 					   const void*   buffer,
 					   size_t 	 count)
 				throw(std::runtime_error)=0;
-
-			comm_handle_t 
-				copy_handle(ref_comm_handle_t des,
-						comm_handle_t src);
 
 			void push_back_uri(const char* uri,
 					   void*   buf,
@@ -240,14 +242,6 @@ namespace CBB
 			{
 				timer->tv_sec=TIMEOUT_SEC;
 				timer->tv_usec=0;
-			}
-
-		inline comm_handle_t 
-			copy_handle(ref_comm_handle_t des,
-				    comm_handle_t src)
-			{
-				memcpy(&des, src, sizeof(comm_handle));
-				return &des;
 			}
 
 		inline bool

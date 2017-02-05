@@ -109,6 +109,7 @@ namespace CBB
 
 		virtual const char*
 			get_my_uri()const;
+		void dump_remote_key()const;
 
 		private:
 
@@ -170,11 +171,7 @@ namespace CBB
 						cci_strerror(endpoint, (cci_status)ret));
 				return FAILURE;
 			}
-			_DEBUG("key=%lu %lu %lu %lu\n", 
-					handle->local_rma_handle->stuff[0],
-					handle->local_rma_handle->stuff[1],	
-					handle->local_rma_handle->stuff[2],	
-					handle->local_rma_handle->stuff[3]);
+			handle->dump_local_key();
 			return SUCCESS;
 		}
 
@@ -229,7 +226,7 @@ namespace CBB
 				   off64_t	 offset)
 			throw(std::runtime_error)
 			{
-				return Recv_large(handle, nullptr, 0, buffer, count, 0);
+				return Recv_large(handle, nullptr, 0, buffer, count, offset);
 			}
 
 		inline size_t CBB_cci:: 
@@ -239,7 +236,7 @@ namespace CBB
 				   off64_t	 offset)
 			throw(std::runtime_error)
 			{
-				return Send_large(handle, nullptr, 0, buffer, count, 0);
+				return Send_large(handle, nullptr, 0, buffer, count, offset);
 			}
 
 		inline cci_endpoint_t* CBB_cci::
@@ -254,7 +251,33 @@ namespace CBB
 			return this->uri;
 		}
 
+		inline ref_comm_handle_t CBB_handle::
+			 operator = (const_ref_comm_handle_t src)
+		{
+			memcpy(this, &src, sizeof(src));
+			return *this;
+		}
 
+		inline void CBB_handle::
+			dump_remote_key()const
+		{
+			_DEBUG("remote key=%lu %lu %lu %lu\n", 
+					remote_rma_handle.stuff[0],
+					remote_rma_handle.stuff[1],
+					remote_rma_handle.stuff[2],
+					remote_rma_handle.stuff[3]);
+		}
+
+		inline void CBB_handle::
+			dump_local_key()const
+
+		{
+			_DEBUG("key=%lu %lu %lu %lu\n", 
+					local_rma_handle->stuff[0],
+					local_rma_handle->stuff[1],	
+					local_rma_handle->stuff[2],	
+					local_rma_handle->stuff[3]);
+		}
 	}
 }
 #endif

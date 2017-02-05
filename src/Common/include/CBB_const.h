@@ -119,7 +119,6 @@ const int CONNECT_WAIT_TIME=1000;
 //the size of IO buffer in each Client
 //used in buffered IO
 //const size_t STREAM_BUFFER_SIZE = BLOCK_SIZE;
-//const size_t STREAM_BUFFER_SIZE = 100*MB;
 const size_t STREAM_BUFFER_SIZE = 100*MB;
 //the maximum size of data in each transfer 
 const size_t MAX_TRANSFER_SIZE = STREAM_BUFFER_SIZE;

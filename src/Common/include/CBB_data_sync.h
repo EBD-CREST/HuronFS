@@ -16,9 +16,10 @@ namespace CBB
 				data_sync_task(int id, data_sync_task* next);
 				data_sync_task()=default;
 				virtual ~data_sync_task()=default;
+				void set_handle(comm_handle_t handle);
 
 				int task_id;
-				comm_handle_t handle;
+				comm_handle handle;
 				int receiver_id;
 				void* _file;
 				off64_t start_point;
@@ -82,6 +83,13 @@ namespace CBB
 		{
 			return communication_input_queue_ptr->task_dequeue();
 		}
+
+		inline void data_sync_task::
+			set_handle(comm_handle_t handle)
+		{
+			this->handle=*handle;
+		}
+
 	}
 }
 

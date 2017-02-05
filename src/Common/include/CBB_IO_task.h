@@ -106,6 +106,7 @@ namespace CBB
 
 				int get_mode()const;
 				void init_response_large_transfer(extended_IO_task* request, int mode);
+				void init_for_large_transfer(int mode);
 
 				void setup_large_transfer(int mode);
 				void set_mode(int mode);
@@ -117,6 +118,8 @@ namespace CBB
 				const send_buffer_t* get_send_buffer()const;
 				unsigned char* get_receive_buffer(size_t size);
 				void push_send_buffer(char* buf, size_t size);
+				void push_recv_buffer(char* buf, size_t size);
+				void clear_send_recv_buffer();
 				size_t push_string_prealloc(const std::string& string);//push string to prealloc area instead of a given buffer, used in readdir
 				size_t do_push_prealloc(const void* buf, size_t size);
 				void setup_prealloc_buffer();//must be used after all push string prealloc finished
@@ -346,8 +349,7 @@ namespace CBB
 		inline void basic_IO_task::
 			set_handle(comm_handle_t handle)
 		{
-			memcpy(&(this->handle), handle,
-					sizeof(this->handle));
+			this->handle=*handle;
 		}
 
 		inline void basic_IO_task::
@@ -421,18 +423,17 @@ namespace CBB
 		inline size_t extended_IO_task::
 			get_received_data(void* buffer, size_t size)
 		{
+			_DEBUG("get_receive data\n");
 			//bad hack, fix later
 #ifdef TCP
 			memcpy(buffer, current_receive_buffer_ptr, size);
 			current_receive_buffer_ptr+=size;
 			*(this->extended_size) -= size;
-			return size;
 #else
-			_DEBUG("get_receive data\n");
-			push_send_buffer(reinterpret_cast<char*>(
+			push_recv_buffer(reinterpret_cast<char*>(
 						buffer), size);
-			return size;
 #endif
+			return size;
 		}
 
 		inline size_t extended_IO_task::
@@ -458,6 +459,7 @@ namespace CBB
 			this->send_buffer.clear();
 			this->current_receive_buffer_ptr=
 				this->receive_buffer;
+			this->clear_send_recv_buffer();
 		}
 
 		inline size_t extended_IO_task::
@@ -497,6 +499,18 @@ namespace CBB
 		{
 			send_buffer.push_back(send_buffer_element(buf, size));
 			*(this->extended_size)+=size;
+		}
+
+		inline void extended_IO_task::
+			push_recv_buffer(char* buf, size_t size)
+		{
+			push_send_buffer(buf, size);
+		}
+
+		inline void extended_IO_task::
+			clear_send_recv_buffer()
+		{
+			this->send_buffer.clear();
 		}
 
 		inline int extended_IO_task::
@@ -540,17 +554,23 @@ namespace CBB
 		}
 
 		inline void extended_IO_task::
+			init_for_large_transfer(int mode)
+			{
+#ifdef CCI
+				this->mode=mode;
+				this->pop(this->handle.remote_rma_handle);
+				this->handle.dump_remote_key();
+#endif
+			}
+
+		inline void extended_IO_task::
 			init_response_large_transfer(extended_IO_task* 	request,
 					     	     int 		mode)
 			{
 #ifdef CCI
 				this->mode=mode;
 				request->pop(this->handle.remote_rma_handle);
-				_DEBUG("remote key=%lu %lu %lu %lu\n", 
-						handle.remote_rma_handle.stuff[0],
-						handle.remote_rma_handle.stuff[1],
-						handle.remote_rma_handle.stuff[2],
-						handle.remote_rma_handle.stuff[3]);
+				this->handle.dump_remote_key();
 #endif
 			}
 

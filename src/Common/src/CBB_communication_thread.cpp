@@ -257,8 +257,8 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
         case CCI_EVENT_SEND:
             _DEBUG("cci_send finished\n");
 
-            if (nullptr != (handle.local_rma_handle =
-                                reinterpret_cast<cci_rma_handle_t *>(event->send.context)))
+            if (nullptr != (handle.local_rma_handle=
+                                reinterpret_cast<cci_rma_handle_t*>(event->send.context)))
             {
                 this_obj->deregister_mem(&handle);
             }
@@ -322,9 +322,9 @@ throw(std::runtime_error)
         {
             _DEBUG("register size=%ld\n", buf.size);
             register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE | CCI_FLAG_READ);
-        }
 
-        new_task->push_back(*(handle->local_rma_handle));
+	    new_task->push_back(*(handle->local_rma_handle));
+        }
         ret += Sendv(handle,
                      new_task->get_message(),
                      new_task->get_message_size() +
@@ -354,17 +354,19 @@ throw(std::runtime_error)
     comm_handle_t handle = new_task->get_handle();
     const send_buffer_t *send_buffer = new_task->get_send_buffer();
     size_t count = 0;
+    handle->dump_remote_key();
 
     switch (new_task->get_mode())
     {
     case RMA_READ:
+	_DEBUG("RMA READ\n");
         count = send_buffer->size();
         for (auto &buf : *send_buffer)
         {
             _DEBUG("register size=%ld\n", buf.size);
             //DELETE debug
             register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE | CCI_FLAG_READ);
-            if (0 != --count || 0 == new_task->get_message_size())
+            if (0 != --count)
             {
                 Recv_large(handle, nullptr, buf.size, ret);
             }
@@ -381,26 +383,28 @@ throw(std::runtime_error)
 
         break;
     case RMA_WRITE:
+	_DEBUG("RMA WRITE\n");
         count = send_buffer->size();
         for (auto &buf : *send_buffer)
         {
             _DEBUG("register size=%ld\n", buf.size);
             //DELETE debug
-            register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE | CCI_FLAG_READ);
+            register_mem(buf.buffer, buf.size, handle, CCI_FLAG_READ | CCI_FLAG_WRITE);
 
-            if (0 != --count || 0 == new_task->get_message_size())
+            if (0 != --count)
             {
                 Send_large(handle, nullptr, buf.size, ret);
             }
             else
             {
-                _DEBUG("send completion\n");
+                _DEBUG("send completion, size %ld\n", new_task->get_total_message_size());
                 Send_large(handle, new_task->get_message(),
                            new_task->get_total_message_size(),
                            nullptr, buf.size, ret);
             }
             ret += buf.size;
         }
+
         break;
     }
 

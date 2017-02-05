@@ -148,7 +148,7 @@ namespace CBB
 		inline void SCBB::
 			set_master_handle(Common::comm_handle_t handle)	
 		{
-			copy_handle(this->master_handle, handle);
+			this->master_handle=*handle;
 		}
 
 		inline Common::comm_handle_t file_meta::

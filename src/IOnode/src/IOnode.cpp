@@ -485,11 +485,6 @@ _receive_data(extended_IO_task* new_task)
 	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n",
 			file_no, start_point, offset, size);
 
-#ifdef CCI
-	extended_IO_task* response=init_response_task(new_task);
-	response->push_back(SUCCESS);//for test
-#endif
-
 	try
 	{
 		remaining_size=size;
@@ -500,23 +495,28 @@ _receive_data(extended_IO_task* new_task)
 		//the tmp variables for receiving data
 		off64_t tmp_offset=offset;
 		off64_t tmp_start_point=start_point;
+/*#ifdef CCI
+		extended_IO_task* response=init_response_task(new_task);
+#endif*/
+		new_task->init_for_large_transfer(RMA_READ);
 
 		while(0 < remaining_size)
 		{
 			_DEBUG("receive_data start point %ld, offset %ld, receive size %ld, remaining size %ld\n",
 					start_point, tmp_offset,
 					receive_size, remaining_size);
-#ifdef CCI
+			//bad hack fix later
+/*#ifdef CCI
 			ssize_t IOsize=update_block_data(blocks,
 					_file, tmp_start_point,
 					tmp_offset, receive_size,
 					response);
-#else
+#else*/
 			ssize_t IOsize=update_block_data(blocks,
 					_file, tmp_start_point,
 					tmp_offset, receive_size,
 					new_task);
-#endif
+//#endif
 
 			remaining_size	-=IOsize;
 			receive_size	=MIN(
@@ -527,14 +527,16 @@ _receive_data(extended_IO_task* new_task)
 		}
 		_file.dirty_flag=DIRTY;
 
-#ifdef CCI
-		response->init_response_large_transfer(new_task, RMA_READ);
-#else
 		_sync_data(_file, start_point, 
 				//offset, size, response->get_handle());
 				//tcp
 				offset, size, new_task->get_handle());
-#endif
+
+		//bad hack fix later
+/*#ifdef CCI
+		response->push_back(SUCCESS);//for test
+		output_task_enqueue(response);
+#endif*/
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -544,9 +546,7 @@ _receive_data(extended_IO_task* new_task)
 		output_task_enqueue(response);
 		ret=FAILURE;
 	}
-#ifdef CCI
-	output_task_enqueue(response);
-#endif
+
 	return ret;
 }
 
@@ -1144,7 +1144,7 @@ _sync_init_data(data_sync_task* new_task)
 	//only sync dirty data
 	if(DIRTY == requested_file->dirty_flag)
 	{
-		_send_sync_data(new_task->handle, requested_file,
+		_send_sync_data(&new_task->handle, requested_file,
 				0, 0, MAX_FILE_SIZE);
 	}
 
@@ -1155,7 +1155,7 @@ int IOnode::
 _sync_write_data(data_sync_task* new_task)
 {
 	file* 		requested_file	=static_cast<file*>(new_task->_file);
-	comm_handle_t	handle		=new_task->handle;
+	comm_handle_t	handle		=&new_task->handle;
 	int 		receiver_id	=new_task->receiver_id;
 	_LOG("send sync data file_no = %ld\n", requested_file->file_no);
 
@@ -1175,6 +1175,20 @@ _sync_write_data(data_sync_task* new_task)
 	output_task->set_receiver_id(receiver_id);
 #ifdef CCI
 	output_task->set_extended_data_size(new_task->size);
+
+	ssize_t tmp_size=new_task->size;
+	auto block_it=requested_file->blocks.find(new_task->start_point);
+	while(end(requested_file->blocks) != block_it && 0 < tmp_size)
+	{
+		block* requested_block=block_it->second;
+		size_t IO_size=min(tmp_size, 
+				(ssize_t)requested_block->data_size);
+		output_task->push_send_buffer(
+			static_cast<char*>(requested_block->data),
+			IO_size);
+		tmp_size-=IO_size;
+		block_it++;
+	}
 #endif
 	output_task->push_back(SUCCESS);
 	data_sync_task_enqueue(output_task);

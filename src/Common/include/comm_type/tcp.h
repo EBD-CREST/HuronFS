@@ -135,6 +135,13 @@ namespace CBB
 			return inet_ntoa(this->client_addr.sin_addr);
 		}
 
+		inline ref_comm_handle_t CBB_handle::
+			 operator = (const_ref_comm_handle_t src)
+		{
+			memcpy(this, &src, sizeof(src));
+			return *this;
+		}
+
 	}
 }
 #endif

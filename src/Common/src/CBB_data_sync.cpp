@@ -93,6 +93,6 @@ int CBB_data_sync::add_data_sync_task(int task_id,
 	new_data_sync_task->receiver_id=receiver_id;
 	new_data_sync_task->offset=offset;
 	new_data_sync_task->size=size;
-	new_data_sync_task->handle=handle;
+	new_data_sync_task->set_handle(handle);
 	return data_sync_queue.task_enqueue_signal_notification();
 }
