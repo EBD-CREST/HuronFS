@@ -45,8 +45,6 @@ Server::~Server()
 void Server::
 _init_server()throw(std::runtime_error)
 {
-	init_protocol();
-	_setup_server();
 	CBB_communication_thread::setup(&_communication_output_queue,
 			&_communication_input_queue);
 	CBB_request_handler::set_queues(&_communication_input_queue,
@@ -57,9 +55,6 @@ _init_server()throw(std::runtime_error)
 
 void Server::_setup_server()
 {
-	init_server_handle(_server_handle, 
-			my_uri,
-			this->server_port);
 	if(0 == my_uri.length())
 	{
 		const char *tmp_uri=nullptr;
@@ -71,6 +66,11 @@ void Server::_setup_server()
 
 int Server::start_server()
 {
+	init_protocol();
+	_setup_server();
+	init_server_handle(_server_handle, 
+			my_uri,
+			this->server_port);
 	CBB_communication_thread::start_communication_server();
 	CBB_remote_task::start_listening();
 	CBB_communication_thread::_add_handle(&_server_handle);

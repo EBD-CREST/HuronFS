@@ -1308,7 +1308,6 @@ configure_dump()
 	_LOG("mount point=%s\n", _mount_point.c_str());
 	_LOG("max block %d\n", _MAX_BLOCK_NUMBER);
 	_LOG("avaliable memory %ld\n", _memory); //remain available memory; 
-	_LOG("my uri=%s\n", Server::_get_my_uri());
 }
 
 CBB::CBB_error IOnode::

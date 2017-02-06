@@ -80,7 +80,7 @@ host_triplet = @host@
 DIST_COMMON = $(srcdir)/common.mk $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/configure \
 	$(am__configure_deps) $(srcdir)/config.h.in config.guess \
-	config.sub depcomp install-sh missing ltmain.sh
+	config.sub install-sh missing ltmain.sh
 @DEBUG_TRUE@am__append_1 = -DDEBUG
 @USING_CCI_TRUE@am__append_2 = -DCCI $(CCI_INCLUDE)
 @USING_CCI_TRUE@am__append_3 = ${CCI_LIB} -lcci

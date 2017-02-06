@@ -17,6 +17,7 @@ else
 			ltmain.sh \
 			aclocal.m4\
 			configure
+		rm -rf m4
 	else
 		echo "usage ./bootstrap.sh [clean]"
 	fi

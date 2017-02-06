@@ -35,6 +35,7 @@ throw(std::runtime_error)
 	if (0 == inet_aton(server_addr, &addr.sin_addr))
 	{
 		perror("Server IP Address Error"); 
+		_DEBUG("Server addr %s port %d\n", server_addr, server_port);
 		throw std::runtime_error("Server IP Address Error");
 	}
 
@@ -138,15 +139,6 @@ throw(std::runtime_error)
 	server_addr.sin_family      = AF_INET;  
 	server_addr.sin_addr.s_addr = htons(INADDR_ANY);  
 	server_addr.sin_port 	    = htons(port);  
-
-	if (0 != my_uri.length())
-	{
-		if (0 == inet_aton(my_uri.c_str(), &server_addr.sin_addr))
-		{
-			perror("Server IP Address Error"); 
-			throw std::runtime_error("Server IP Address Error");
-		}
-	}
 	
 	this->args.socket=create_socket(server_addr);
 	if(0 != listen(this->args.socket,  MAX_QUEUE))
