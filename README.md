@@ -28,8 +28,6 @@
 OVERVIEW:
 --------------------------------------------------------------------------------------------------------------
 
-![Picture1.jpg](https://bitbucket.org/repo/8xdeRp/images/4105842247-Picture1.jpg)
-
 1. HuronFS is an update of CloudBB, an on-demand distributed burst buffer system to accelerate I/O. HuronFS supports the general TCP/IP protocol that can be widely used. HuronFS also supports high performance network such as Infiniband via the Common Communication Interface ([CCI](http://cci-forum.com/)) framework. CCI framework is a High-Performance Communication Interface for HPC and Data Centers. The CCI project is an open-source communication interface that aims to provide a simple and portable API, high performance, scalability for the largest deployments, and robustness in the presence of faults. It is developed and maintained by a partnership of research, academic, and industry members.
 
 2. HuronFS consists of the following three kinds of nodes:
