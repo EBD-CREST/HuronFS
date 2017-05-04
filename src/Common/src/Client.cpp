@@ -63,7 +63,6 @@ int Client::input_from_network(comm_handle_t handle,
 	int to_id=0;
 	communication_queue_t* output_queue=nullptr;
 	extended_IO_task* new_task=nullptr;
-	end_recording();
 	try
 	{
 		Recv(handle, to_id);

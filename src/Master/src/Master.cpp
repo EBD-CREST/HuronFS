@@ -519,7 +519,7 @@ CBB::CBB_error Master::_parse_attr(extended_IO_task* new_task)
 	int 	    	  ret	=0;
 	extended_IO_task *output=init_response_task(new_task);
 
-	end_recording();
+	start_recording(this);
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
 	_DEBUG("file path=%s\n", real_path.c_str());
 	try
@@ -548,8 +548,7 @@ CBB::CBB_error Master::_parse_attr(extended_IO_task* new_task)
 		output->push_back(-ENOENT);
 		ret=FAILURE;
 	}
-	end_recording();
-	record_raws();
+	end_recording(this);
 	output_task_enqueue(output);
 	return ret;
 }

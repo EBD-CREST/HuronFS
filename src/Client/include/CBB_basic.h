@@ -105,14 +105,19 @@ namespace CBB
 						SCBB* corresponding_SCBB);
 				Common::comm_handle_t get_master_handle();
 				int get_master_number();
+				ssize_t get_remote_file_no()const;
+				struct stat& get_file_stat();
 			private:
 				ssize_t 	remote_file_no;
 				int 		open_count;
 				size_t 		block_size;
 				struct stat 	file_stat;
 				_opened_fd_t 	opened_fd;
-				SCBB		*corresponding_SCBB;
+				SCBB*		corresponding_SCBB;
 				//int 		master_handle;
+				IOnode_list_t	IOnode_list_cache;
+				_block_list_t	block_list;
+
 				_path_file_meta_map_t::iterator it;
 
 		};
@@ -125,6 +130,7 @@ namespace CBB
 				opened_file_info();
 				opened_file_info(const opened_file_info& src);
 				~opened_file_info();
+				file_meta* get_meta_pointer();
 				struct stat& get_file_metadata();
 				const struct stat& get_file_metadata()const;
 				ssize_t get_remote_file_no()const;
@@ -135,8 +141,6 @@ namespace CBB
 				int 		fd;
 				int 		flag;
 				file_meta* 	file_meta_p;
-				IOnode_list_t	IOnode_list_cache;
-				_block_list_t	block_list;
 		};
 
 
@@ -221,6 +225,24 @@ namespace CBB
 		inline bool operator == (const block_info& src, const block_info& des)
 		{
 			return src.start_point == des.start_point;
+		}
+
+		inline ssize_t file_meta::
+			get_remote_file_no()const
+		{
+			return this->remote_file_no;
+		}
+
+		inline struct stat& file_meta::
+			get_file_stat()
+		{
+			return this->file_stat;
+		}
+
+		inline file_meta* opened_file_info::
+			get_meta_pointer()
+		{
+			return this->file_meta_p;
 		}
 	}
 }

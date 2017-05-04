@@ -319,6 +319,12 @@ namespace CBB
 		template<class task_type> void task_parallel_queue<task_type>::destory_queue()
 		{
 			basic_task* tmp=nullptr, *next=queue_head.load();
+
+			if(nullptr == next || nullptr == queue_tail.load())
+			{
+				//queue is empty
+				return;
+			}
 			while(this->queue_tail.load() != next)
 			{
 				tmp=next;
@@ -326,6 +332,8 @@ namespace CBB
 				delete tmp;
 			}
 			delete queue_tail;
+			queue_head.store(nullptr);
+			queue_tail.store(nullptr);
 			return;
 		}
 

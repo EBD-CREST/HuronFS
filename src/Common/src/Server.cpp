@@ -57,14 +57,6 @@ Server(int communication_thread_number, int port)throw(std::runtime_error):
 Server::~Server()
 {
 	stop_server(); 
-	for(auto& queue:_communication_output_queue)
-	{
-		queue.destory_queue();
-	}
-	for(auto& queue:_communication_input_queue)
-	{
-		queue.destory_queue();
-	}
 }
 
 void Server::

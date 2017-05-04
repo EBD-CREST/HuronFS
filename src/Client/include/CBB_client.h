@@ -94,12 +94,24 @@ namespace CBB
 				int _unlink(const char* path)throw(std::runtime_error);
 				int _rmdir(const char* path)throw(std::runtime_error);
 				int _access(const char* path, int mode)throw(std::runtime_error);
-				int _stat(const char* path, struct stat* buf)throw(std::runtime_error);
 				int _rename(const char* old_name, const char* new_name)throw(std::runtime_error);
 				int _mkdir(const char* path, mode_t mode)throw(std::runtime_error);
 				int _truncate(const char*path, off64_t size)throw(std::runtime_error);
 				int _ftruncate(int fd, off64_t size)throw(std::runtime_error);
 				off64_t _tell(int fd);
+
+			public:
+				file_meta* remote_open(const char* 	path,
+							int 	  	flag,
+							mode_t 	  	mode);
+				ssize_t remote_IO(file_meta*	file_meta,
+							void*   buffer,
+							off64_t	start_point,
+							size_t  size,
+							int 	mode);
+				int remote_getattr(const char* path, struct stat* fstat);
+				int remote_access(const char* path, int mode);
+				int remote_stat(const char*  path, struct stat* buf);
 
 			public:
 				int _update_access_time(int fd);
@@ -111,6 +123,7 @@ namespace CBB
 				size_t _get_file_size(int fd);
 				int _update_file_size(int fd, size_t size);
 				int _write_update_file_size(opened_file_info& file, size_t size);
+				int _write_update_file_size(file_meta* file_meta_p, off64_t  current_point, size_t size);
 				int _get_IOnode_from_cache();
 			private:
 				//private functions
@@ -125,36 +138,36 @@ namespace CBB
 						IOnode_list_t&	  IOnode_cache);
 
 				int _get_blocks_from_master(
-						opened_file_info& file,
-						SCBB* 		  corresponding_SCBB,
-						ssize_t 	  fd,
-						size_t 	  	  size, 
-						_block_list_t&	  blocks,
-						_node_pool_t&	  node_pool,
-						int 		  mode);
+						file_meta* 	file_meta,
+						off64_t		start_point,
+						size_t 	  	size, 
+						_block_list_t&	blocks,
+						_node_pool_t&	node_pool,
+						int 		mode);
 
 				int _get_blocks_from_cache(
-						opened_file_info& file,
-						SCBB*		  corresponding_SCBB,
-						size_t 	  	  size,
-						_block_list_t&	  block_list,
-						_node_pool_t&	  node_pool);
+						file_meta*	file_meta_p,
+						off64_t		start_point,
+						size_t 	  	size,
+						_block_list_t&	block_list,
+						_node_pool_t&	node_pool);
 
 				ssize_t _read_from_IOnode(
-						SCBB* 			corresponding_SCBB,
-						opened_file_info& 	file,
+						file_meta* 	file_meta,
 						const _block_list_t& 	blocks,
 						const _node_pool_t& 	node_pool,
-						char *			buffer,
-						size_t 			size);
+						char* 		buffer,
+						off64_t		offset,
+						size_t 		size);
 
 				ssize_t _write_to_IOnode(
-						SCBB *			corresponding_SCBB,
-						opened_file_info& 	file,
+						file_meta* 	file_meta,
 						const _block_list_t& 	blocks,
 						const _node_pool_t& 	node_pool,
-						const char *		buffer,
-						size_t 			size);
+						char* 		buffer,
+						off64_t		offset,
+						size_t 		size);
+
 				bool _using_IOnode_cache()const;
 
 				int _get_fid();
@@ -190,7 +203,7 @@ namespace CBB
 				void _parse_master_IOnode_id(ssize_t master_IOnode, int& master_number, ssize_t& IOnode_id);
 				SCBB* _find_scbb_by_handle(Common::comm_handle_t handle);
 				off64_t find_start_point(const _block_list_t& blocks, off64_t start_point, ssize_t update_size);
-				size_t _update_file_size_from_master(Common::extended_IO_task* response, opened_file_info& file);
+				size_t _update_file_size_from_master(Common::extended_IO_task* response, file_meta* file_meta_p);
 
 			private:
 				int 			_fid_now;
@@ -268,6 +281,15 @@ namespace CBB
 		{
 			return this->_initial;
 		}
+
+		inline int CBB_client::
+			_write_update_file_size(
+					opened_file_info& file,
+					size_t 		  size)
+		{
+			return _write_update_file_size(file.file_meta_p, file.current_point, size);
+		}
+
 
 		/*inline ssize_t CBB_client::_get_IOnode_id(int master_number, ssize_t IOnode_id)const
 		{

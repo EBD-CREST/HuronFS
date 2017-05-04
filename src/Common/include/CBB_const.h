@@ -261,4 +261,7 @@ const bool NORMAL_IO=false;
 const int RMA_READ=0;
 const int RMA_WRITE=1;
 const int RMA_DIR=2;
+
+//the len of ip
+const int IP_STRING_LEN=20;
 #endif
