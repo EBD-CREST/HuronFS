@@ -49,7 +49,6 @@ Client::Client(int communication_thread_number):
 	}
 	CBB_communication_thread::setup(&_communication_output_queue,
 			&_communication_input_queue);
-	init_protocol();
 }
 
 Client::~Client()
@@ -140,17 +139,18 @@ void Client::stop_client()
 
 int Client::start_client()
 {
+	init_protocol();
 	return CBB_communication_thread::start_communication_server();
 }
 
 communication_queue_t* Client::get_new_communication_queue()
 {
 	auto begin=std::begin(_communication_output_queue), 
-	     queue_ptr=begin;
-	    // end=std::end(_communication_output_queue);
+	     queue_ptr=begin,
+	     end=std::end(_communication_output_queue);
 
-	return &(*queue_ptr);
-	/*while(true)
+	//return &(*queue_ptr);
+	while(true)
 	{
 		if(0 == queue_ptr->try_lock_queue())
 		{
@@ -166,7 +166,7 @@ communication_queue_t* Client::get_new_communication_queue()
 			}
 		}
 	}
-	return nullptr;*/
+	return nullptr;
 }
 
 communication_queue_t* Client::get_communication_queue_from_handle(comm_handle_t handle)

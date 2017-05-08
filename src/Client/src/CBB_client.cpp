@@ -141,9 +141,6 @@ catch(exception &e)
 void CBB_client::
 start_threads()
 {
-	_client_addr.sin_family = AF_INET;
-	_client_addr.sin_port = htons(0);
-	_client_addr.sin_addr.s_addr = htons(INADDR_ANY);
 	Client::start_client();
 	if(-1 == _register_to_master())
 	{
@@ -264,7 +261,7 @@ _parse_blocks_from_master(
 			end(IOnode_cache), 
 			node_id) == end(IOnode_cache))
 		{
-			IOnode_cache.push_back(node_id);
+			IOnode_cache.insert(node_id);
 		}
 	}
 	response->pop(count);
@@ -277,7 +274,10 @@ _parse_blocks_from_master(
 
 		//always insert, will return false when the block is 
 		//already in the cache, but ignore the return value
-		block_cache.insert(make_pair(start_point, block_size));
+		if(_using_IOnode_cache())
+		{
+			block_cache.insert(make_pair(start_point, block_size));
+		}
 		/*_block_list_t::iterator it;
 		if(std::end(block_cache) != 
 				(it=std::find(std::begin(block_cache),
@@ -351,11 +351,6 @@ remote_open(const char* 	path,
 				_create_new_file(response,
 						_get_scbb_from_master_number(master_number));
 
-			_path_file_meta_map_t::iterator it=
-				_path_file_meta_map.insert(
-						make_pair(std::string(path),
-							file_meta_p)).first;
-			file_meta_p->it=it;
 		}
 		else
 		{
@@ -401,6 +396,12 @@ throw(std::runtime_error)
 		file_meta_p=remote_open(path, flag, mode);
 	}
 	int fd=_fid_to_fd(fid);
+	_path_file_meta_map_t::iterator it=
+		_path_file_meta_map.insert(
+				make_pair(std::string(path),
+					file_meta_p)).first;
+	file_meta_p->it=it;
+
 	opened_file_info& file=
 		_file_list.insert(make_pair(fid,
 			opened_file_info(fd, 
@@ -641,7 +642,6 @@ _get_blocks_from_master(
 		int 		mode)
 {
 	int ret=0;
-	int fd=file_meta_p->get_remote_file_no();
 	_DEBUG("connect to master to get blocks\n");
 	comm_handle_t master_handle=file_meta_p->get_master_handle();
 	extended_IO_task* query=allocate_new_query(master_handle);
@@ -691,16 +691,20 @@ _get_blocks_from_cache(
 		//append new blocks, go to master
 		return FAILURE;
 	}
+	file_meta_p->IOnode_list_cache.rd_lock();
 	for(IOnode_list_t::const_iterator it = begin(file_meta_p->IOnode_list_cache);
 			it != end(file_meta_p->IOnode_list_cache); ++it)
 	{
 		node_pool.insert(make_pair(*it, 
 				&corresponding_SCBB->get_IOnode_handle(*it)));
 	}
+	file_meta_p->IOnode_list_cache.unlock();
+
 	_block_list_t& blocks=file_meta_p->block_list;
 
 	//_block_list_t::const_iterator it=find_block_by_start_point(
 	//		blocks, get_block_start_point(file.current_point));
+	blocks.rd_lock();
 	_block_list_t::const_iterator it=
 			blocks.find(get_block_start_point(start_point));
 
@@ -711,6 +715,7 @@ _get_blocks_from_cache(
 					IO_size));
 		size-=IO_size;
 	}
+	blocks.unlock();
 
 	if(0 < size)
 	{
@@ -1028,6 +1033,8 @@ int CBB_client::
 remote_getattr(	const char* 	path,
 	 	struct stat* 	fstat)
 {
+	CHECK_INIT();
+
 	int master_number=_get_master_number_from_path(path);
 	comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
 	int ret=master_number;
@@ -1231,6 +1238,8 @@ remote_access(
 		const char* 	path,
 		int 		mode)
 {
+	CHECK_INIT();
+
 	int master_number=_get_master_number_from_path(path);
 	comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
 	int ret=master_number;
@@ -1286,6 +1295,7 @@ remote_stat(	const char*  path,
 		struct stat* buf)
 {
 	CHECK_INIT();
+
 	memset(buf, 0, sizeof(struct stat));
 	int master_number=_get_master_number_from_path(path);
 	comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);

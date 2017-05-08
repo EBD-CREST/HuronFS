@@ -554,7 +554,7 @@ _receive_data(extended_IO_task* new_task)
 		_sync_data(_file, start_point, 
 				//offset, size, response->get_handle());
 				//tcp
-				offset, size, new_task->get_handle());
+				offset, size, new_task->get_receiver_id(), new_task->get_handle());
 
 		//bad hack fix later
 /*#ifdef CCI
@@ -622,11 +622,12 @@ _sync_data(file& 	 file_info,
 	   off64_t	 start_point, 
 	   off64_t	 offset,
 	   ssize_t	 size,
+	   int		 receiver_id,
 	   comm_handle_t handle)
 {
 	_DEBUG("offset %ld\n", offset);
 	return add_data_sync_task(DATA_SYNC_WRITE, &file_info,
-			start_point, offset, size, 0, handle);
+			start_point, offset, size, receiver_id, handle);
 }
 
 int IOnode::

@@ -436,9 +436,9 @@ throw(std::runtime_error)
     size_t ret = 0;
 
     ret = Recvv_pre_alloc(handle, new_task->get_message() + SENDER_ID_OFF, RECV_MESSAGE_OFF);
+    _DEBUG("receive basic message size=%ld from %d to %d element=%p extended_size=%ld\n", new_task->get_message_size(),
+           new_task->get_sender_id(), new_task->get_receiver_id(), new_task, new_task->get_extended_data_size());
     new_task->swap_sender_receiver();//swap sender receiver id
-    _DEBUG("receive basic message size=%ld to %d element=%p extended_size=%ld\n", new_task->get_message_size(),
-           new_task->get_receiver_id(), new_task, new_task->get_extended_data_size());
     ret += Recvv_pre_alloc(handle, new_task->get_basic_message(), new_task->get_message_size());
 
     new_task->set_handle(handle);

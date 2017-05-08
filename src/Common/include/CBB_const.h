@@ -74,7 +74,7 @@ const int RECV_MESSAGE_OFF = MESSAGE_META_OFF - sizeof(int);
 //the number of handler threads in server
 const int SERVER_THREAD_NUM = 1;
 //the number of handler threads in client
-const int CLIENT_THREAD_NUM = 1;
+const int CLIENT_THREAD_NUM = 10;
 
 //the number of queue used to send heart beat in Master= 1
 const int HEART_BEAT_THREAD_NUM = 1;

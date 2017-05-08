@@ -25,11 +25,11 @@
 #ifndef CBB_BASIC_H_
 #define CBB_BASIC_H_
 
-#include <map>
-#include <set>
 #include <string>
 #include <sys/stat.h>
 
+#include "CBB_set.h"
+#include "CBB_map.h"
 #include "CBB_error.h"
 #include "CBB_const.h"
 #include "Comm_api.h"
@@ -43,12 +43,12 @@ namespace CBB
 		class opened_file_info;
 		class CBB_client;
 
-		typedef std::map<ssize_t, Common::comm_handle> IOnode_fd_map_t;
+		typedef Common::CBB_map<ssize_t, Common::comm_handle> IOnode_fd_map_t;
 		typedef std::set<int> _opened_fd_t;
 		typedef std::map<std::string, file_meta*> _path_file_meta_map_t; //map path, fd
-		typedef std::vector<ssize_t> IOnode_list_t;
+		typedef Common::CBB_set<ssize_t> IOnode_list_t;
 		//typedef std::vector<block_info> _block_list_t;
-		typedef std::map<off64_t, size_t> _block_list_t;
+		typedef Common::CBB_map<off64_t, size_t> _block_list_t;
 
 		_block_list_t::const_iterator
 			find_block_by_start_point(

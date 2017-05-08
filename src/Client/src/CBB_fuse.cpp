@@ -41,6 +41,8 @@
 #include "CBB_stream.h"
 #include "CBB_internal.h"
 
+//#define SINGLE_THREAD
+
 using namespace CBB::Common;
 using namespace CBB::Client;
 
@@ -149,7 +151,7 @@ static int CBB_getattr(const char* path, struct stat* stbuf)
 	_DEBUG("CBB getattr path=%s\n", path);
 
 	start_recording(&client);
-	int ret=client.getattr(path, stbuf);
+	int ret=client.remote_getattr(path, stbuf);
 	end_recording(&client);
 
 	_DEBUG("ret=%d path=%s file_size=%lu\n", ret,path,stbuf->st_size);
@@ -316,8 +318,10 @@ int main(int argc, char *argv[])
 	CBB_oper.ftruncate=CBB_ftruncate;
 	//CBB_oper.utimens=CBB_utimens;
 	
-	char** fuse_argv=new char*[argc+2];
+	char** fuse_argv=new char*[argc+4];
+#ifdef SINGLE_THREAD
 	char* single_thread_string="-s";
+#endif
 	bool daemon_flag=true;
 	
 	for(int i=0; i<argc ;++i)
@@ -329,7 +333,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
+#ifdef SINGLE_THREAD
 	fuse_argv[argc++]=single_thread_string;
+#endif
+	fuse_argv[argc++]="-o";
+	fuse_argv[argc++]="direct_io";
 	fuse_argv[argc++]=mount_point;
 	if(!daemon_flag)
 	{
