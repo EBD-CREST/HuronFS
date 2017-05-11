@@ -463,6 +463,19 @@ _read_from_IOnode(
 	extended_IO_task*  query	=nullptr;
 	comm_handle_t	   IOnode_handle=begin(node_pool)->second;
 
+	if(size + offset> static_cast<size_t>(file_meta->get_file_stat().st_size))
+	{
+		if(file_meta->get_file_stat().st_size>offset)
+		{
+			read_size=file_meta->get_file_stat().st_size-offset;
+			_DEBUG("changing read size from %ld to %ld\n", size, read_size);
+		}
+		else
+		{
+			return 0;
+		}
+	}
+
 	while(0 < read_size)
 	{
 		//profiling
@@ -593,7 +606,6 @@ _write_to_IOnode(
 		response_dequeue(response);
 		//end_recording();
 	}	
-	_write_update_file_size(file_meta, offset, ans);
 	return ans;
 }
 
@@ -649,6 +661,7 @@ _get_blocks_from_master(
 	query->push_back(file_meta_p->remote_file_no);
 	if(WRITE_FILE == mode)
 	{
+		_write_update_file_size(file_meta_p, start_point, size);
 		Send_attr(query, &file_meta_p->file_stat);
 	}
 	query->push_back(start_point);
@@ -789,19 +802,6 @@ throw(std::runtime_error)
 	{
 		opened_file_info& file	  =_file_list.at(fid);
 
-		if(size + file.current_point > 
-			static_cast<size_t>(file.get_file_metadata().st_size))
-		{
-			if(file.get_file_metadata().st_size>file.current_point)
-			{
-				size=file.get_file_metadata().st_size-file.current_point;
-			}
-			else
-			{
-				return 0;
-			}
-		}
-
 		//forwarding to basic_read for remote reading
 		read_size=remote_IO(file.get_meta_pointer(), 
 				buffer, file.current_point, size, READ_FILE);
@@ -876,8 +876,11 @@ _write_update_file_size(
 {
 	if(current_point + size > (size_t)file_meta_p->file_stat.st_size)
 	{
+		_DEBUG("update size from %ld to %ld\n", file_meta_p->file_stat.st_size,
+				current_point + size);
 		file_meta_p->file_stat.st_size=current_point + size;
 	}
+	_DEBUG("file size = %ld\n", file_meta_p->file_stat.st_size);
 	return SUCCESS;
 }
 
