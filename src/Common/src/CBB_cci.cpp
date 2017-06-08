@@ -24,7 +24,6 @@
  */
 
 #include <pthread.h>
-#include <regex>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>

@@ -38,6 +38,7 @@
 #include <sys/types.h>
 #include <linux/limits.h>
 #include <sys/epoll.h>
+#include <regex>
 
 #include "IOnode.h"
 #include "CBB_const.h"
@@ -47,94 +48,7 @@ using namespace CBB::Common;
 using namespace std;
 
 const char *IOnode::IONODE_MOUNT_POINT="HUFS_IONODE_MOUNT_POINT";
-
-IOnode::block::
-block(off64_t	 start_point,
-      size_t	 data_size,
-      bool 	 dirty_flag,
-      bool 	 valid,
-      file* 	 file_stat)
-throw(std::bad_alloc):
-	data_size(data_size),
-	data(nullptr),
-	start_point(start_point),
-	dirty_flag(dirty_flag),
-	valid(INVALID),
-	file_stat(file_stat),
-	write_back_task(nullptr),
-	locker(),
-	TO_BE_DELETED(CLEAN)
-{
-	if(INVALID != valid)
-	{
-		data=malloc(BLOCK_SIZE);
-		if( nullptr == data)
-		{
-		   throw std::bad_alloc();
-		}
-	}
-	return;
-}
-
-IOnode::block::
-~block()
-{
-	free(data);
-}
-
-IOnode::block::
-block(	const block & src):
-	data_size(src.data_size),
-	data(src.data), 
-	start_point(src.start_point),
-	dirty_flag(src.dirty_flag),
-	valid(src.valid),
-	file_stat(nullptr),
-	write_back_task(nullptr),
-	locker(),
-	TO_BE_DELETED(CLEAN)
-{};
-
-IOnode::file::
-file(const char	 *path,
-     int	 exist_flag,
-     ssize_t 	 file_no):
-	file_path(path),
-	exist_flag(exist_flag),
-	dirty_flag(CLEAN),
-	main_flag(SUB_REPLICA),
-	file_no(file_no),
-	blocks(),
-	IOnode_pool()
-{}
-
-IOnode::file::
-~file()
-{
-	block_info_t::const_iterator end=blocks.end();
-	for(block_info_t::iterator block_it=blocks.begin();
-			block_it!=end;++block_it)
-	{
-		delete block_it->second;
-	}
-}
-
-void IOnode::block::
-allocate_memory()
-throw(std::bad_alloc)
-{
-	if(nullptr != data)
-	{
-		free(data);
-	}
-	data=malloc(BLOCK_SIZE);
-	if(nullptr == data)
-	{
-		throw std::bad_alloc();
-	}
-	valid=VALID;
-	return;
-}
+const char *IOnode::IONODE_MEMORY_LIMIT="HUFS_IONODE_MEMORY_LIMIT";
 
 IOnode::
 IOnode(	const string&	master_ip,
@@ -142,25 +56,38 @@ IOnode(	const string&	master_ip,
 throw(std::runtime_error):
 	Server(IONODE_QUEUE_NUM, IONODE_PORT), 
 	CBB_data_sync(),
+	CBB_swap(),
 	my_node_id(-1),
 	_files(file_t()),
 	_current_block_number(0), 
 	_MAX_BLOCK_NUMBER(MAX_BLOCK_NUMBER), 
-	_memory(MEMORY), 
 	master_uri(),
 	master_handle(),
 	my_handle(),
 	_mount_point(std::string()),
-	IOnode_handle_pool()
+	IOnode_handle_pool(),
+	writeback_queue(),
+	writeback_status(IDLE),
+	dirty_pages(false),
+	memory_pool_for_blocks()
 {
 	const char *IOnode_mount_point=getenv(IONODE_MOUNT_POINT);
+	const char *IOnode_memory_limit=getenv(IONODE_MEMORY_LIMIT);
 	master_uri=master_ip;
+	size_t total_memory=MEMORY;
 
 	if( nullptr == IOnode_mount_point)
 	{
 		throw runtime_error(
 			"please set IONODE_MOUNT_POINT environment value");
 	}
+
+	if( nullptr != IOnode_memory_limit)
+	{
+		total_memory=_set_memory_limit(IOnode_memory_limit);
+	}
+
+	memory_pool_for_blocks.setup(BLOCK_SIZE, total_memory/BLOCK_SIZE);
 
 	_setup_queues();
 
@@ -231,7 +158,7 @@ throw(std::runtime_error)
 	extended_IO_task* output=get_connection_task();
 	output->setup_new_connection(master_uri.c_str(), MASTER_PORT);
 	output->push_back(REGISTER);
-	output->push_back(_memory);
+	output->push_back(memory_pool_for_blocks.get_available_memory_size());
 	connection_task_enqueue(output);
 
 	extended_IO_task* response=
@@ -318,6 +245,9 @@ _parse_request(extended_IO_task* new_task)
 		_DEBUG("unrecognized command %d\n",
 			request); break; 
 	}
+
+	add_write_back();
+
 	return ans; 
 }
 
@@ -459,15 +389,18 @@ _send_data(extended_IO_task* new_task)
 				break;
 			}
 			requested_block->file_stat=&_file;
-			if(INVALID == requested_block->valid)
+			if(requested_block->need_allocation())
 			{
-				requested_block->allocate_memory();
+				allocate_memory_for_block(requested_block);
 				if(EXISTING == _file.exist_flag)
 				{
 					_read_from_storage(path,
 						requested_block);
 				}
 			}
+
+			update_access_order(requested_block);
+			
 			start_point+=BLOCK_SIZE;
 			output->push_send_buffer(
 				reinterpret_cast<char*>(
@@ -519,9 +452,6 @@ _receive_data(extended_IO_task* new_task)
 		//the tmp variables for receiving data
 		off64_t tmp_offset=offset;
 		off64_t tmp_start_point=start_point;
-/*#ifdef CCI
-		extended_IO_task* response=init_response_task(new_task);
-#endif*/
 		new_task->init_for_large_transfer(RMA_READ);
 
 		while(0 < remaining_size)
@@ -529,18 +459,10 @@ _receive_data(extended_IO_task* new_task)
 			_DEBUG("receive_data start point %ld, offset %ld, receive size %ld, remaining size %ld\n",
 					start_point, tmp_offset,
 					receive_size, remaining_size);
-			//bad hack fix later
-/*#ifdef CCI
-			ssize_t IOsize=update_block_data(blocks,
-					_file, tmp_start_point,
-					tmp_offset, receive_size,
-					response);
-#else*/
 			ssize_t IOsize=update_block_data(blocks,
 					_file, tmp_start_point,
 					tmp_offset, receive_size,
 					new_task);
-//#endif
 
 			remaining_size	-=IOsize;
 			receive_size	=MIN(
@@ -552,15 +474,7 @@ _receive_data(extended_IO_task* new_task)
 		_file.dirty_flag=DIRTY;
 
 		_sync_data(_file, start_point, 
-				//offset, size, response->get_handle());
-				//tcp
 				offset, size, new_task->get_receiver_id(), new_task->get_handle());
-
-		//bad hack fix later
-/*#ifdef CCI
-		response->push_back(SUCCESS);//for test
-		output_task_enqueue(response);
-#endif*/
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -592,12 +506,12 @@ update_block_data(block_info_t&		blocks,
 	catch(std::out_of_range &e)
 	{
 		_block=blocks.insert(std::make_pair(start_point, 
-				new block(start_point, size, CLEAN, 
+				create_new_block(start_point, size, CLEAN, 
 				INVALID, &file))).first->second;
 	}
-	if(INVALID == _block->valid)
+	if(_block->need_allocation())
 	{
-		_block->allocate_memory();
+		allocate_memory_for_block(_block);
 		if(EXISTING == file.exist_flag)
 		{
 			_block->data_size=
@@ -614,6 +528,7 @@ update_block_data(block_info_t&		blocks,
 			static_cast<unsigned char*>(_block->data)+offset,
 			size);
 	_block->dirty_flag=DIRTY;
+	update_access_order(_block);
 	return ret;
 }
 
@@ -744,9 +659,9 @@ _close_file(extended_IO_task* new_task)
 	try
 	{
 		file& _file=_files.at(file_no);
-		block_info_t &blocks=_file.blocks;
+		//block_info_t &blocks=_file.blocks;
 		_DEBUG("close file, path=%s\n", _file.file_path.c_str());
-		for(block_info_t::iterator it=blocks.begin();
+		/*for(block_info_t::iterator it=blocks.begin();
 				it != blocks.end();++it)
 		{
 			block* _block=it->second;
@@ -757,14 +672,9 @@ _close_file(extended_IO_task* new_task)
 			  (CLEAN == _block->dirty_flag &&
 			   nullptr != _block->write_back_task))
 			{
-				//_write_to_storage(path, _block);
-				_block->write_back_task=
-				CBB_remote_task::add_remote_task(
-						CBB_REMOTE_WRITE_BACK, _block);
-				_DEBUG("add write back\n");
 			}
 			_block->unlock();
-		}
+		}*/
 		return SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -806,7 +716,7 @@ throw(std::runtime_error)
 	new_task->pop(data_size); 
 	_DEBUG("append request from Master\n");
 	_DEBUG("start_point=%lu, data_size=%lu\n", start_point, data_size);
-	if(nullptr == (new_block=new block(start_point,
+	if(nullptr == (new_block=create_new_block(start_point,
 					   data_size,
 					   CLEAN,
 					   INVALID,
@@ -839,7 +749,7 @@ _append_new_block(extended_IO_task* new_task)
 			new_task->pop(data_size);
 			blocks.insert(std::make_pair(
 			start_point, 
-			new block(start_point, data_size, 
+			create_new_block(start_point, data_size, 
 				CLEAN, INVALID, &_file)));
 		}
 		return SUCCESS;
@@ -940,9 +850,6 @@ throw(std::runtime_error)
 		len -= ret;
 	}
 	close(fd);
-	block_data->lock();
-	block_data->write_back_task=nullptr;
-	block_data->unlock();
 	if(block_data->TO_BE_DELETED)
 	{
 		delete block_data;
@@ -959,12 +866,12 @@ int IOnode::_flush_file(extended_IO_task* new_task)
 		file& _file=_files.at(file_no);
 		_DEBUG("flush file file_no=%ld, path=%s\n",
 				file_no, _file.file_path.c_str());
-		block_info_t &blocks=_file.blocks;
+		//block_info_t &blocks=_file.blocks;
 		if(CLEAN == _file.dirty_flag)
 		{
 			return SUCCESS;
 		}
-		for(block_info_t::iterator it=blocks.begin();
+		/*for(block_info_t::iterator it=blocks.begin();
 				it != blocks.end();++it)
 		{
 			block* _block=it->second;
@@ -981,7 +888,7 @@ int IOnode::_flush_file(extended_IO_task* new_task)
 				_DEBUG("add write back\n");
 			}
 			_block->unlock();
-		}
+		}*/
 		return SUCCESS;
 	}
 	catch(std::out_of_range& e)
@@ -1074,19 +981,10 @@ _remove_file(ssize_t file_no)
 		for(block_info_t::iterator block_it=it->second.blocks.begin();
 				block_it!=it->second.blocks.end();++block_it)
 		{
-			block_it->second->lock();
-			if(nullptr != block_it->second->write_back_task)
+			if(CLEAN == block_it->second->dirty_flag)
 			{
-				if(CLEAN == block_it->second->dirty_flag)
-				{
-					block_it->second->TO_BE_DELETED=SET;
-				}
-				else
-				{
-					block_it->second->write_back_task->set_task_data(nullptr);
-				}
+				block_it->second->TO_BE_DELETED=SET;
 			}
-			block_it->second->unlock();
 		}
 		_files.erase(it);
 	}
@@ -1096,19 +994,17 @@ _remove_file(ssize_t file_no)
 int IOnode::
 remote_task_handler(remote_task* new_task)
 {
-	block* IO_block=static_cast<block*>(new_task->get_task_data());
-	if(nullptr != IO_block)
+	_DEBUG("start writing back\n");
+	writeback_status=ON_GOING;
+	for(auto* block : writeback_queue)
 	{
-		switch(new_task->get_task_id())
-		{
-			case CBB_REMOTE_WRITE_BACK:
-#ifdef WRITE_BACK
-				_DEBUG("write back\n");
-				_write_to_storage(IO_block);
-#endif
-				break;
-		}
+		_DEBUG("writing back file %s\n", 
+			block->file_stat->file_path.c_str());
+		_DEBUG("block %ld\n", 
+			block->start_point);
+		writeback(block);
 	}
+	writeback_status=IDLE;
 	return SUCCESS;
 }
 
@@ -1233,6 +1129,8 @@ _sync_write_data(data_sync_task* new_task)
 		_get_sync_response();
 	}
 #endif
+	new_dirty_page();
+
 	return SUCCESS;
 }
 
@@ -1332,7 +1230,8 @@ configure_dump()
 	_LOG("under master %s\n", master_uri.c_str());
 	_LOG("mount point=%s\n", _mount_point.c_str());
 	_LOG("max block %d\n", _MAX_BLOCK_NUMBER);
-	_LOG("avaliable memory %ld\n", _memory); //remain available memory; 
+	_LOG("avaliable memory %ld bytes\n", 
+		memory_pool_for_blocks.get_available_memory_size()); //remain available memory; 
 }
 
 CBB::CBB_error IOnode::
@@ -1345,4 +1244,123 @@ connection_failure_handler(extended_IO_task* input_task)
 	new_task->set_error(CONNECTION_SETUP_FAILED);
 	input_queue.task_enqueue_signal_notification();
 	return SUCCESS;
+}
+
+int IOnode::
+update_access_order(block* requested_block)
+{
+	if(nullptr != requested_block->writeback_page)
+	{
+		access(requested_block->writeback_page);
+	}
+	else
+	{
+		requested_block->writeback_page=access(requested_block);
+	}
+	return SUCCESS;
+}
+
+size_t IOnode::
+writeback(block* requested_block)
+{
+	//_write_to_storage(path, _block);
+	if(DIRTY == requested_block->dirty_flag)
+	{
+		return _write_to_storage(requested_block);
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+int IOnode::
+add_write_back()
+{
+	if(IDLE == writeback_status && 
+		have_dirty_page())
+	{
+#ifdef ASYNC
+		prepare_writeback_page(&writeback_queue, WRITEBACK_SIZE);
+		CBB_remote_task::add_remote_task(
+				CBB_REMOTE_WRITE_BACK, nullptr);
+		_DEBUG("add write back\n");
+		clear_dirty_page();
+#endif
+	}
+	return SUCCESS;
+}
+
+block* IOnode::
+create_new_block(off64_t start_point,
+		size_t	 data_size,
+		bool 	 dirty_flag,
+		bool 	 valid,
+		file* 	 file_stat)
+{
+	if(VALID == valid)
+	{
+		if(!has_memory_left(BLOCK_SIZE))
+		{
+			free_memory(BLOCK_SIZE);
+		}
+	}
+
+	return new block(start_point, data_size, dirty_flag, 
+			valid, file_stat, memory_pool_for_blocks);
+}
+
+size_t IOnode::
+free_memory(size_t size)
+{
+	return CBB_swap::swap_out(size);
+}
+
+size_t IOnode::
+allocate_memory_for_block(block* requested_block)
+{
+	size_t allocate_size=requested_block->block_size;
+
+	if(!has_memory_left(allocate_size))
+	{
+		free_memory(allocate_size);
+	}
+
+	return requested_block->allocate_memory();
+}
+
+size_t IOnode::
+_set_memory_limit(const char* limit_string)
+throw(std::runtime_error)
+{
+	static std::regex regex_text("^(\\d+)( ?(KB|MB|GB))?$");
+	std::cmatch matches;
+	size_t total_memory=0;
+
+	if(regex_match(limit_string, matches, regex_text))
+	{
+		total_memory=atoi(matches[0].str().c_str());
+		if(1 < matches.size())
+		{
+			const char* suffix=matches[2].str().c_str();
+			if(0 == strcmp(suffix, "KB"))
+			{
+				total_memory*=KB;
+			}
+			else if(0 == strcmp(suffix, "MB"))
+			{
+				total_memory*=MB;
+			}
+			else if(0 == strcmp(suffix, "GB"))
+			{
+				total_memory*=GB;
+			}
+		}
+		return total_memory;
+	}
+	else
+	{
+		throw runtime_error(
+			"please set HUFS_IONODE_MEMORY_LIMIT to x {KB, MB, GB}\n");
+	}
 }

@@ -32,13 +32,15 @@ namespace CBB
 {
 	namespace Client
 	{
-		class CBB_stream:public CBB_client
+		class CBB_stream:
+			public CBB_client
 		{
 			private:
 				class stream_info
 				{
 					public:
-						friend class CBB_stream; stream_info(bool dirty_flag, bool buffer_flag,
+						friend class CBB_stream;
+						stream_info(bool dirty_flag, bool buffer_flag,
 								int fd,
 								size_t file_size,
 								off64_t cur_file_ptr,
@@ -78,26 +80,26 @@ namespace CBB
 			public:
 				CBB_stream();
 				~CBB_stream();
-				bool _interpret_stream(void* stream)const;
-				FILE* _open_stream(const char* path, const char* mode);
-				FILE* _open_stream(const char* path, int flag, mode_t mode);
-				int _flush_stream(FILE* stream);
-				int _close_stream(FILE* stream);
-				void _freebuf_stream(FILE* stream);
-				void _setbuf_stream(FILE* stream, char* buf);
-				size_t _read_stream(FILE* stream, void* buf, size_t size);
-				size_t _write_stream(FILE* stream, const void* buf, size_t size);
-				off64_t _seek_stream(FILE* stream, off64_t offset, int whence);
-				off64_t _tell_stream(FILE* stream);
-				void _clearerr_stream(FILE* stream);
-				int _eof_stream(FILE* stream);
-				int _error_stream(FILE* stream);
-				int _fileno_stream(FILE* stream);
-				int _update_underlying_file_size(FILE* file_stream);
-				int _truncate_stream(FILE* stream, off64_t size);
+				FILE* open_stream(const char* path, const char* mode);
+				FILE* open_stream(const char* path, int flag, mode_t mode);
+				int flush_stream(FILE* stream);
+				int close_stream(FILE* stream);
+				void freebuf_stream(FILE* stream);
+				void setbuf_stream(FILE* stream, char* buf);
+				size_t read_stream(FILE* stream, void* buf, size_t size);
+				size_t write_stream(FILE* stream, const void* buf, size_t size);
+				off64_t seek_stream(FILE* stream, off64_t offset, int whence);
+				off64_t tell_stream(FILE* stream);
+				void clearerr_stream(FILE* stream);
+				int eof_stream(FILE* stream);
+				int error_stream(FILE* stream);
+				int fileno_stream(FILE* stream);
+				int truncate_stream(FILE* stream, off64_t size);
+				bool interpret_stream(void* stream)const;
 			private:
 				int _init_buffer_for_writing(stream_info_t* file_stream);
 				int _flush_stream(stream_info_t* stream);
+				int _update_underlying_file_size(FILE* file_stream);
 
 				//const FILE* _get_stream_from_path(const char* path)const;
 				//FILE* _get_stream_from_path(const char* path);
@@ -106,6 +108,13 @@ namespace CBB
 
 				stream_pool_t _stream_pool;
 		};
+		
+		inline off64_t CBB_stream::stream_info::
+			_get_buf_off_from_file_off(off64_t file_off)const
+		{
+			return file_off - _cur_file_off() + static_cast<const off64_t>(cur_buf_ptr - buf);
+		}
+
 	}
 }
 

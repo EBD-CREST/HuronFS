@@ -93,6 +93,17 @@ AC_ARG_ENABLE([write-back],
 
 AM_CONDITIONAL([WRITE_BACK], [test "x$write_back" = xtrue])
 
+AC_ARG_ENABLE([async],
+	      [AS_HELP_STRING([--enable-async],[ enable asynchronous write back, requires --enable-write-back])],
+	      [ case "${enableval}" in
+	       	yes) async=true 
+		AC_MSG_RESULT(Asynchronous writing back on IOnode);;
+       		no)  async=false;;
+		*) AC_MSG_FAILURE([bad value ${enableval} for --enable-async], 1) ;;
+	esac],[async=false])
+
+AM_CONDITIONAL([ASYNC_WRITE_BACK], [test "x$async" = xtrue])
+
 AC_ARG_WITH([cci],
     [AS_HELP_STRING([--with-cci(=DIR)],
                     [enable the cci (installed in DIR)])],

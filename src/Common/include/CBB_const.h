@@ -100,14 +100,14 @@ const int IONODE_DATA_SYNC_QUEUE_NUM=CONNECTION_QUEUE_NUM+CONNECTION_THREAD_NUM;
 const int CLIENT_QUEUE_NUM=CLIENT_THREAD_NUM;
 
 //the total memory available in each IOnode
-//ignored currently
+//this is the default value
 const int MEMORY = 10000; 
 //the maximum number of block for each file
 //not used
 const int MAX_BLOCK_NUMBER = 1000; 
 //the size of block used by all the file
 //important
-const size_t BLOCK_SIZE = 100*MB;
+const size_t BLOCK_SIZE = 4*KB;
 //the maximum file size supported;
 //the number = block size * max block number
 //not used
@@ -264,4 +264,10 @@ const int RMA_DIR=2;
 
 //the len of ip
 const int IP_STRING_LEN=20;
+
+//write back status
+const int IDLE=0;
+const int ON_GOING=1;
+
+const int WRITEBACK_SIZE=10;
 #endif

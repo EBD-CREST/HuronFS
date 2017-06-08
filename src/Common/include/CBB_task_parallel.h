@@ -366,7 +366,6 @@ namespace CBB
 				next=next->get_next();
 			}
 			_DEBUG("end of queue entry\n");
-			//_DEBUG("queue head %p, queue tmp head %p, queue tail %p, queue tmp tail %p\n", queue_head, queue_tmp_head, queue_tail, queue_tmp_tail);
 			return;
 		}
 

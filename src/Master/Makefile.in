@@ -124,10 +124,11 @@ build_triplet = @build@
 host_triplet = @host@
 DIST_COMMON = $(srcdir)/../../common.mk $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/depcomp
-@DEBUG_TRUE@am__append_1 = -DDEBUG
-@USING_CCI_TRUE@am__append_2 = -DCCI $(CCI_INCLUDE)
-@USING_CCI_TRUE@am__append_3 = ${CCI_LIB} -lcci
-@USING_CCI_FALSE@am__append_4 = -DTCP
+@ASYNC_WRITE_BACK_TRUE@@WRITE_BACK_TRUE@am__append_1 = -DASYNC
+@DEBUG_TRUE@am__append_2 = -DDEBUG
+@USING_CCI_TRUE@am__append_3 = -DCCI $(CCI_INCLUDE)
+@USING_CCI_TRUE@am__append_4 = ${CCI_LIB} -lcci
+@USING_CCI_FALSE@am__append_5 = -DTCP
 bin_PROGRAMS = Master$(EXEEXT)
 subdir = src/Master
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -356,15 +357,15 @@ top_srcdir = @top_srcdir@
 # this lists the binaries to produce, the (non-PHONY, binary) targets in
 # the previous manual Makefile
 #
-AM_CPPFLAGS = -DCBB_PRELOAD -DLOG $(am__append_1) $(am__append_2) \
-	$(am__append_4) -I./include/ -I../Common/include \
+AM_CPPFLAGS = -DCBB_PRELOAD -DLOG $(am__append_2) $(am__append_3) \
+	$(am__append_5) -I./include/ -I../Common/include \
 	$(SERVER_WAIT_FLAG)
 AM_CXXFLAGS = -Wall -std=c++11
-AM_LDFLAGS = -lpthread $(am__append_3)
+AM_LDFLAGS = -lpthread $(am__append_4)
 SYNC_FLAG = -DSTRICT_SYNC_DATA -DSYNC_DATA_WITH_REPLY
 SERVER_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
 CLIENT_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
-@WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK
+@WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK $(am__append_1)
 SRC_DIR = src
 HEADER_DIR = include
 
@@ -385,9 +386,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/../../common.mk $(am__co
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/Master/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/Master/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu src/Master/Makefile
+	  $(AUTOMAKE) --foreign src/Master/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

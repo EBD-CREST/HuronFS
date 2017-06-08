@@ -34,9 +34,11 @@ vpath %.h $(HEADER_DIR)
 bin_PROGRAMS = IOnode
 
 IOnode_SOURCES = IOnode.cpp	\
-		 node_main.cpp
+		 node_main.cpp	\
+		 IOnode_basic.cpp
 
 #headers
-IOnode_SOURCES += IOnode.h
+IOnode_SOURCES += IOnode.h	\
+		  IOnode_basic.h
 
 IOnode_LDADD = ../Common/libCommon.a

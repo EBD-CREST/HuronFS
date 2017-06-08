@@ -222,12 +222,15 @@ namespace CBB
 				//CBB::Common::string_buf files;
 				//IOnode_fd_map_t 	IOnode_fd_map;
 		};
-		inline int CBB_client::_fd_to_fid(int fd)
+
+		inline int CBB_client::
+			_fd_to_fid(int fd)
 		{
 			return fd-INIT_FD;
 		}
 
-		inline int CBB_client::_fid_to_fd(int fid)
+		inline int CBB_client::
+			_fid_to_fd(int fid)
 		{
 			return fid+INIT_FD;
 		}
@@ -250,23 +253,27 @@ namespace CBB
 			return _file_list.at(fd).file_meta_p->get_master_handle();
 		}
 
-		inline SCBB* CBB_client::_get_scbb_from_fd(int fd)
+		inline SCBB* CBB_client::
+			_get_scbb_from_fd(int fd)
 		{
 			return _file_list.at(fd).file_meta_p->corresponding_SCBB;
 		}
 
-		inline int CBB_client::_get_master_number_from_fd(int fd)const
+		inline int CBB_client::
+			_get_master_number_from_fd(int fd)const
 		{
 			return _file_list.at(fd).file_meta_p->get_master_number();
 		}
 
-		inline int CBB_client::_get_master_number_from_path(const std::string& path)const
+		inline int CBB_client::
+			_get_master_number_from_path(const std::string& path)const
 		{
 			static size_t size=master_handle_list.size();
 			return file_path_hash(path, size);
 		}
 
-		inline SCBB* CBB_client::_get_scbb_from_master_number(int master_number)
+		inline SCBB* CBB_client::
+			_get_scbb_from_master_number(int master_number)
 		{
 			return &master_handle_list.at(master_number);
 		}
@@ -291,12 +298,14 @@ namespace CBB
 		}
 
 
-		/*inline ssize_t CBB_client::_get_IOnode_id(int master_number, ssize_t IOnode_id)const
+		/*inline ssize_t CBB_client::
+		 * _get_IOnode_id(int master_number, ssize_t IOnode_id)const
 		{
 			return master_number*MAX_IONODE+IOnode_id;
 		}
 
-		inline void CBB_client::_parse_master_IOnode_id(ssize_t  master_IOnode, 
+		inline void CBB_client::
+		_parse_master_IOnode_id(ssize_t  master_IOnode, 
 								int& 	 master_number,
 								ssize_t& IOnode_id)
 		{

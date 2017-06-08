@@ -51,7 +51,7 @@ extern "C" FILE *CBB_WRAP(fopen)(const char* path, const char* mode)
 		std::string relative_path;
 		CBB_client::_get_relative_path(formatted_path, relative_path);
 		_LOG("CBB open path=%s,mode=%s\n", formatted_path.c_str(), mode);
-		return client._open_stream(relative_path.c_str(), mode);
+		return client.open_stream(relative_path.c_str(), mode);
 	}
 	else
 	{
@@ -63,11 +63,11 @@ extern "C" FILE *CBB_WRAP(fopen)(const char* path, const char* mode)
 extern "C" FILE *CBB_WRAP(freopen)(const char* path, const char* mode, FILE* stream)
 {
 	CBB_FUNC_P(FILE*, freopen, (const char* path, const char *mode, FILE* stream));
-	if(nullptr != stream && client._interpret_stream(stream))
+	if(nullptr != stream && client.interpret_stream(stream))
 	{
-		client._close_stream(stream);
+		client.close_stream(stream);
 		_LOG("CBB freopen path=%s, mode=%s\n", path, mode);
-		return client._open_stream(path, mode);
+		return client.open_stream(path, mode);
 	}
 	else
 	{
@@ -78,11 +78,11 @@ extern "C" FILE *CBB_WRAP(freopen)(const char* path, const char* mode, FILE* str
 extern "C" int CBB_WRAP(fclose)(FILE *stream)
 {
 	CBB_FUNC_P(int, fclose, (FILE *stream));
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB fclose\n");
-		client._flush_stream(stream);
-		return client._close_stream(stream);
+		client.flush_stream(stream);
+		return client.close_stream(stream);
 	}
 	else
 	{
@@ -94,11 +94,11 @@ extern "C" int CBB_WRAP(fclose)(FILE *stream)
 extern "C" int CBB_WRAP(fflush)(FILE *stream)
 {
 	CBB_FUNC_P(int, fflush, (FILE *stream));
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 
 		_LOG("CBB fflush\n");
-		return client._flush_stream(stream);
+		return client.flush_stream(stream);
 	}
 	else
 	{
@@ -111,11 +111,11 @@ extern "C" void CBB_WRAP(setbuf)(FILE * stream, char * buf)
 {
 	CBB_FUNC_P(void*, setbuf, (FILE* stream, char* buf));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB setbuf\n");
-		client._freebuf_stream(stream);
-		client._setbuf_stream(stream, buf);
+		client.freebuf_stream(stream);
+		client.setbuf_stream(stream, buf);
 	}
 	else
 	{
@@ -196,10 +196,10 @@ extern "C" int CBB_WRAP(fgetc)(FILE *stream)
 	CBB_FUNC_P(int, fgetc, (FILE *stream));
 
 	int c;
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{	
 		//_LOG("CBB fgetc\n");
-		size_t ret=client._read_stream(stream, &c, sizeof(char));
+		size_t ret=client.read_stream(stream, &c, sizeof(char));
 		if(sizeof(char) != ret)
 		{
 			return EOF;
@@ -235,12 +235,12 @@ extern "C" char *CBB_WRAP(fgets)(char* s, int n, FILE* stream)
 	CBB_FUNC_P(char*, fgets, (char* s, int n, FILE* stream));
 
 	char* start=s;
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB fgets");
 		while(--n)
 		{
-			client._read_stream(stream, s, sizeof(char));
+			client.read_stream(stream, s, sizeof(char));
 			if('\n' == *s)
 			{
 				*s='\0';
@@ -269,10 +269,10 @@ extern "C" char *CBB_WRAP(fgets)(char* s, int n, FILE* stream)
 extern "C" int CBB_WRAP(fputc)(int c, FILE* stream)
 {
 	CBB_FUNC_P(int, fputc, (int c, FILE* stram));
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		//_LOG("CBB fputc\n");
-		size_t ret=client._write_stream(stream, &c, sizeof(char));
+		size_t ret=client.write_stream(stream, &c, sizeof(char));
 		if(sizeof(char) != ret)
 		{
 			return EOF;
@@ -293,12 +293,12 @@ extern "C" int CBB_WRAP(fputs)(const char* s, FILE *stream)
 {
 	CBB_FUNC_P(int, fputs, (const char* s, FILE *stream));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB fputs\n");
 		int len=strlen(s);
 		_LOG("string=%s\n", s);
-		client._write_stream(stream, s, len*sizeof(char));
+		client.write_stream(stream, s, len*sizeof(char));
 		return 1;
 	}
 	else
@@ -328,12 +328,12 @@ extern "C" size_t CBB_WRAP(fread)(void *ptr, size_t size, size_t nitems, FILE *s
 {
 	CBB_FUNC_P(size_t, fread, (void *ptr, size_t size, size_t nitems, FILE *stream));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB fread");
 		_LOG("file no=%d\n", fileno(stream));
 		size_t IO_size=size*nitems;
-		return client._read_stream(stream, ptr, IO_size);
+		return client.read_stream(stream, ptr, IO_size);
 	}
 	else
 	{
@@ -346,12 +346,12 @@ extern "C" size_t CBB_WRAP(fwrite)(const void *ptr, size_t size, size_t nitems, 
 {
 	CBB_FUNC_P(size_t, fwrite, (const void *ptr, size_t size, size_t nitems, FILE *stream));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB fwrite");
 		_LOG("file no=%d\n", fileno(stream));
 		size_t IO_size=size*nitems;
-		return client._write_stream(stream, ptr, IO_size);
+		return client.write_stream(stream, ptr, IO_size);
 	}
 	else
 	{
@@ -364,7 +364,7 @@ extern "C" int CBB_WRAP(fgetpos)(FILE *stream, fpos_t* pos)
 {
 	CBB_FUNC_P(int, fgetpos, (FILE *stream, fpos_t* pos));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_ERROR("do not support yet\n");
 		return -1;//client._getpos(static_cast<stream_info_t*>(stream));
@@ -380,11 +380,11 @@ extern "C" int CBB_WRAP(fseek)(FILE *stream, long offset, int whence)
 {
 	CBB_FUNC_P(int, fseek, (FILE *stream, long offset, int whence));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB fseek\n");
 		_LOG("offset %ld\n", offset);
-		return client._seek_stream(stream, offset, whence);
+		return client.seek_stream(stream, offset, whence);
 	}
 	else
 	{
@@ -415,10 +415,10 @@ extern "C" long CBB_WRAP(ftell)(FILE *stream)
 {
 	CBB_FUNC_P(long, ftell, (FILE *stream));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB ftell\n");
-		long pos=client._tell_stream(stream);
+		long pos=client.tell_stream(stream);
 		_LOG("CBB pos=%ld\n", pos);
 		return pos;
 	}
@@ -432,10 +432,10 @@ extern "C" long CBB_WRAP(ftell)(FILE *stream)
 extern "C" void CBB_WRAP(rewind)(FILE *stream)
 {
 	CBB_FUNC_P(void, rewind, (FILE *stream));
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB rewind\n");
-		client._seek_stream(stream, 0, SEEK_SET);
+		client.seek_stream(stream, 0, SEEK_SET);
 	}
 	else
 	{
@@ -448,10 +448,10 @@ extern "C" void CBB_WRAP(clearerr)(FILE *stream)
 {
 	CBB_FUNC_P(void, clearerr, (FILE *stream));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB clearerr\n");
-		client._clearerr_stream(stream);
+		client.clearerr_stream(stream);
 	}
 	else
 	{
@@ -464,10 +464,10 @@ extern "C" int CBB_WRAP(feof)(FILE *stream)throw()
 {
 	CBB_FUNC_P(int, feof, (FILE *stream));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB feof\n");
-		return client._eof_stream(stream);
+		return client.eof_stream(stream);
 	}
 	else
 	{
@@ -480,10 +480,10 @@ extern "C" int CBB_WRAP(ferror)(FILE *stream)throw()
 {
 	CBB_FUNC_P(int, ferror, (FILE *stream));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB ferror\n");
-		return client._error_stream(stream);
+		return client.error_stream(stream);
 	}
 	else
 	{
@@ -496,10 +496,10 @@ extern "C" int CBB_WRAP(fseeko)(FILE *stream, off_t offset, int whence)
 {
 	CBB_FUNC_P(int, fseeko, (FILE *stream, off_t offset, int whence));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB fseeko\n");
-		return client._seek_stream(stream, offset, whence);
+		return client.seek_stream(stream, offset, whence);
 	}
 	else
 	{
@@ -512,10 +512,10 @@ extern "C" off_t CBB_WRAP(ftello)(FILE *stream)
 {
 	CBB_FUNC_P(off_t, ftello, (FILE *stream));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB ftello\n");
-		return client._tell_stream(stream);
+		return client.tell_stream(stream);
 	}
 	else
 	{
@@ -528,10 +528,10 @@ extern "C" int CBB_WRAP(fileno)(FILE *stream)throw()
 {
 	CBB_FUNC_P(int, fileno, (FILE *stream));
 
-	if(client._interpret_stream(stream))
+	if(client.interpret_stream(stream))
 	{
 		_LOG("CBB fileno\n");
-		int fd=client._fileno_stream(stream);
+		int fd=client.fileno_stream(stream);
 		_LOG("fd=%d\n", fd);
 		return fd;
 	}

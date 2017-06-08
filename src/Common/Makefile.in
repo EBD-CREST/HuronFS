@@ -124,12 +124,13 @@ build_triplet = @build@
 host_triplet = @host@
 DIST_COMMON = $(srcdir)/../../common.mk $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/depcomp
-@DEBUG_TRUE@am__append_1 = -DDEBUG
-@USING_CCI_TRUE@am__append_2 = -DCCI $(CCI_INCLUDE)
-@USING_CCI_TRUE@am__append_3 = ${CCI_LIB} -lcci
-@USING_CCI_FALSE@am__append_4 = -DTCP
-@USING_CCI_TRUE@am__append_5 = CBB_cci.cpp
-@USING_CCI_FALSE@am__append_6 = CBB_tcp.cpp
+@ASYNC_WRITE_BACK_TRUE@@WRITE_BACK_TRUE@am__append_1 = -DASYNC
+@DEBUG_TRUE@am__append_2 = -DDEBUG
+@USING_CCI_TRUE@am__append_3 = -DCCI $(CCI_INCLUDE)
+@USING_CCI_TRUE@am__append_4 = ${CCI_LIB} -lcci
+@USING_CCI_FALSE@am__append_5 = -DTCP
+@USING_CCI_TRUE@am__append_6 = CBB_cci.cpp
+@USING_CCI_FALSE@am__append_7 = CBB_tcp.cpp
 subdir = src/Common
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -354,14 +355,14 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CPPFLAGS = -DCBB_PRELOAD -DLOG $(am__append_1) $(am__append_2) \
-	$(am__append_4) -I./include/
+AM_CPPFLAGS = -DCBB_PRELOAD -DLOG $(am__append_2) $(am__append_3) \
+	$(am__append_5) -I./include/
 AM_CXXFLAGS = -Wall -std=c++11
-AM_LDFLAGS = -lpthread $(am__append_3)
+AM_LDFLAGS = -lpthread $(am__append_4)
 SYNC_FLAG = -DSTRICT_SYNC_DATA -DSYNC_DATA_WITH_REPLY
 SERVER_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
 CLIENT_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
-@WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK
+@WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK $(am__append_1)
 
 # this lists the binaries to produce, the (non-PHONY, binary) targets in
 # the previous manual Makefile
@@ -373,7 +374,7 @@ libCommon_a_SOURCES = Server.cpp Client.cpp CBB_mutex_lock.cpp \
 	CBB_request_handler.cpp CBB_serialization.cpp \
 	CBB_remote_task.cpp CBB_heart_beat.cpp CBB_data_sync.cpp \
 	CBB_profiling.cpp Comm_basic.cpp CBB_IO_task.cpp \
-	$(am__append_5) $(am__append_6)
+	$(am__append_6) $(am__append_7)
 all: all-am
 
 .SUFFIXES:
@@ -387,9 +388,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/../../common.mk $(am__co
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/Common/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/Common/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu src/Common/Makefile
+	  $(AUTOMAKE) --foreign src/Common/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
