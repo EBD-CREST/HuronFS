@@ -28,95 +28,13 @@ using namespace CBB::IOnode;
 using namespace CBB::Common;
 using namespace std;
 
-memory_elem::
-memory_elem(size_t size)
-throw(std::bad_alloc):
-	data(malloc(size)),
-	size(size),
-	next(nullptr)
-{
-	if(nullptr == data)
-	{
-		throw std::bad_alloc();
-	}
-}
-
-memory_elem::
-~memory_elem()
-{
-	free(data);
-}
-
-void memory_pool::
-setup(size_t size_of_elem, int count)
-throw(std::bad_alloc)
-{
-	available_memory=size_of_elem*count;
-	while(count--)
-	{
-		memory_elem* new_elem=new memory_elem(size_of_elem);
-		new_elem->next=head;
-		head=new_elem;
-	}
-}
-
-memory_pool::
-memory_pool(size_t size_of_elem, int count)
-throw(std::bad_alloc):
-	head(nullptr)
-{
-	setup(size_of_elem, count);
-}
-
-memory_pool::
-memory_pool():
-	head(nullptr)
-{}
-
-memory_pool::
-~memory_pool()
-{
-	while(nullptr != head)
-	{
-		memory_elem* next=head->next;
-		delete head;
-		head=next;
-	}
-}
-		
-memory_elem* memory_pool::
-allocate()
-throw(std::bad_alloc)
-{
-	if(nullptr != head)
-	{
-		memory_elem* ret=head;
-		head=head->next;
-		available_memory-=ret->size;
-
-		return ret;
-	}
-	else
-	{
-		throw std::bad_alloc();
-	}
-}
-
-void memory_pool::
-free(memory_elem* memory)
-{
-	memory->next=head;
-	head=memory;
-	available_memory+=memory->size;
-}
-
 block::
 block(off64_t	 start_point,
       size_t	 data_size,
       bool 	 dirty_flag,
       bool 	 valid,
       file* 	 file_stat,
-      allocator& memory_allocator)
+      Common::allocator& memory_allocator)
 throw(std::bad_alloc):
 	data_size(data_size),
 	block_size(BLOCK_SIZE),

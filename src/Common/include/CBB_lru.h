@@ -24,21 +24,43 @@
 
 /* this file is for writing back operations in IOnode or Master*/
 
-#ifndef CBB_SWAP_H_
-#define CBB_SWAP_H_
+#ifndef CBB_LRU_H_
+#define CBB_LRU_H_
 
-#ifdef LRU
-#include "CBB_lru.h"
-#endif
+#include "CBB_basic_swap.h"
 
 namespace CBB
 {
 	namespace Common
 	{
-#ifdef LRU
-		template<typename type>using CBB_swap= CBB_lru<type>;
-#endif
+		template<typename type> class CBB_lru:
+			public CBB_basic_swap<type>
+		{
+		public:
+			CBB_lru()=default;
+			virtual ~CBB_lru()=default;
+
+			virtual access_page<type>* 
+				access(access_page<type>* data)override final;
+			virtual access_page<type>* 
+				access(type*data)override final;
+			virtual size_t free_data(type* data)=0;
+			virtual bool need_writeback(type* data)=0;
+			virtual size_t writeback(type* data)=0;
+			
+		};
+
+		template<typename type> access_page<type>* CBB_lru<type>::
+			access(access_page<type>* page)
+		{
+			return this->queue.touch(page);
+		}
+
+		template<typename type> access_page<type>* CBB_lru<type>::
+			access(type* data)
+		{
+			return this->queue.push(data);
+		}
 	}
 }
-
 #endif

@@ -441,6 +441,7 @@ AM_LDFLAGS = -lpthread $(am__append_4)
 SYNC_FLAG = -DSTRICT_SYNC_DATA -DSYNC_DATA_WITH_REPLY
 SERVER_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
 CLIENT_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
+SWAP_ALGORITHM = -DLRU
 @WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK $(am__append_1)
 
 # this lists the binaries to produce, the (non-PHONY, binary) targets in
@@ -471,9 +472,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/../../common.mk $(am__co
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/Client/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/Client/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign src/Client/Makefile
+	  $(AUTOMAKE) --gnu src/Client/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

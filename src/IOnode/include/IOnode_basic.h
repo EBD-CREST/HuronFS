@@ -30,41 +30,12 @@
 
 #include "Comm_basic.h"
 #include "CBB_swap.h"
+#include "CBB_memory_pool.h"
 
 namespace CBB
 {
 	namespace IOnode
 	{
-		struct memory_elem
-		{
-		public:
-			memory_elem(size_t size)throw(std::bad_alloc);
-			~memory_elem();
-			void* get_data();
-		public:
-			void* 		data;
-			size_t		size;
-			memory_elem* 	next;
-		};
-
-		class memory_pool
-		{
-		public:
-			memory_pool(size_t size_of_elem, int count)throw(std::bad_alloc);
-			memory_pool();
-			void setup(size_t size_of_elem, int count)throw(std::bad_alloc);
-			~memory_pool();
-			void free(memory_elem* memory);
-			memory_elem* allocate()throw(std::bad_alloc);
-			bool has_memory_left(size_t)const;
-			size_t get_available_memory_size()const;
-		private:
-			memory_elem* head;
-			size_t	     available_memory;
-		};
-
-		typedef memory_pool allocator;
-
 		struct file;
 		struct block
 		{
@@ -73,7 +44,7 @@ namespace CBB
 				bool 	dirty_flag,
 				bool 	valid,
 				file* 	file_stat,
-				allocator& _allocator)
+				Common::allocator& _allocator)
 				throw(std::bad_alloc);
 			~block();
 			block(const block&);
@@ -99,8 +70,8 @@ namespace CBB
 			bool 			TO_BE_DELETED;
 			Common::
 			access_page<block>*	writeback_page;
-			allocator&		memory_allocator;
-			memory_elem*		_elem;
+			Common::allocator&	memory_allocator;
+			Common::memory_elem*	_elem;
 		};
 
 		typedef std::map<off64_t, block*> block_info_t; //map: start_point : block*
@@ -156,24 +127,6 @@ namespace CBB
 			{
 				return 0;
 			}
-		}
-
-		inline void* memory_elem::
-			get_data()
-		{
-			return data;
-		}
-
-		inline bool memory_pool::
-			has_memory_left(size_t size)const
-		{
-			return available_memory >= size;
-		}
-
-		inline size_t memory_pool::
-			get_available_memory_size()const
-		{
-			return this->available_memory;
 		}
 	}
 }

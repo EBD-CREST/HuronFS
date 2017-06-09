@@ -56,7 +56,7 @@ IOnode(	const string&	master_ip,
 throw(std::runtime_error):
 	Server(IONODE_QUEUE_NUM, IONODE_PORT), 
 	CBB_data_sync(),
-	CBB_swap(),
+	CBB_swap<block>(),
 	my_node_id(-1),
 	_files(file_t()),
 	_current_block_number(0), 
@@ -1313,7 +1313,7 @@ create_new_block(off64_t start_point,
 size_t IOnode::
 free_memory(size_t size)
 {
-	return CBB_swap::swap_out(size);
+	return CBB_swap<block>::swap_out(size);
 }
 
 size_t IOnode::

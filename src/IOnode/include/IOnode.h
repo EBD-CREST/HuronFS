@@ -197,7 +197,7 @@ namespace CBB
 				std::vector<block*> 	writeback_queue;
 				int			writeback_status;
 				bool			dirty_pages;
-				memory_pool		memory_pool_for_blocks;
+				Common::memory_pool	memory_pool_for_blocks;
 		};
 
 

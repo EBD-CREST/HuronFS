@@ -155,8 +155,8 @@ am__libCommon_a_SOURCES_DIST = Server.cpp Client.cpp \
 	CBB_mutex_lock.cpp CBB_rwlock.cpp CBB_communication_thread.cpp \
 	CBB_request_handler.cpp CBB_serialization.cpp \
 	CBB_remote_task.cpp CBB_heart_beat.cpp CBB_data_sync.cpp \
-	CBB_profiling.cpp Comm_basic.cpp CBB_IO_task.cpp CBB_cci.cpp \
-	CBB_tcp.cpp
+	CBB_profiling.cpp Comm_basic.cpp CBB_memory_pool.cpp \
+	CBB_IO_task.cpp CBB_cci.cpp CBB_tcp.cpp
 @USING_CCI_TRUE@am__objects_1 = CBB_cci.$(OBJEXT)
 @USING_CCI_FALSE@am__objects_2 = CBB_tcp.$(OBJEXT)
 am_libCommon_a_OBJECTS = Server.$(OBJEXT) Client.$(OBJEXT) \
@@ -165,8 +165,8 @@ am_libCommon_a_OBJECTS = Server.$(OBJEXT) Client.$(OBJEXT) \
 	CBB_request_handler.$(OBJEXT) CBB_serialization.$(OBJEXT) \
 	CBB_remote_task.$(OBJEXT) CBB_heart_beat.$(OBJEXT) \
 	CBB_data_sync.$(OBJEXT) CBB_profiling.$(OBJEXT) \
-	Comm_basic.$(OBJEXT) CBB_IO_task.$(OBJEXT) $(am__objects_1) \
-	$(am__objects_2)
+	Comm_basic.$(OBJEXT) CBB_memory_pool.$(OBJEXT) \
+	CBB_IO_task.$(OBJEXT) $(am__objects_1) $(am__objects_2)
 libCommon_a_OBJECTS = $(am_libCommon_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -362,6 +362,7 @@ AM_LDFLAGS = -lpthread $(am__append_4)
 SYNC_FLAG = -DSTRICT_SYNC_DATA -DSYNC_DATA_WITH_REPLY
 SERVER_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
 CLIENT_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
+SWAP_ALGORITHM = -DLRU
 @WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK $(am__append_1)
 
 # this lists the binaries to produce, the (non-PHONY, binary) targets in
@@ -373,8 +374,8 @@ libCommon_a_SOURCES = Server.cpp Client.cpp CBB_mutex_lock.cpp \
 	CBB_rwlock.cpp CBB_communication_thread.cpp \
 	CBB_request_handler.cpp CBB_serialization.cpp \
 	CBB_remote_task.cpp CBB_heart_beat.cpp CBB_data_sync.cpp \
-	CBB_profiling.cpp Comm_basic.cpp CBB_IO_task.cpp \
-	$(am__append_6) $(am__append_7)
+	CBB_profiling.cpp Comm_basic.cpp CBB_memory_pool.cpp \
+	CBB_IO_task.cpp $(am__append_6) $(am__append_7)
 all: all-am
 
 .SUFFIXES:
@@ -388,9 +389,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/../../common.mk $(am__co
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/Common/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/Common/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign src/Common/Makefile
+	  $(AUTOMAKE) --gnu src/Common/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -430,6 +431,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_communication_thread.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_data_sync.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_heart_beat.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_memory_pool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_mutex_lock.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_profiling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_remote_task.Po@am__quote@

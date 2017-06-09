@@ -26,7 +26,7 @@ include ../../common.mk
 AM_CPPFLAGS += -I./include/ -I../Common/include
 SRC_DIR = src
 HEADER_DIR = include
-AM_CPPFLAGS += $(SERVER_WAIT_FLAG) $(WRITE_BACK) $(SYNC_FLAG)
+AM_CPPFLAGS += $(SERVER_WAIT_FLAG) $(WRITE_BACK) $(SYNC_FLAG) $(SWAP_ALGORITHM)
 
 vpath %.cpp $(SRC_DIR)
 vpath %.h $(HEADER_DIR)
