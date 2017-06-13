@@ -367,6 +367,7 @@ SERVER_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
 CLIENT_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
 SWAP_ALGORITHM = -DLRU
 @WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK $(am__append_1)
+@CLIENT_MULTIPLE_THREADS_FALSE@CLIENT_THREADS = -DSINGLE_THREAD
 SRC_DIR = src
 HEADER_DIR = include
 
@@ -387,9 +388,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/../../common.mk $(am__co
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/IOnode/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/IOnode/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu src/IOnode/Makefile
+	  $(AUTOMAKE) --foreign src/IOnode/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

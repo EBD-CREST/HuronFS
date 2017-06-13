@@ -29,12 +29,14 @@ using namespace CBB::Common;
 
 CBB_heart_beat::CBB_heart_beat(communication_queue_t* input_queue,
 		communication_queue_t* output_queue):
+	//fields
 	keepAlive(NOT_KEEP_ALIVE),
 	input_queue(input_queue),
 	output_queue(output_queue)
 {}
 
 CBB_heart_beat::CBB_heart_beat():
+	//fields
 	keepAlive(NOT_KEEP_ALIVE),
 	input_queue(nullptr),
 	output_queue(nullptr)

@@ -50,9 +50,9 @@ namespace CBB
 						communication_queue_array_t* output_queue);
 
 			private:
-				bool thread_started;
-				pthread_t handler_thread;
-				int keepAlive;
+				bool 		thread_started;
+				pthread_t 	handler_thread;
+				int 		keepAlive;
 				communication_queue_array_t* input_queue;
 				communication_queue_array_t* output_queue;
 

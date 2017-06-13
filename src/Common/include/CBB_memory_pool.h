@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <iostream>
 
+#include "CBB_internal.h"
+
 namespace CBB
 {
 	namespace Common

@@ -59,7 +59,7 @@ static int CBB_open(const char* path, struct fuse_file_info *fi)
 	FILE* stream=nullptr;
 
 	start_recording(&client);
-	stream=client.open(path, flag, mode);
+	stream=client.open_stream(path, flag, mode);
 	end_recording(&client);
 
 #else
@@ -87,7 +87,7 @@ static int CBB_flush(const char *path, struct fuse_file_info* fi)
 
 #ifdef SINGLE_THREAD
 	start_recording(&client);
-	ret=client._flush_stream(stream);
+	ret=client.flush_stream(stream);
 	end_recording(&client);
 #endif
 
@@ -102,7 +102,7 @@ static int CBB_creat(const char * path, mode_t mode, struct fuse_file_info* fi)
 	FILE* stream=nullptr;
 
 	start_recording(&client);
-	stream=client._open_stream(path, O_CREAT|O_WRONLY|O_TRUNC, mode);
+	stream=client.open_stream(path, O_CREAT|O_WRONLY|O_TRUNC, mode);
 	end_recording(&client);
 
 #else
@@ -136,14 +136,14 @@ static int CBB_read(	const char* 	path,
 	if(nullptr != stream)
 	{
 
-		start_record();
-		if(-1 == client._seek_stream(stream, offset, SEEK_SET))
+		start_recording(&client);
+		if(-1 == client.seek_stream(stream, offset, SEEK_SET))
 		{
 			return -1;
 		}
-		ret=client._read_stream(stream, buffer, count);
+		ret=client.read_stream(stream, buffer, count);
 		_DEBUG("ret=%d path=%s\n", ret,path);
-		end_record();
+		end_recording(&client);
 
 		return ret;
 	}
@@ -180,16 +180,16 @@ static int CBB_write(	const char* 	path,
 	if(nullptr != stream)
 	{
 
-		start_record();
-		if(-1 == client._seek_stream(stream, offset, SEEK_SET))
+		start_recording(&client);
+		if(-1 == client.seek_stream(stream, offset, SEEK_SET))
 		{
 
 			return -1;
 		}
 		_DEBUG("path=%s\n", path);
-		ret=client._write_stream(stream, buffer, count);
-		client._update_underlying_file_size(stream);
-		end_record();
+		ret=client.write_stream(stream, buffer, count);
+		client.update_underlying_file_size(stream);
+		end_recording(&client);
 
 		return ret;
 	}
@@ -298,9 +298,9 @@ static int CBB_release(const char* path, struct fuse_file_info* fi)
 	FILE* stream=(FILE*)fi->fh;
 	int ret=-1;
 
-	start_record();
-	ret=client._close_stream(stream);
-	end_record();
+	start_recording(&client);
+	ret=client.close_stream(stream);
+	end_recording(&client);
 #else
 	file_meta* stream=(file_meta*)fi->fh;
 	int ret=-1;

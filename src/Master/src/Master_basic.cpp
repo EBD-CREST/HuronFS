@@ -27,7 +27,8 @@
 using namespace CBB::Master;
 using namespace CBB::Common;
 
-open_file_info::open_file_info(ssize_t fileno,
+open_file_info::
+open_file_info(ssize_t fileno,
 		size_t block_size,
 		const node_info_pool_t& IOnodes,
 		int flag,
@@ -42,7 +43,8 @@ open_file_info::open_file_info(ssize_t fileno,
 	file_status(file_stat)
 {}
 
-open_file_info::open_file_info(ssize_t fileno,
+open_file_info::
+open_file_info(ssize_t fileno,
 		int flag,
 		Master_file_stat* file_stat):
 	file_no(fileno),
@@ -65,7 +67,8 @@ open_file_info::open_file_info(ssize_t fileno,
 	return;
 }*/
 
-Master_file_stat::Master_file_stat(const struct stat& file_stat, 
+Master_file_stat::
+Master_file_stat(const struct stat& file_stat, 
 		const std::string& filename,
 		int exist_flag):
 	status(file_stat),
@@ -78,7 +81,8 @@ Master_file_stat::Master_file_stat(const struct stat& file_stat,
 	full_path(nullptr)
 {}
 
-Master_file_stat::Master_file_stat(const struct stat& file_stat, 
+Master_file_stat::
+Master_file_stat(const struct stat& file_stat, 
 		const std::string& filename,
 		open_file_info* opened_file_info,
 		int exist_flag):
@@ -92,7 +96,8 @@ Master_file_stat::Master_file_stat(const struct stat& file_stat,
 	full_path(nullptr)
 {}
 
-Master_file_stat::Master_file_stat():
+Master_file_stat::
+Master_file_stat():
 	status(),
 	name(),
 	external_flag(INTERNAL),
@@ -103,7 +108,8 @@ Master_file_stat::Master_file_stat():
 	full_path(nullptr)
 {}
 
-node_info::node_info(ssize_t id,
+node_info::
+node_info(ssize_t id,
 		const std::string& uri,
 		size_t total_memory,
 		comm_handle_t handle):

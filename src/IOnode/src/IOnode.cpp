@@ -392,7 +392,7 @@ _send_data(extended_IO_task* new_task)
 			if(requested_block->need_allocation())
 			{
 				allocate_memory_for_block(requested_block);
-				if(EXISTING == _file.exist_flag)
+				if(EXISTING == requested_block->exist_flag)
 				{
 					_read_from_storage(path,
 						requested_block);
@@ -442,6 +442,8 @@ _receive_data(extended_IO_task* new_task)
 	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n",
 			file_no, start_point, offset, size);
 
+	new_task->init_for_large_transfer(RMA_READ);
+
 	try
 	{
 		remaining_size=size;
@@ -452,7 +454,6 @@ _receive_data(extended_IO_task* new_task)
 		//the tmp variables for receiving data
 		off64_t tmp_offset=offset;
 		off64_t tmp_start_point=start_point;
-		new_task->init_for_large_transfer(RMA_READ);
 
 		while(0 < remaining_size)
 		{
@@ -474,7 +475,7 @@ _receive_data(extended_IO_task* new_task)
 		_file.dirty_flag=DIRTY;
 
 		_sync_data(_file, start_point, 
-				offset, size, new_task->get_receiver_id(), new_task->get_handle());
+			offset, size, new_task->get_receiver_id(), new_task->get_handle());
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -813,6 +814,7 @@ throw(std::runtime_error)
 {
 	block_data->lock();
 	block_data->dirty_flag=CLEAN;
+	block_data->set_to_existing();
 
 	string real_path	=_get_real_path(block_data->file_stat->file_path);
 	off64_t     start_point	=block_data->start_point;
@@ -1098,17 +1100,20 @@ _sync_write_data(data_sync_task* new_task)
 	output_task->set_extended_data_size(new_task->size);
 
 	ssize_t tmp_size=new_task->size;
+	size_t  tmp_offset=new_task->offset;
 	auto block_it=requested_file->blocks.find(new_task->start_point);
+
 	while(end(requested_file->blocks) != block_it && 0 < tmp_size)
 	{
 		block* requested_block=block_it->second;
 		size_t IO_size=min(tmp_size, 
 				(ssize_t)requested_block->data_size);
 		output_task->push_send_buffer(
-			static_cast<char*>(requested_block->data),
+			static_cast<char*>(requested_block->data+tmp_offset),
 			IO_size);
 		tmp_size-=IO_size;
 		block_it++;
+		tmp_offset=0;
 	}
 #endif
 	output_task->push_back(SUCCESS);
@@ -1256,6 +1261,7 @@ update_access_order(block* requested_block)
 	else
 	{
 		requested_block->writeback_page=access(requested_block);
+		_DEBUG("write back page %p\n", requested_block->writeback_page);
 	}
 	return SUCCESS;
 }
@@ -1313,6 +1319,7 @@ create_new_block(off64_t start_point,
 size_t IOnode::
 free_memory(size_t size)
 {
+	_DEBUG("free memory for new blocks\n");
 	return CBB_swap<block>::swap_out(size);
 }
 

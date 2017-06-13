@@ -56,7 +56,7 @@ const int MAX_IONODE = 1000;
 //the size of basic message in communication
 const int MAX_BASIC_MESSAGE_SIZE = 4*KB;
 //the size of extended message located in IO task
-const int MAX_EXTENDED_MESSAGE_SIZE=2*MB;
+const int MAX_EXTENDED_MESSAGE_SIZE=5*MB;
 //the size of files in a directory
 const int MAX_DIR_FILE_SIZE=MAX_EXTENDED_MESSAGE_SIZE;
 //the max retry for communication
@@ -107,7 +107,7 @@ const int MEMORY = 10000;
 const int MAX_BLOCK_NUMBER = 1000; 
 //the size of block used by all the file
 //important
-const size_t BLOCK_SIZE = 4*KB;
+const size_t BLOCK_SIZE = 5*MB;
 //the maximum file size supported;
 //the number = block size * max block number
 //not used

@@ -234,6 +234,10 @@ namespace CBB
 		inline size_t IOnode::
 			free_data(block* data)
 		{
+			_DEBUG("free memory of %s start point %ld\n",
+					data->file_stat->file_path.c_str(),
+					data->start_point);
+			data->writeback_page=nullptr;
 			return data->free_memory();
 		}
 	}

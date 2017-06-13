@@ -42,9 +42,11 @@ throw(std::bad_alloc):
 	start_point(start_point),
 	dirty_flag(dirty_flag),
 	valid(INVALID),
+	exist_flag(file_stat->exist_flag),
 	file_stat(file_stat),
 	locker(),
 	TO_BE_DELETED(CLEAN),
+	writeback_page(nullptr),
 	memory_allocator(memory_allocator),
 	_elem(nullptr)
 {
@@ -57,19 +59,25 @@ throw(std::bad_alloc):
 block::
 ~block()
 {
-	memory_allocator.free(_elem);
+	if(nullptr != _elem)
+	{
+		memory_allocator.free(_elem);
+	}
 }
 
 block::
 block(	const block & src):
 	data_size(src.data_size),
+	block_size(BLOCK_SIZE),
 	data(src.data), 
 	start_point(src.start_point),
 	dirty_flag(src.dirty_flag),
 	valid(src.valid),
+	exist_flag(src.exist_flag),
 	file_stat(nullptr),
 	locker(),
 	TO_BE_DELETED(CLEAN),
+	writeback_page(src.writeback_page),
 	memory_allocator(src.memory_allocator),
 	_elem(src._elem)
 {};
@@ -102,7 +110,7 @@ size_t block::
 allocate_memory()
 throw(std::bad_alloc)
 {
-	if(nullptr != data)
+	if(nullptr != _elem)
 	{
 		memory_allocator.free(_elem);
 	}

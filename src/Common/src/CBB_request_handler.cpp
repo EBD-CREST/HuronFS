@@ -26,8 +26,9 @@
 
 using namespace CBB::Common;
 
-CBB_request_handler::CBB_request_handler(communication_queue_array_t* input_queue,
-		communication_queue_array_t* output_queue):
+CBB_request_handler::
+CBB_request_handler(	communication_queue_array_t* input_queue,
+			communication_queue_array_t* output_queue):
 	thread_started(UNSTARTED),
 	handler_thread(-1),
 	keepAlive(KEEP_ALIVE),
@@ -35,7 +36,8 @@ CBB_request_handler::CBB_request_handler(communication_queue_array_t* input_queu
 	output_queue(output_queue)
 {}
 
-CBB_request_handler::CBB_request_handler():
+CBB_request_handler::
+CBB_request_handler():
 	thread_started(UNSTARTED),
 	handler_thread(),
 	keepAlive(KEEP_ALIVE),

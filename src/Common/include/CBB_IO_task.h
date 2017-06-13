@@ -36,7 +36,7 @@ namespace CBB
 	{
 		class connection_task
 		{
-			public:
+		public:
 			connection_task()=default;
 			virtual ~connection_task()=default;
 			void setup_new_connection(const char* uri,
@@ -50,10 +50,10 @@ namespace CBB
 			int get_port()const;
 			void clear_addr();
 
-			private:
-				bool new_connection;
-				const char* uri;   //server uri
-				int port;	   //port
+		private:
+			bool 		new_connection;
+			const char* 	uri;   //server uri
+			int 		port;	   //port
 		};
 
 		class basic_IO_task:
@@ -150,12 +150,12 @@ namespace CBB
 			private:
 
 				//rma_read; rma_write
-				int 	      mode;
-				size_t* extended_size;
-				send_buffer_t send_buffer;
-				unsigned char* receive_buffer;
-				unsigned char* current_receive_buffer_ptr;
-				unsigned char  extended_buffer[MAX_EXTENDED_MESSAGE_SIZE];
+				int 	      	mode;
+				size_t* 	extended_size;
+				send_buffer_t 	send_buffer;
+				unsigned char* 	receive_buffer;
+				unsigned char* 	current_receive_buffer_ptr;
+				unsigned char  	extended_buffer[MAX_EXTENDED_MESSAGE_SIZE];
 		};
 
 		class string_buf

@@ -76,7 +76,6 @@ namespace CBB
 			access_page<type>* head;
 			/*pop from tail*/
 			access_page<type>* tail;
-			int	     	   count;
 		};
 						
 		template<typename type> class CBB_basic_swap
@@ -169,18 +168,23 @@ namespace CBB
 
 		template<typename type> access_page<type>::
 			access_page(type* data):
+				//base class
 				list(),
+				//field
 				data(data)
 		{}
 
 		template<typename type> access_page<type>::
 			access_page():
+				//base class
 				list(),
+				//field
 				data(nullptr)
 		{}
 
 		template<typename type> access_queue<type>::
 			access_queue():
+				//fields
 				head(nullptr),
 				tail(nullptr)
 		{
@@ -214,6 +218,7 @@ namespace CBB
 
 		template<typename type> CBB_basic_swap<type>::
 			CBB_basic_swap():
+				//field
 				queue()
 		{}
 
@@ -276,6 +281,7 @@ namespace CBB
 			{
 				if(need_writeback(tmp->get_data()))
 				{
+					_DEBUG("write back\n");
 					writeback_queue->push_back(tmp->get_data());
 					--count;
 				}
@@ -297,6 +303,7 @@ namespace CBB
 			{
 				if(need_writeback(tmp->get_data()))
 				{
+					_DEBUG("need write back\n");
 					writeback(tmp->get_data());
 				}
 

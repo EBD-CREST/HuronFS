@@ -34,10 +34,12 @@
 using namespace CBB::Common;
 using namespace std;
 
-CBB_communication_thread::CBB_communication_thread()throw(std::runtime_error):
+CBB_communication_thread::
+CBB_communication_thread()throw(std::runtime_error):
     keepAlive(KEEP_ALIVE),
     sender_epollfd(-1),
     receiver_epollfd(-1),
+    server_socket(-1),
     _handle_pool(),
     thread_started(UNSTARTED),
     input_queue(nullptr),

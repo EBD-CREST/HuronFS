@@ -104,6 +104,18 @@ AC_ARG_ENABLE([async],
 
 AM_CONDITIONAL([ASYNC_WRITE_BACK], [test "x$async" = xtrue])
 
+AC_ARG_ENABLE([client-multiple],
+	      [AS_HELP_STRING([--enable-client-multiple],[ enable multiple threading on client, requires --enable-client-multiple])],
+	      [ case "${enableval}" in
+	       	yes) client_multiple_threading=true 
+		AC_MSG_RESULT(Using multiple threading on client);;
+       		no)  client_multiple_threading=false
+		AC_MSG_RESULT(Using single thread on client);;
+		*) AC_MSG_FAILURE([bad value ${enableval} for --enable-client-multiple], 1) ;;
+	esac],[client_multiple_threading=false])
+
+AM_CONDITIONAL([CLIENT_MULTIPLE_THREADS], [test "x$client_multiple_threading" = xtrue])
+
 AC_ARG_WITH([cci],
     [AS_HELP_STRING([--with-cci(=DIR)],
                     [enable the cci (installed in DIR)])],

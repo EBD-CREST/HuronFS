@@ -57,21 +57,21 @@ namespace CBB
 						void _update_meta_for_rebuf(bool dirty_flag, size_t update_size);
 						off64_t _get_buf_off_from_file_off(off64_t file_off)const;
 					private:
-						bool dirty_flag;
-						bool buffer_flag;
-						int fd;
-						int err;
-						int open_flag;
-						mode_t open_mode;
-						char* buf;
-						char* cur_buf_ptr;
-						size_t buffer_size;
-						size_t buffered_data_size;
-						size_t file_size;
+						bool 	dirty_flag;
+						bool 	buffer_flag;
+						int 	fd;
+						int 	err;
+						int 	open_flag;
+						mode_t 	open_mode;
+						char* 	buf;
+						char* 	cur_buf_ptr;
+						size_t 	buffer_size;
+						size_t 	buffered_data_size;
+						size_t 	file_size;
 						//buf start point file offset
-						off64_t buf_file_off;
+						off64_t	buf_file_off;
 					private:
-						stream_info(const stream_info&);
+						stream_info(const stream_info&)=delete;
 				};
 			private:
 				typedef stream_info stream_info_t;
@@ -96,15 +96,16 @@ namespace CBB
 				int fileno_stream(FILE* stream);
 				int truncate_stream(FILE* stream, off64_t size);
 				bool interpret_stream(void* stream)const;
+				int update_underlying_file_size(FILE* file_stream);
 			private:
 				int _init_buffer_for_writing(stream_info_t* file_stream);
 				int _flush_stream(stream_info_t* stream);
-				int _update_underlying_file_size(FILE* file_stream);
 
 				//const FILE* _get_stream_from_path(const char* path)const;
 				//FILE* _get_stream_from_path(const char* path);
 			private:
 				int _parse_open_mode_flag(const char* path, int& flag, mode_t& open_mode)const;
+			private:
 
 				stream_pool_t _stream_pool;
 		};

@@ -52,6 +52,7 @@ namespace CBB
 			size_t allocate_memory()throw(std::bad_alloc);
 			bool need_allocation()const;
 			size_t free_memory();
+			void set_to_existing();
 			int lock();
 			int unlock();
 
@@ -121,12 +122,22 @@ namespace CBB
 			{
 				memory_allocator.free(_elem);
 				this->data=nullptr;
+				this->_elem=nullptr;
+				_DEBUG("free write back page %p\n", this->writeback_page);
+				this->writeback_page=nullptr;
 				return this->block_size;
 			}
 			else
 			{
 				return 0;
 			}
+		}
+
+		inline	void block::
+			set_to_existing()
+		{
+			exist_flag=EXISTING;
+			file_stat->exist_flag=EXISTING;
 		}
 	}
 }

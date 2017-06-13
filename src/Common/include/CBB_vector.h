@@ -66,14 +66,16 @@ namespace CBB
 			_actual_vector(size)
 		{}
 
-		template<class type> inline typename CBB_vector<type>::reference CBB_vector<type>::at(size_type pos) throw(std::out_of_range)
+		template<class type> inline typename CBB_vector<type>::reference CBB_vector<type>::
+			at(size_type pos) throw(std::out_of_range)
 		{
 			CBB_rwlock::rd_lock();
 			reference ret=_actual_vector.at(pos);
 			CBB_rwlock::unlock();
 		}
 
-		template<class type> inline typename CBB_vector<type>::const_reference CBB_vector<type>::at(size_type pos)const throw(std::out_of_range)
+		template<class type> inline typename CBB_vector<type>::const_reference CBB_vector<type>::
+			at(size_type pos)const throw(std::out_of_range)
 		{
 			CBB_rwlock::rd_lock();
 			const_reference ret=_actual_vector.at(pos);
@@ -81,7 +83,8 @@ namespace CBB
 			return ret;
 		}
 
-		template<class type> inline typename CBB_vector<type>::reference CBB_vector<type>::operator[](size_type pos)
+		template<class type> inline typename CBB_vector<type>::reference CBB_vector<type>::
+			operator[](size_type pos)
 		{
 			CBB_rwlock::rd_lock();
 			reference ret=_actual_vector[pos];
@@ -89,7 +92,8 @@ namespace CBB
 			return ret;
 		}
 
-		template<class type> inline typename CBB_vector<type>::const_reference CBB_vector<type>::operator[](size_type pos)const
+		template<class type> inline typename CBB_vector<type>::const_reference CBB_vector<type>::
+			operator[](size_type pos)const
 		{
 			CBB_rwlock::rd_lock();
 			const_reference ret=_actual_vector[pos];

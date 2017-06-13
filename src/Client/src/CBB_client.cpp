@@ -78,7 +78,9 @@ const char *mount_point=nullptr;
 }while(0)
 
 CBB_client::CBB_client()try:
+	//base class
 	Client(CLIENT_QUEUE_NUM),
+	//field
 	_fid_now(0),
 	_file_list(_file_list_t()),
 	_opened_file(_file_t(MAX_FILE)),

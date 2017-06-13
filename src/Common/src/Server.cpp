@@ -38,14 +38,17 @@ using namespace CBB::Common;
 
 Server::
 Server(int communication_thread_number, int port)throw(std::runtime_error):
+	//base class
 	CBB_communication_thread(),
 	CBB_request_handler(),
 	CBB_remote_task(),
+	//fields
 	_communication_input_queue(communication_thread_number),
 	_communication_output_queue(communication_thread_number),
 	_server_handle(),
 	server_port(port),
-	_threads_handle_map(communication_thread_number)
+	_threads_handle_map(communication_thread_number),
+	my_uri()
 {
 	for(int i=0;i<communication_thread_number; ++i)
 	{

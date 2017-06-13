@@ -55,8 +55,11 @@ namespace CBB
 				reference back();
 
 		};
+
 		template<class Key>CBB_deque<Key>::CBB_deque():
+			//base class
 			CBB_rwlock(),
+			//field
 			_actual_deque()
 		{}
 

@@ -360,7 +360,7 @@ read_stream(FILE* file_stream, void* buffer, size_t size)
 }
 
 int CBB_stream::
-_update_underlying_file_size(FILE* file_stream)
+update_underlying_file_size(FILE* file_stream)
 {
 	stream_info_t* stream=reinterpret_cast<stream_info_t*>(file_stream);
 

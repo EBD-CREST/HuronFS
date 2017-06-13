@@ -55,9 +55,9 @@ namespace CBB
 				CBB_heart_beat& operator=(const CBB_heart_beat&) = delete;
 
 			private:
-				int keepAlive;
-				communication_queue_t* input_queue;
-				communication_queue_t* output_queue;
+				int 			keepAlive;
+				communication_queue_t* 	input_queue;
+				communication_queue_t* 	output_queue;
 		};
 	}
 }

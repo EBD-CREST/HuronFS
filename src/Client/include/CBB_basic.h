@@ -137,6 +137,7 @@ namespace CBB
 			private:
 				const opened_file_info& operator=(const opened_file_info&)=delete;
 				//current offset in file
+			private:
 				off64_t 	current_point;
 				int 		fd;
 				int 		flag;

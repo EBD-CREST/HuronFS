@@ -28,8 +28,11 @@ using namespace std;
 using namespace CBB;
 using namespace CBB::Common;
 
-data_sync_task::data_sync_task(int id, data_sync_task* next):
+data_sync_task::
+data_sync_task(int id, data_sync_task* next):
+	//base class
 	basic_task(id, next),
+	//fields
 	task_id(),
 	handle(),
 	receiver_id(),
@@ -40,6 +43,7 @@ data_sync_task::data_sync_task(int id, data_sync_task* next):
 {}
 
 CBB_data_sync::CBB_data_sync():
+	//fields
 	keepAlive(KEEP_ALIVE),
 	thread_started(UNSTARTED),
 	pthread_id(-1),
@@ -80,7 +84,8 @@ void CBB_data_sync::stop_listening()
 	return;
 }
 
-void* CBB_data_sync::data_sync_thread_fun(void* args)
+void* CBB_data_sync::
+data_sync_thread_fun(void* args)
 {
 	CBB_data_sync* this_obj=static_cast<CBB_data_sync*>(args);
 

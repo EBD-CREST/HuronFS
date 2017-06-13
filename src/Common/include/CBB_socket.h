@@ -34,13 +34,13 @@ namespace CBB
 	{
 		class CBB_socket:public CBB_mutex_lock
 		{
-			private:
-				int socket;
 			public:
 				CBB_socket();
 				CBB_socket(int socket);
 				int init(int socket);
 				int get();
+			private:
+				int socket;
 		};
 	}
 }
