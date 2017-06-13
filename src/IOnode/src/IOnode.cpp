@@ -1201,17 +1201,20 @@ _sync_write_data(data_sync_task* new_task)
 	output_task->set_extended_data_size(new_task->size);
 
 	ssize_t tmp_size=new_task->size;
+	size_t  tmp_offset=new_task->offset;
 	auto block_it=requested_file->blocks.find(new_task->start_point);
+
 	while(end(requested_file->blocks) != block_it && 0 < tmp_size)
 	{
 		block* requested_block=block_it->second;
 		size_t IO_size=min(tmp_size, 
 				(ssize_t)requested_block->data_size);
 		output_task->push_send_buffer(
-			static_cast<char*>(requested_block->data),
+			static_cast<char*>(requested_block->data+tmp_offset),
 			IO_size);
 		tmp_size-=IO_size;
 		block_it++;
+		tmp_offset=0;
 	}
 #endif
 	output_task->push_back(SUCCESS);
