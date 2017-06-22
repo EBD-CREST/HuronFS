@@ -83,12 +83,14 @@ throw(std::runtime_error):
 			"please set IONODE_MOUNT_POINT environment value");
 	}
 
+	_mount_point=string(IOnode_mount_point);
+
 	if( nullptr != IOnode_memory_limit)
 	{
 		total_memory=_set_memory_limit(IOnode_memory_limit);
 	}
 
-	memory_pool_for_blocks.setup(BLOCK_SIZE, total_memory/BLOCK_SIZE);
+	memory_pool_for_blocks.setup(BLOCK_SIZE, total_memory/BLOCK_SIZE, IONODE_PRE_ALLOCATE_MEMORY_COUNT);
 
 	_setup_queues();
 
@@ -100,8 +102,6 @@ throw(std::runtime_error):
 	{
 		throw;
 	}
-
-	_mount_point=string(IOnode_mount_point);
 }
 
 int IOnode::
@@ -660,9 +660,9 @@ _close_file(extended_IO_task* new_task)
 	new_task->pop(file_no);
 	try
 	{
-		file& _file=_files.at(file_no);
+		//file& _file=_files.at(file_no);
 		//block_info_t &blocks=_file.blocks;
-		_DEBUG("close file, path=%s\n", _file.file_path.c_str());
+		//_DEBUG("close file, path=%s\n", _file.file_path.c_str());
 		/*for(block_info_t::iterator it=blocks.begin();
 				it != blocks.end();++it)
 		{
@@ -1134,7 +1134,8 @@ _sync_write_data(data_sync_task* new_task)
 	}
 #endif
 #ifdef SYNC_DATA_WITH_REPLY
-	for(auto& replica:requested_file->IOnode_pool)
+	for(auto i=requested_file->IOnode_pool.size();
+		i!=0; i--)
 	{
 		_get_sync_response();
 	}
@@ -1240,8 +1241,8 @@ configure_dump()
 	_LOG("under master %s\n", master_uri.c_str());
 	_LOG("mount point=%s\n", _mount_point.c_str());
 	_LOG("max block %d\n", _MAX_BLOCK_NUMBER);
-	_LOG("avaliable memory %ld bytes\n", 
-		memory_pool_for_blocks.get_available_memory_size()); //remain available memory; 
+	_LOG("total memory %ld bytes\n", 
+		memory_pool_for_blocks.get_total_memory_size()); //remain available memory; 
 }
 
 CBB::CBB_error IOnode::

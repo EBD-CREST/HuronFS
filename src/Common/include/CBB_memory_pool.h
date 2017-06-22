@@ -40,48 +40,63 @@ namespace CBB
 		public:
 			memory_elem(size_t size)throw(std::bad_alloc);
 			~memory_elem();
-			void* get_data();
+			void* get_memory();
 		public:
-			void* 		data;
+			void* 		memory;
 			memory_elem* 	next;
 		};
 
 		class memory_pool
 		{
 		public:
-			memory_pool(size_t size_of_elem, int count)throw(std::bad_alloc);
+			memory_pool(size_t size_of_elem, 
+				int total_count, int pre_alloc_count)throw(std::bad_alloc);
 			memory_pool();
-			void setup(size_t size_of_elem, int count)throw(std::bad_alloc);
+			void setup(size_t size_of_elem, 
+				int total_count, int pre_alloc_count)throw(std::bad_alloc);
 			~memory_pool();
 			void free(memory_elem* memory);
 			memory_elem* allocate()throw(std::bad_alloc);
 			bool has_memory_left(size_t)const;
 			size_t get_available_memory_size()const;
+			size_t get_total_memory_size()const;
+		private:
+			size_t allocate_more_memory()throw(std::bad_alloc);
 		private:
 			memory_elem* head;
 			size_t	     available_memory;
+			size_t       allocated_size;
 			size_t	     block_size;
+			size_t	     step_size;
+			size_t	     total_size;
 		};
 
 		typedef memory_pool allocator;
 
 
 		inline void* memory_elem::
-			get_data()
+			get_memory()
 		{
-			return data;
+			return memory;
 		}
 
 		inline bool memory_pool::
 			has_memory_left(size_t size)const
 		{
-			return available_memory >= size;
+			return available_memory >= size || 
+				total_size >= allocated_size + block_size;
 		}
 
 		inline size_t memory_pool::
 			get_available_memory_size()const
 		{
 			return this->available_memory;
+		}
+
+		inline size_t memory_pool::
+			get_total_memory_size()const
+		{
+			return this->total_size;
 		}
 	}
 }

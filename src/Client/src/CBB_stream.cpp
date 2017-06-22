@@ -44,7 +44,8 @@ stream_info(	bool 	dirty_flag,
 		size_t 	file_size,
 		off64_t buf_file_off,
 		int 	open_flag,
-		mode_t 	open_mode):
+		mode_t 	open_mode,
+		allocator& mem_allocator):
 	dirty_flag(dirty_flag),
 	buffer_flag(buffer_flag),
 	fd(fd),
@@ -56,11 +57,14 @@ stream_info(	bool 	dirty_flag,
 	buffer_size(STREAM_BUFFER_SIZE),
 	buffered_data_size(0),
 	file_size(file_size),
-	buf_file_off(buf_file_off)
+	buf_file_off(buf_file_off),
+	mem_allocator(mem_allocator),
+	_elem(nullptr)
 {
 	if(buffer_flag)
 	{
-		buf=new char[STREAM_BUFFER_SIZE];
+		_elem=mem_allocator.allocate();
+		buf=static_cast<char*>(_elem->get_memory());
 		cur_buf_ptr=buf;
 	}
 }
@@ -68,12 +72,13 @@ stream_info(	bool 	dirty_flag,
 CBB_stream::stream_info::
 ~stream_info()
 {
-	delete[] buf;
+	free_buffer();
 }
 
 CBB_stream::CBB_stream():
 	CBB_client(),
-	_stream_pool()
+	_stream_pool(),
+	buffer_pool()
 {
 	const char* use_buffer=nullptr;
 	if(nullptr == (use_buffer=getenv(STREAM_USE_BUFFER)))
@@ -89,6 +94,8 @@ CBB_stream::CBB_stream():
 	{
 		USE_BUFFER=false;
 	}
+	buffer_pool.setup(STREAM_BUFFER_SIZE,
+		MAX_FILE_NUMBER, CLIENT_PRE_ALLOCATE_MEMORY_COUNT);
 }
 
 CBB_stream::~CBB_stream()
@@ -155,7 +162,7 @@ open_stream(const char* path, const char* mode)
 		size_t file_size=_get_file_size(fd);
 		stream_info* new_stream=new stream_info(CLEAN, 
 				USE_BUFFER, fd, file_size,
-				0, flag, open_mode);
+				0, flag, open_mode, buffer_pool);
 		_stream_pool.insert(std::make_pair(new_stream, fd));
 		return reinterpret_cast<FILE*>(new_stream);
 	}
@@ -175,7 +182,7 @@ open_stream(const char* path, int flag, mode_t mode)
 		size_t file_size=_get_file_size(fd);
 		stream_info* new_stream=new stream_info(CLEAN,
 				USE_BUFFER, fd, 
-				file_size, 0, flag, mode);
+				file_size, 0, flag, mode, buffer_pool);
 		_stream_pool.insert(std::make_pair(new_stream, fd));
 		return reinterpret_cast<FILE*>(new_stream);
 	}
@@ -226,10 +233,8 @@ freebuf_stream(FILE* file_stream)
 	if(stream->buffer_flag)
 	{
 		flush_stream(file_stream);
-		stream->cur_buf_ptr=nullptr;
-		stream->buffered_data_size=0;
-		delete[] stream->buf;
 		stream->buffer_flag=false;
+		stream->free_buffer();
 	}
 }
 

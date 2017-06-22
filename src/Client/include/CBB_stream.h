@@ -25,8 +25,10 @@
 #ifndef CBB_STREAM_H_
 #define CBB_STREAM_H_
 
-#include "CBB_client.h"
 #include <linux/limits.h>
+
+#include "CBB_client.h"
+#include "CBB_memory_pool.h"
 
 namespace CBB
 {
@@ -45,7 +47,8 @@ namespace CBB
 								size_t file_size,
 								off64_t cur_file_ptr,
 								int open_flag,
-								mode_t open_mode);
+								mode_t open_mode,
+								Common::allocator& mem_allocator);
 						~stream_info();
 						size_t _update_cur_buf_ptr(CBB_stream& stream, size_t size);
 						off64_t _cur_buf_off()const;
@@ -56,6 +59,7 @@ namespace CBB
 						size_t _write_meta_update(size_t write_size);
 						void _update_meta_for_rebuf(bool dirty_flag, size_t update_size);
 						off64_t _get_buf_off_from_file_off(off64_t file_off)const;
+						void free_buffer();
 					private:
 						bool 	dirty_flag;
 						bool 	buffer_flag;
@@ -70,6 +74,8 @@ namespace CBB
 						size_t 	file_size;
 						//buf start point file offset
 						off64_t	buf_file_off;
+						Common::allocator& 	mem_allocator;
+						Common::memory_elem*	_elem;
 					private:
 						stream_info(const stream_info&)=delete;
 				};
@@ -107,7 +113,8 @@ namespace CBB
 				int _parse_open_mode_flag(const char* path, int& flag, mode_t& open_mode)const;
 			private:
 
-				stream_pool_t _stream_pool;
+				stream_pool_t 		_stream_pool;
+				Common::allocator	buffer_pool;
 		};
 		
 		inline off64_t CBB_stream::stream_info::
@@ -116,6 +123,18 @@ namespace CBB
 			return file_off - _cur_file_off() + static_cast<const off64_t>(cur_buf_ptr - buf);
 		}
 
+		inline void CBB_stream::stream_info::
+			free_buffer()
+		{
+			if(buffer_flag &&
+				nullptr != _elem)
+			{
+				mem_allocator.free(_elem);
+				_elem=nullptr;
+				cur_buf_ptr=nullptr;
+			}
+			buffered_data_size=0;
+		}
 	}
 }
 

@@ -30,10 +30,10 @@ using namespace std;
 memory_elem::
 memory_elem(size_t size)
 throw(std::bad_alloc):
-	data(malloc(size)),
+	memory(malloc(size)),
 	next(nullptr)
 {
-	if(nullptr == data)
+	if(nullptr == memory)
 	{
 		throw std::bad_alloc();
 	}
@@ -42,37 +42,49 @@ throw(std::bad_alloc):
 memory_elem::
 ~memory_elem()
 {
-	free(data);
+	free(memory);
 }
 
 void memory_pool::
-setup(size_t size_of_elem, int count)
+setup(	size_t 	size_of_elem, 
+	int 	total_count,
+	int	pre_alloc_count)
 throw(std::bad_alloc)
 {
-	available_memory=size_of_elem*count;
-	block_size=size_of_elem;
-
-	while(count--)
+	if(pre_alloc_count > total_count)
 	{
-		memory_elem* new_elem=new memory_elem(size_of_elem);
-		new_elem->next=head;
-		head=new_elem;
+		pre_alloc_count=total_count;
 	}
+
+	available_memory=0;
+	total_size=size_of_elem*total_count;
+	block_size=size_of_elem;
+	step_size=pre_alloc_count*size_of_elem;
 }
 
 memory_pool::
-memory_pool(size_t size_of_elem, int count)
+memory_pool(	size_t size_of_elem, 
+		int total_count,
+		int pre_alloc_count)
 throw(std::bad_alloc):
-	head(nullptr)
+	head(nullptr),
+	available_memory(0),
+	allocated_size(0),
+	block_size(0),
+	step_size(0),
+	total_size(0)
 {
-	setup(size_of_elem, count);
+	setup(size_of_elem, total_count, pre_alloc_count);
 }
 
 memory_pool::
 memory_pool():
 	head(nullptr),
 	available_memory(0),
-	block_size(0)
+	allocated_size(0),
+	block_size(0),
+	step_size(0),
+	total_size(0)
 {}
 
 memory_pool::
@@ -90,22 +102,18 @@ memory_elem* memory_pool::
 allocate()
 throw(std::bad_alloc)
 {
-	if(nullptr != head)
+	if(nullptr == head)
 	{
-		memory_elem* ret=head;
-		head=head->next;
-		available_memory-=block_size;
-		_LOG("allocate memory %p\n", ret);
-		_LOG("available_memory %ld\n", available_memory);
+		allocate_more_memory();
+	}
 
-		return ret;
-	}
-	else
-	{
-		_LOG("no enough memory for %ld avaliable_size %ld\n",
-				block_size, available_memory);
-		throw std::bad_alloc();
-	}
+	memory_elem* ret=head;
+	head=head->next;
+	available_memory-=block_size;
+	_DEBUG("allocate memory %p\n", ret);
+	_LOG("available_memory %ld\n", available_memory);
+
+	return ret;
 }
 
 void memory_pool::
@@ -115,7 +123,38 @@ free(memory_elem* memory)
 	head=memory;
 	available_memory+=block_size;
 
-	_LOG("free memory %p\n", memory);
+	_DEBUG("free memory %p\n", memory);
 	_LOG("available_memory %ld\n", available_memory);
 }
 
+size_t memory_pool::
+allocate_more_memory()throw(std::bad_alloc)
+{
+	size_t allocation_size=0;
+
+	if(total_size >= allocated_size + block_size)
+	{
+		allocation_size=MIN(total_size-allocated_size, step_size);
+		size_t tmp=allocation_size;
+
+		_DEBUG("allocate memory of %ld bytes\n", allocation_size);
+		while(block_size <= tmp)
+		{
+			memory_elem* new_elem=new memory_elem(block_size);
+			new_elem->next=head;
+			head=new_elem;
+			tmp-=block_size;
+		}
+	}
+	else
+	{
+		_LOG("no enough memory for %ld, available_size %ld, allocated size %ld, total_size %ld\n",
+				block_size, available_memory, allocated_size, total_size);
+		throw std::bad_alloc();
+	}
+	
+	available_memory+=allocation_size;
+	allocated_size+=allocation_size;
+
+	return allocation_size;
+}

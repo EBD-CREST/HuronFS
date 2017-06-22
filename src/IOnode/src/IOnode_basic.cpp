@@ -123,7 +123,7 @@ throw(std::bad_alloc)
 	}
 
 	_elem=memory_allocator.allocate();
-	data=_elem->get_data();
+	data=_elem->get_memory();
 	valid=VALID;
 	return block_size;
 }

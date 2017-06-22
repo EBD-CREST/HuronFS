@@ -83,6 +83,14 @@ const int DATA_SYNC_THREAD_NUM = 1;
 //the number of queue used to send heart beat in Master= 1
 const int CONNECTION_THREAD_NUM=1;
 
+const int IONODE_PRE_ALLOCATE_MEMORY_COUNT=100;
+
+#ifdef SINGLE_THREAD
+const int CLIENT_PRE_ALLOCATE_MEMORY_COUNT=10;
+#else
+const int CLIENT_PRE_ALLOCATE_MEMORY_COUNT=0;
+#endif
+
 //the number of communication queues used in master
 //the number = # of handler threads in server + # of queue used to send heart beat
 const int MASTER_QUEUE_NUM=SERVER_THREAD_NUM+HEART_BEAT_THREAD_NUM+CONNECTION_THREAD_NUM;
@@ -112,8 +120,7 @@ const size_t BLOCK_SIZE = 5*MB;
 //the number = block size * max block number
 //not used
 const size_t MAX_FILE_SIZE = BLOCK_SIZE*MAX_BLOCK_NUMBER;
-//the maximum file size supported;
-//not used
+//the maximum file number supported;
 const int MAX_FILE_NUMBER = 1000000; 
 //the max queue used in server listen as "backlog"
 const int MAX_QUEUE = 100; 

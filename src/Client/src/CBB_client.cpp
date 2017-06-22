@@ -883,7 +883,8 @@ _update_file_size_from_master(
 {
 	size_t file_size;
 	response->pop(file_size);
-	if(file_size > file_meta_p->get_file_stat().st_size)
+	if(file_size > static_cast<size_t>(
+		file_meta_p->get_file_stat().st_size))
 	{
 		file_meta_p->file_stat.st_size = file_size;
 	}
