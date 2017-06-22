@@ -706,6 +706,11 @@ _get_blocks_from_cache(
 		//append new blocks, go to master
 		return FAILURE;
 	}
+
+	if(DIRTY == file_meta_p->need_update)
+	{
+		return FAILURE;
+	}
 	file_meta_p->IOnode_list_cache.rd_lock();
 	for(IOnode_list_t::const_iterator it = begin(file_meta_p->IOnode_list_cache);
 			it != end(file_meta_p->IOnode_list_cache); ++it)
@@ -758,8 +763,8 @@ remote_IO(file_meta*	file_meta_p,
 	int ret=SUCCESS;
 
 	if((!_using_IOnode_cache()) || 
-			SUCCESS != (ret=_get_blocks_from_cache(file_meta_p,
-					start_point, size, blocks, node_pool)))
+		SUCCESS != (ret=_get_blocks_from_cache(file_meta_p,
+				start_point, size, blocks, node_pool)))
 	{
 		//if using cache and failed
 		//if not using cache
@@ -803,6 +808,20 @@ throw(std::runtime_error)
 	try
 	{
 		opened_file_info& file	  =_file_list.at(fid);
+
+
+		if(size + file.current_point > 
+				static_cast<size_t>(file.get_file_metadata().st_size))
+		{
+			if(file.get_file_metadata().st_size>file.current_point)
+			{
+				size=file.get_file_metadata().st_size-file.current_point;
+			}
+			else
+			{
+				return 0;
+			}
+		}
 
 		//forwarding to basic_read for remote reading
 		read_size=remote_IO(file.get_meta_pointer(), 
@@ -898,6 +917,7 @@ _update_file_size(int fd, size_t size)
 		{
 			file.file_meta_p->file_stat.st_size = size;
 		}
+		file.file_meta_p->need_update=DIRTY;
 		return 0;
 	}
 	catch(std::out_of_range&e)
@@ -918,6 +938,7 @@ _update_access_time(int fd)
 		time_t new_time=time(nullptr);
 		file.get_file_metadata().st_mtime=new_time;
 		file.get_file_metadata().st_atime=file.get_file_metadata().st_mtime;
+		file.file_meta_p->need_update=DIRTY;
 		return 0;
 	}
 	catch(std::out_of_range&e)

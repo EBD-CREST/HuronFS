@@ -46,6 +46,7 @@ file_meta(ssize_t remote_file_no,
 	corresponding_SCBB(corresponding_SCBB),
 	IOnode_list_cache(),
 	block_list(),
+	need_update(CLEAN),
 	it(nullptr)
 {}
 

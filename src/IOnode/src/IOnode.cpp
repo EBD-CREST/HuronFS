@@ -69,7 +69,8 @@ throw(std::runtime_error):
 	writeback_queue(),
 	writeback_status(IDLE),
 	dirty_pages(false),
-	memory_pool_for_blocks()
+	memory_pool_for_blocks(),
+	remove_file_list()
 {
 	const char *IOnode_mount_point=getenv(IONODE_MOUNT_POINT);
 	const char *IOnode_memory_limit=getenv(IONODE_MEMORY_LIMIT);
@@ -246,8 +247,6 @@ _parse_request(extended_IO_task* new_task)
 			request); break; 
 	}
 
-	add_write_back();
-
 	return ans; 
 }
 
@@ -359,7 +358,7 @@ _send_data(extended_IO_task* new_task)
 	new_task->pop(start_point);
 	new_task->pop(offset);
 	new_task->pop(size);
-	_LOG("request for send data\n");
+	_LOG("request for sending data\n");
 	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n",
 			file_no, start_point, offset, size);
 
@@ -438,7 +437,7 @@ _receive_data(extended_IO_task* new_task)
 	new_task->pop(start_point);
 	new_task->pop(offset);
 	new_task->pop(size);
-	_LOG("request for receive data\n");
+	_LOG("request for receiving data\n");
 	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n",
 			file_no, start_point, offset, size);
 
@@ -449,6 +448,8 @@ _receive_data(extended_IO_task* new_task)
 		remaining_size=size;
 		file& _file=_files.at(file_no);
 		block_info_t &blocks=_file.blocks;
+		_DEBUG("file path=%s\n", _file.file_path.c_str());
+
 		size_t receive_size=
 			(offset + size) > BLOCK_SIZE?BLOCK_SIZE-offset:size;
 		//the tmp variables for receiving data
@@ -813,8 +814,12 @@ _write_to_storage(block* block_data)
 throw(std::runtime_error)
 {
 	block_data->lock();
-	block_data->dirty_flag=CLEAN;
-	block_data->set_to_existing();
+
+	if(block_data->TO_BE_DELETED)
+	{
+		size_t size=block_data->data_size;
+		return size;
+	}
 
 	string real_path	=_get_real_path(block_data->file_stat->file_path);
 	off64_t     start_point	=block_data->start_point;
@@ -822,7 +827,6 @@ throw(std::runtime_error)
 	const char* buf		=static_cast<const char*>(block_data->data);
 	ssize_t	    ret		=0;
 
-	block_data->unlock();
 	int fd = open64(real_path.c_str(),O_WRONLY|O_CREAT, 0600);
 	if( -1 == fd)
 	{
@@ -852,10 +856,11 @@ throw(std::runtime_error)
 		len -= ret;
 	}
 	close(fd);
-	if(block_data->TO_BE_DELETED)
-	{
-		delete block_data;
-	}
+
+	block_data->dirty_flag=CLEAN;
+	block_data->set_to_existing();
+
+	block_data->unlock();
 	return size-len;
 }
 
@@ -988,7 +993,7 @@ _remove_file(ssize_t file_no)
 				block_it->second->TO_BE_DELETED=SET;
 			}
 		}
-		_files.erase(it);
+		remove_file_list.push_back(it);
 	}
 	return SUCCESS;
 }
@@ -1109,7 +1114,7 @@ _sync_write_data(data_sync_task* new_task)
 		size_t IO_size=min(tmp_size, 
 				(ssize_t)requested_block->data_size);
 		output_task->push_send_buffer(
-			static_cast<char*>(requested_block->data+tmp_offset),
+			(static_cast<char*>(requested_block->data)+tmp_offset),
 			IO_size);
 		tmp_size-=IO_size;
 		block_it++;
@@ -1281,6 +1286,14 @@ writeback(block* requested_block)
 }
 
 int IOnode::
+interval_process()
+{
+	remove_files();
+	add_write_back();
+	return SUCCESS;
+}
+
+int IOnode::
 add_write_back()
 {
 	if(IDLE == writeback_status && 
@@ -1370,4 +1383,19 @@ throw(std::runtime_error)
 		throw runtime_error(
 			"please set HUFS_IONODE_MEMORY_LIMIT to x {KB, MB, GB}\n");
 	}
+}
+
+int IOnode::
+remove_files()
+{
+	if(IDLE == writeback_status && 
+		0 != remove_file_list.size())
+	{
+		for(auto file:remove_file_list)
+		{
+			_files.erase(file);
+		}
+		remove_file_list.clear();
+	}
+	return SUCCESS;
 }

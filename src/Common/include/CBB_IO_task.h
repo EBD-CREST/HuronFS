@@ -623,7 +623,6 @@ namespace CBB
 			{
 				size_t* size=nullptr;
 				do_pop((void**)&size, sizeof(size_t));
-				_DEBUG("size of string is %lu\n", *size);
 				do_pop((void**)string_ptr, *size);
 				return *size;
 			}

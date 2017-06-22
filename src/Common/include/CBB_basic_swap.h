@@ -37,13 +37,15 @@ namespace CBB
 	namespace Common
 	{
 		template<typename type> class CBB_basic_swap;
+		template<typename type> class access_queue;
+
 		template<typename type> class access_page:
 			public list
 		{
 		public:
-			access_page(type* data);
-			access_page();
+			access_page(access_queue<type>* my_queue);
 			~access_page()=default;
+			int reset_myself();
 			type* get_data();
 			void set_data(type* data);
 			access_page* get_next();
@@ -51,7 +53,8 @@ namespace CBB
 			access_page* set_next(access_page* next);
 			access_page* set_prev(access_page* prev);
 		private:
-			type* data;
+			type* 			data;
+			access_queue<type>* 	my_queue;
 		};
 
 		template<typename type> class access_queue
@@ -62,25 +65,29 @@ namespace CBB
 			~access_queue();
 			access_page<type>* enqueue(access_page<type>* page);
 			int dequeue();
-			void insert(list* insert, list* before);
-			void del(list* elem);
-
+			int erase(access_page<type>* elem);
 			access_page<type>* push(type* chunk);
+			access_page<type>* pop();
 			access_page<type>* 
 				touch(access_page<type>* chunk);
 			bool is_empty()const;
 			bool is_full()const;
+		private:
+			void insert(list* insert, list* before);
+			void del(list* elem);
+
 			void destroy();
 		private:
 			/*push to head*/
 			access_page<type>* head;
 			/*pop from tail*/
 			access_page<type>* tail;
+			int		   page_count;
 		};
 						
 		template<typename type> class CBB_basic_swap
 		{
-		public:
+		protected:
 			CBB_basic_swap();
 			virtual ~CBB_basic_swap();
 			size_t swap_out(ssize_t size);
@@ -91,6 +98,7 @@ namespace CBB
 				access(access_page<type>* data)=0;
 			virtual access_page<type>* 
 				access(type*data)=0;
+			int remove_page_from_swap_queue(access_page<type>* page);
 			int prepare_writeback_page(
 					std::vector<type*>* writeback_queue,
 					int count);
@@ -110,18 +118,31 @@ namespace CBB
 			this->data=data;
 		}
 
+		template<typename type> int access_page<type>::
+			reset_myself()
+		{
+			return my_queue->erase(this);
+		}
+
 		template<typename type> access_page<type>* access_queue<type>::
 			touch(access_page<type>* page)
 		{
-			if(tail == page)
-			{
-				tail=tail->get_next();
-			}
-
 			del(page);
 
 			insert(page, head->get_prev());
 			return page;
+		}
+
+		//erase the page that has been deleted from the swap queue   
+		template<typename type> int  access_queue<type>::
+			erase(access_page<type>* page)
+		{
+			del(page);
+
+			insert(page, tail->get_prev());
+			
+			_DEBUG("erase a page %p, page count %d\n", page, page_count--);
+			return SUCCESS;
 		}
 
 		template<typename type> access_page<type>* access_page<type>::
@@ -167,33 +188,44 @@ namespace CBB
 		}
 
 		template<typename type> access_page<type>::
-			access_page(type* data):
+			access_page(access_queue<type>* my_queue):
 				//base class
 				list(),
 				//field
-				data(data)
-		{}
-
-		template<typename type> access_page<type>::
-			access_page():
-				//base class
-				list(),
-				//field
-				data(nullptr)
+				data(nullptr),
+				my_queue(my_queue)
 		{}
 
 		template<typename type> access_queue<type>::
 			access_queue():
 				//fields
 				head(nullptr),
-				tail(nullptr)
+				tail(nullptr),
+				page_count(0)
 		{
-			head=new access_page<type>();
-			tail=new access_page<type>();
+			head=new access_page<type>(this);
+			tail=new access_page<type>(this);
 			head->set_next(tail);
 			head->set_prev(tail);
 			tail->set_next(head);
 			tail->set_prev(head);
+		}
+
+		template<typename type> access_page<type>* access_queue<type>::
+			pop()
+		{
+			access_page<type>* ret=tail->get_next();
+			if(ret != head)
+			{
+				tail=ret;
+				_DEBUG("remove a page %p, page count=%d\n", ret, page_count--);
+
+				return ret;
+			}
+			else
+			{
+				return nullptr;
+			}
 		}
 
 		template<typename type> access_queue<type>::
@@ -245,15 +277,20 @@ namespace CBB
 
 			if(is_full())
 			{
-				new_element=new access_page<type>(data);
+				new_element=new access_page<type>(this);
+				new_element->set_data(data);
 				enqueue(new_element);
+				_DEBUG("allocate a new element\n");
 			}
 			else
 			{
 				new_element=head;
 				new_element->set_data(data);
 				head=head->get_next();
+				_DEBUG("reuse an element\n");
 			}
+
+			_DEBUG("track a new page, total pages %d\n", page_count++);
 
 			return new_element;
 		}
@@ -281,7 +318,7 @@ namespace CBB
 			{
 				if(need_writeback(tmp->get_data()))
 				{
-					_DEBUG("write back\n");
+					_LOG("write back page\n");
 					writeback_queue->push_back(tmp->get_data());
 					--count;
 				}
@@ -297,22 +334,31 @@ namespace CBB
 		{
 			ssize_t total_size=size;
 
-			access_page<type>* tmp=queue.tail->get_next();
+			access_page<type>* tmp=nullptr;
 			while(0 < size &&
-				tmp != queue.head)
+				nullptr != (tmp=queue.pop()))
 			{
 				if(need_writeback(tmp->get_data()))
 				{
-					_DEBUG("need write back\n");
+					_LOG("need write back\n");
 					writeback(tmp->get_data());
 				}
 
 				size -= free_data(tmp->get_data());
-				queue.tail=tmp;
-				tmp=tmp->get_next();
+			}
+
+			if(0 != size)
+			{
+				_LOG("cannot free memory for %ld\n", size);
 			}
 
 			return total_size-size;
+		}
+
+		template<typename type> int CBB_basic_swap<type>::
+			remove_page_from_swap_queue(access_page<type>* page)
+		{
+			return queue.erase(page);
 		}
 	}
 }

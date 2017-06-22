@@ -59,6 +59,12 @@ throw(std::bad_alloc):
 block::
 ~block()
 {
+	if(nullptr != this->writeback_page)
+	{
+		writeback_page->reset_myself();
+		_DEBUG("free write back page %p\n", this->writeback_page);
+	}
+
 	if(nullptr != _elem)
 	{
 		memory_allocator.free(_elem);
@@ -98,6 +104,7 @@ file(const char	 *path,
 file::
 ~file()
 {
+	_DEBUG("delete file %s\n", file_path.c_str());
 	block_info_t::const_iterator end=blocks.end();
 	for(block_info_t::iterator block_it=blocks.begin();
 			block_it!=end;++block_it)

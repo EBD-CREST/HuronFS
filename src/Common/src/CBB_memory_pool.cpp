@@ -95,12 +95,15 @@ throw(std::bad_alloc)
 		memory_elem* ret=head;
 		head=head->next;
 		available_memory-=block_size;
-		_DEBUG("available_memory %ld\n", available_memory);
+		_LOG("allocate memory %p\n", ret);
+		_LOG("available_memory %ld\n", available_memory);
 
 		return ret;
 	}
 	else
 	{
+		_LOG("no enough memory for %ld avaliable_size %ld\n",
+				block_size, available_memory);
 		throw std::bad_alloc();
 	}
 }
@@ -111,6 +114,8 @@ free(memory_elem* memory)
 	memory->next=head;
 	head=memory;
 	available_memory+=block_size;
-	_DEBUG("available_memory %ld\n", available_memory);
+
+	_LOG("free memory %p\n", memory);
+	_LOG("available_memory %ld\n", available_memory);
 }
 

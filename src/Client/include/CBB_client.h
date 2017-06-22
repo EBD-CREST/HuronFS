@@ -124,7 +124,6 @@ namespace CBB
 				int _update_file_size(int fd, size_t size);
 				int _write_update_file_size(opened_file_info& file, size_t size);
 				int _write_update_file_size(file_meta* file_meta_p, off64_t  current_point, size_t size);
-				int _get_IOnode_from_cache();
 			private:
 				//private functions
 				int _parse_blocks_from_master(

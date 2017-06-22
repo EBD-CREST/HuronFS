@@ -123,8 +123,8 @@ namespace CBB
 				memory_allocator.free(_elem);
 				this->data=nullptr;
 				this->_elem=nullptr;
-				_DEBUG("free write back page %p\n", this->writeback_page);
 				this->writeback_page=nullptr;
+
 				return this->block_size;
 			}
 			else

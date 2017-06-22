@@ -117,6 +117,7 @@ namespace CBB
 				//int 		master_handle;
 				IOnode_list_t	IOnode_list_cache;
 				_block_list_t	block_list;
+				bool		need_update;
 
 				_path_file_meta_map_t::iterator it;
 

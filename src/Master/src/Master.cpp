@@ -1582,6 +1582,7 @@ _allocate_new_blocks_for_writing(open_file_info 	&file,
 			return SUCCESS;
 		}
 	}
+
 	for(;remaining_size>0;remaining_size-=BLOCK_SIZE, current_point+=BLOCK_SIZE)
 	{
 		size_t block_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));

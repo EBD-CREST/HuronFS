@@ -40,6 +40,7 @@
 #include <exception>
 #include <stdlib.h>
 #include <map>
+#include <vector>
 
 #include "Server.h"
 #include "CBB_data_sync.h"
@@ -74,6 +75,8 @@ namespace CBB
 				//map: file_no: struct file
 				typedef std::map<ssize_t, file> file_t; 
 
+				typedef std::vector<file_t::const_iterator> remove_file_list_t;
+
 				static const char * IONODE_MOUNT_POINT;
 				static const char * IONODE_MEMORY_LIMIT;
 
@@ -98,6 +101,7 @@ namespace CBB
 				virtual size_t free_data(block* data)override final;
 				virtual bool need_writeback(block* data)override final;
 				virtual size_t writeback(block* data)override final;
+				virtual int interval_process()override final;
 
 				int _send_data(Common::extended_IO_task* new_task);
 				int _receive_data(Common::extended_IO_task* new_task);
@@ -176,6 +180,7 @@ namespace CBB
 						bool 	 valid,
 						file* 	 file_stat);
 				size_t _set_memory_limit(const char* limit_string)throw(std::runtime_error);
+				int remove_files();
 
 
 				//private member
@@ -198,13 +203,17 @@ namespace CBB
 				int			writeback_status;
 				bool			dirty_pages;
 				Common::memory_pool	memory_pool_for_blocks;
+				remove_file_list_t	remove_file_list;
 		};
 
 
 		inline bool IOnode::
 			need_writeback(block* data)
 		{
-			return DIRTY == data->dirty_flag;
+			data->lock();
+			bool ret=DIRTY == data->dirty_flag;
+			data->unlock();
+			return ret;
 		}
 
 		inline bool IOnode::
@@ -237,8 +246,10 @@ namespace CBB
 			_DEBUG("free memory of %s start point %ld\n",
 					data->file_stat->file_path.c_str(),
 					data->start_point);
-			data->writeback_page=nullptr;
-			return data->free_memory();
+			data->lock();
+			size_t ret=data->free_memory();
+			data->unlock();
+			return ret;
 		}
 	}
 }
