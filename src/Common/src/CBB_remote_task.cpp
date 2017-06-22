@@ -31,14 +31,18 @@
 using namespace CBB::Common;
 
 remote_task::remote_task():
+	//base class
 	basic_task(),
+	//fields
 	task_id(0),
 	task_data(nullptr),
 	extended_task_data(nullptr)
 {}
 
 remote_task::remote_task(int id, remote_task* next):
+	//base class
 	basic_task(id, next),
+	//fields
 	task_id(0),
 	task_data(nullptr),
 	extended_task_data(nullptr)

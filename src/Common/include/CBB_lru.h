@@ -22,44 +22,45 @@
  * Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef CBB_HEART_BEAT_H_
-#define CBB_HEART_BEAT_H_
+/* this file is for writing back operations in IOnode or Master*/
 
-#include "CBB_task_parallel.h"
-#include "CBB_communication_thread.h"
+#ifndef CBB_LRU_H_
+#define CBB_LRU_H_
+
+#include "CBB_basic_swap.h"
 
 namespace CBB
 {
 	namespace Common
 	{
-		class CBB_heart_beat
+		template<typename type> class CBB_lru:
+			public CBB_basic_swap<type>
 		{
-			public:
-				//socket, IOnode_id
-				typedef std::map<comm_handle_t, ssize_t> handle_map_t;
-				CBB_heart_beat();
-				CBB_heart_beat(communication_queue_t* input_queue,
-						communication_queue_t* output_queue);	
-				virtual ~CBB_heart_beat() = default;	
+		public:
+			CBB_lru()=default;
+			virtual ~CBB_lru()=default;
 
-				void set_queues(communication_queue_t* input_queue,
-						communication_queue_t* output_queue);
-				int heart_beat_check();
-
-				void heart_beat_func();
-
-				int send_heart_beat_check(comm_handle_t handle);
-				virtual int get_IOnode_handle_map(handle_map_t& map)=0;
-			private:
-				CBB_heart_beat(const CBB_heart_beat&) = delete;	
-				CBB_heart_beat& operator=(const CBB_heart_beat&) = delete;
-
-			private:
-				int 			keepAlive;
-				communication_queue_t* 	input_queue;
-				communication_queue_t* 	output_queue;
+			virtual access_page<type>* 
+				access(access_page<type>* data)override final;
+			virtual access_page<type>* 
+				access(type*data)override final;
+			virtual size_t free_data(type* data)=0;
+			virtual bool need_writeback(type* data)=0;
+			virtual size_t writeback(type* data)=0;
+			
 		};
+
+		template<typename type> access_page<type>* CBB_lru<type>::
+			access(access_page<type>* page)
+		{
+			return this->queue.touch(page);
+		}
+
+		template<typename type> access_page<type>* CBB_lru<type>::
+			access(type* data)
+		{
+			return this->queue.push(data);
+		}
 	}
 }
-
 #endif

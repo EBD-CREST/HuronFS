@@ -41,6 +41,8 @@
 #include "CBB_stream.h"
 #include "CBB_internal.h"
 
+//#define SINGLE_THREAD
+
 using namespace CBB::Common;
 using namespace CBB::Client;
 
@@ -48,59 +50,25 @@ extern CBB_stream client;
 struct fuse_operations CBB_oper;
 extern char* mount_point;
 
-
-#if 0
-#define start_record()
-
-#define end_record()	
-
-#define FLUSH_RECORD()
-
-#define raw_record()
-
-#else
-
-#define recording(rec)					\
-		do{					\
-		client.rec.file_name=__FILE__;			\
-		client.rec.function_name=__func__;		\
-		client.rec.line_number=__LINE__;		\
-		gettimeofday(&client.rec.time, nullptr);	\
-		}while(0)	
-
-#define start_record()				\
-		do{				\
-			recording(st);	\
-		}while(0)
-
-#define end_record()				\
-		do{				\
-			recording(et);	\
-			client._print_time();	\
-		}while(0)
-
-#define FLUSH_RECORD()				\
-		do{				\
-			client.flush_record();	        \
-		}while(0)
-	
-#define raw_record()			\
-		do{			\
-			recording(raw);	\
-			client.print_raw_time();\
-		}while(0)
-#endif
-
 static int CBB_open(const char* path, struct fuse_file_info *fi)
 {
+	_DEBUG("open with CBB path=%s\n", path);
 	mode_t mode=0600;
 	int flag=fi->flags;
+#ifdef SINGLE_THREAD
 	FILE* stream=nullptr;
-	_DEBUG("open with CBB path=%s\n", path);
 
-	start_record();
-	stream=client._open_stream(path, flag, mode);
-	end_record();
+	start_recording(&client);
+	stream=client.open_stream(path, flag, mode);
+	end_recording(&client);
+
+#else
+	file_meta* stream=nullptr;
+
+	start_recording(&client);
+	stream=client.remote_open(path, flag, mode);
+	end_recording(&client);
+#endif
 
 	fi->fh=(uint64_t)stream;
 	if(nullptr == stream)
@@ -117,21 +85,33 @@ static int CBB_flush(const char *path, struct fuse_file_info* fi)
 	FILE* stream=(FILE*)(fi->fh);
 	int ret=0;
 
-	start_record();
-	ret=client._flush_stream(stream);
-	end_record();
+#ifdef SINGLE_THREAD
+	start_recording(&client);
+	ret=client.flush_stream(stream);
+	end_recording(&client);
+#endif
 
 	return ret;
 }
 
 static int CBB_creat(const char * path, mode_t mode, struct fuse_file_info* fi)
 {
-	FILE* stream=nullptr;
 	_DEBUG("CBB create file path=%s\n", path);
 
-	start_record();
-	stream=client._open_stream(path, O_CREAT|O_WRONLY|O_TRUNC, mode);
-	end_record();
+#ifdef SINGLE_THREAD
+	FILE* stream=nullptr;
+
+	start_recording(&client);
+	stream=client.open_stream(path, O_CREAT|O_WRONLY|O_TRUNC, mode);
+	end_recording(&client);
+
+#else
+	file_meta* stream=nullptr;
+
+	start_recording(&client);
+	stream=client.remote_open(path, O_CREAT|O_WRONLY|O_TRUNC, mode);
+	end_recording(&client);
+#endif
 
 	fi->fh=(uint64_t)stream;
 	if(nullptr == stream)
@@ -144,24 +124,43 @@ static int CBB_creat(const char * path, mode_t mode, struct fuse_file_info* fi)
 	}
 }
 
-static int CBB_read(const char* path, char *buffer, size_t count, off_t offset, struct fuse_file_info* fi)
+static int CBB_read(	const char* 	path, 
+			char *		buffer,
+			size_t 		count, 
+			off_t 		offset,
+			struct fuse_file_info* fi)
 {
+#ifdef SINGLE_THREAD
 	FILE* stream=(FILE*)fi->fh;
 	int ret=0;
 	if(nullptr != stream)
 	{
 
-		start_record();
-		if(-1 == client._seek_stream(stream, offset, SEEK_SET))
+		start_recording(&client);
+		if(-1 == client.seek_stream(stream, offset, SEEK_SET))
 		{
 			return -1;
 		}
-		ret=client._read_stream(stream, buffer, count);
+		ret=client.read_stream(stream, buffer, count);
 		_DEBUG("ret=%d path=%s\n", ret,path);
-		end_record();
+		end_recording(&client);
 
 		return ret;
 	}
+#else
+	file_meta* stream=(file_meta*)fi->fh;
+	int ret=0;
+	if(nullptr != stream)
+	{
+
+		start_recording(&client);
+		ret=client.remote_IO(stream, buffer, offset, count, READ_FILE);
+		_DEBUG("ret=%d path=%s\n", ret,path);
+		end_recording(&client);
+
+		return ret;
+	}
+#endif
 	else
 	{
 		errno = EBADF;
@@ -169,26 +168,46 @@ static int CBB_read(const char* path, char *buffer, size_t count, off_t offset, 
 	}
 }
 
-static int CBB_write(const char* path, const char*buffer, size_t count, off_t offset, struct fuse_file_info* fi)
+static int CBB_write(	const char* 	path, 
+			const char* 	buffer,
+			size_t 		count,
+			off_t 		offset,
+			struct fuse_file_info* fi)
 {
+#ifdef SINGLE_THREAD
 	FILE* stream=(FILE*)fi->fh;
 	int ret;
 	if(nullptr != stream)
 	{
 
-		start_record();
-		if(-1 == client._seek_stream(stream, offset, SEEK_SET))
+		start_recording(&client);
+		if(-1 == client.seek_stream(stream, offset, SEEK_SET))
 		{
 
 			return -1;
 		}
 		_DEBUG("path=%s\n", path);
-		ret=client._write_stream(stream, buffer, count);
-		client._update_underlying_file_size(stream);
-		end_record();
+		ret=client.write_stream(stream, buffer, count);
+		client.update_underlying_file_size(stream);
+		end_recording(&client);
 
 		return ret;
 	}
+#else
+	file_meta* stream=(file_meta*)fi->fh;
+	int ret;
+	if(nullptr != stream)
+	{
+
+		start_recording(&client);
+		_DEBUG("path=%s\n", path);
+		ret=client.remote_IO(stream, (char*)(buffer), offset, count, WRITE_FILE);
+		//client._update_underlying_file_size(stream);
+		end_recording(&client);
+
+		return ret;
+	}
+#endif
 	else
 	{
 		errno = EBADF;
@@ -200,24 +219,29 @@ static int CBB_getattr(const char* path, struct stat* stbuf)
 {
 	_DEBUG("CBB getattr path=%s\n", path);
 
-	raw_record();
-	//start_record();
+	start_recording(&client);
+#ifdef SINGLE_THREAD
 	int ret=client.getattr(path, stbuf);
-	//end_record();
-	raw_record();
-	FLUSH_RECORD();
+#else
+	int ret=client.remote_getattr(path, stbuf);
+#endif
+	end_recording(&client);
 
 	_DEBUG("ret=%d path=%s file_size=%lu\n", ret,path,stbuf->st_size);
 	return ret;
 }
 
-static int CBB_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi)
+static int CBB_readdir(	const char* 	path, 
+			void* 		buf, 
+			fuse_fill_dir_t filler, 
+			off_t 		offset, 
+			struct fuse_file_info* fi)
 {
 	CBB_client::dir_t dir;
 
-	start_record();
+	start_recording(&client);
 	client.readdir(path,dir);
-	end_record();
+	end_recording(&client);
 
 	for(CBB_client::dir_t::const_iterator it=dir.begin();
 			it!=dir.end();++it)
@@ -235,9 +259,9 @@ static int CBB_unlink(const char* path)
 	_DEBUG("CBB unlink path=%s\n", path);
 
 	int ret=SUCCESS;
-	start_record();
+	start_recording(&client);
 	ret=client.unlink(path);
-	end_record();
+	end_recording(&client);
 
 	_DEBUG("ret=%d\n", ret);
 	return ret;
@@ -247,9 +271,9 @@ static int CBB_rmdir(const char* path)
 {
 	_DEBUG("CBB rmdir path=%s\n", path);
 
-	start_record();
+	start_recording(&client);
 	int ret=client.rmdir(path);
-	end_record();
+	end_recording(&client);
 
 	_DEBUG("ret=%d\n", ret);
 	return ret;
@@ -259,9 +283,9 @@ static int CBB_access(const char* path, int mode)
 {
 	_DEBUG("CBB access path=%s\n", path);
 
-	start_record();
+	start_recording(&client);
 	int ret=client.access(path, mode);
-	end_record();
+	end_recording(&client);
 
 	_DEBUG("ret=%d path=%s\n", ret, path);
 	return ret;
@@ -269,14 +293,22 @@ static int CBB_access(const char* path, int mode)
 
 static int CBB_release(const char* path, struct fuse_file_info* fi)
 {
+	_DEBUG("CBB release path=%s\n", path);
+#ifdef SINGLE_THREAD
 	FILE* stream=(FILE*)fi->fh;
 	int ret=-1;
-	_DEBUG("CBB release path=%s\n", path);
 
-	start_record();
-	ret=client._close_stream(stream);
-	end_record();
+	start_recording(&client);
+	ret=client.close_stream(stream);
+	end_recording(&client);
+#else
+	file_meta* stream=(file_meta*)fi->fh;
+	int ret=-1;
 
+	start_recording(&client);
+	//ret=client.close(stream);
+	end_recording(&client);
+#endif
 	_DEBUG("ret=%d path=%s\n", ret, path);
 	return ret;
 }
@@ -285,9 +317,9 @@ static int CBB_mkdir(const char* path, mode_t mode)
 {
 	_DEBUG("CBB mkdir path=%s\n", path);
 
-	start_record();
+	start_recording(&client);
 	int ret=client.mkdir(path, mode);
-	end_record();
+	end_recording(&client);
 
 	_DEBUG("ret=%d\n", ret);
 	return ret;
@@ -297,9 +329,9 @@ static int CBB_rename(const char* old_name, const char* new_name)
 {
 	_DEBUG("CBB rename path=%s\n", old_name);
 
-	start_record();
+	start_recording(&client);
 	int ret=client.rename(old_name, new_name);
-	end_record();
+	end_recording(&client);
 
 	_DEBUG("ret=%d\n", ret);
 	return ret;
@@ -309,7 +341,7 @@ static int CBB_mknod(const char* path, mode_t mode, dev_t rdev)
 {
 	_DEBUG("CBB mknod path=%s, mode=%d\n", path, mode);
 
-	client._open_stream(path, 0600, mode);
+	//client._open_stream(path, 0600, mode);
 
 	return 0;
 }
@@ -318,21 +350,20 @@ static int CBB_truncate(const char* path, off_t size)
 {
 	_DEBUG("CBB truncate path=%s\n", path);
 
-	start_record();
+	start_recording(&client);
 	int ret=client.truncate(path, size);
-	end_record();
+	end_recording(&client);
 
 	return ret;
 }
 
 static int CBB_ftruncate(const char* path, off_t size, struct fuse_file_info* fi)
 {
-	FILE* stream=(FILE*)fi->fh;
 	_DEBUG("CBB ftruncate path=%s\n", path);
 
-	start_record();
-	int ret=client._truncate_stream(stream, size);
-	end_record();
+	start_recording(&client);
+	int ret=client.truncate(path, size);
+	end_recording(&client);
 
 	return ret;
 }
@@ -372,8 +403,10 @@ int main(int argc, char *argv[])
 	CBB_oper.ftruncate=CBB_ftruncate;
 	//CBB_oper.utimens=CBB_utimens;
 	
-	char** fuse_argv=new char*[argc+2];
+	char** fuse_argv=new char*[argc+4];
+#ifdef SINGLE_THREAD
 	char* single_thread_string="-s";
+#endif
 	bool daemon_flag=true;
 	
 	for(int i=0; i<argc ;++i)
@@ -385,7 +418,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
+#ifdef SINGLE_THREAD
 	fuse_argv[argc++]=single_thread_string;
+#endif
+	fuse_argv[argc++]="-o";
+	fuse_argv[argc++]="direct_io";
 	fuse_argv[argc++]=mount_point;
 	if(!daemon_flag)
 	{

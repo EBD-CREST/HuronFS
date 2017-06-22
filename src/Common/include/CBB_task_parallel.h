@@ -60,8 +60,8 @@ namespace CBB
 				virtual void set_id(int id);
 				int get_id()const;
 			private:
-				int id;
-				basic_task* next;
+				int 		id;
+				basic_task* 	next;
 		};
 
 		template<class task_type> class task_parallel_queue
@@ -96,40 +96,46 @@ namespace CBB
 				//and make item available later
 				std::atomic<task_type*> queue_tmp_head;
 
-				size_t length_of_queue;
+				size_t 			length_of_queue;
 				
-				pthread_mutex_t lock;
-				pthread_cond_t queue_empty;
+				pthread_mutex_t 	lock;
+				pthread_cond_t 		queue_empty;
 
-				int queue_event_fd;
-				int queue_id;
-				pthread_mutex_t queue_lock;
+				int 			queue_event_fd;
+				int 			queue_id;
+				pthread_mutex_t 	queue_lock;
 		};
 
-		inline basic_task::basic_task(int id, basic_task* next):
+		inline basic_task::
+			basic_task(int id, basic_task* next):
 			id(id),
 			next(next)
 		{}
 
-		inline basic_task* basic_task::get_next()
+		inline basic_task* basic_task::
+			get_next()
 		{
 			return this->next;
 		}
 
-		inline void basic_task::set_next(basic_task* next_pointer)
+		inline void basic_task::
+			set_next(basic_task* next_pointer)
 		{
 			this->next=next_pointer;
 		}
 
-		inline void basic_task::reset()
+		inline void basic_task::
+			reset()
 		{}
 
-		inline void basic_task::set_id(int id)
+		inline void basic_task::
+			set_id(int id)
 		{
 			this->id=id;
 		}
 
-		inline int basic_task::get_id()const
+		inline int basic_task::
+			get_id()const
 		{
 			return this->id;
 		}
@@ -140,7 +146,8 @@ namespace CBB
 			this->queue_event_fd=queue_event_fd;
 		}
 
-		template<class task_type> task_parallel_queue<task_type>::task_parallel_queue():
+		template<class task_type> task_parallel_queue<task_type>::
+			task_parallel_queue():
 			queue_head(nullptr),
 			queue_tail(new task_type()),
 			queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
@@ -160,7 +167,8 @@ namespace CBB
 			pthread_mutex_init(&lock, nullptr);
 		}
 
-		template<class task_type> task_parallel_queue<task_type>::task_parallel_queue(int id):
+		template<class task_type> task_parallel_queue<task_type>::
+			task_parallel_queue(int id):
 			queue_head(nullptr),
 			queue_tail(new task_type()),
 			queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
@@ -180,7 +188,8 @@ namespace CBB
 			pthread_mutex_init(&lock, nullptr);
 		}
 
-		template<class task_type> task_parallel_queue<task_type>::task_parallel_queue(int id, int event_fd):
+		template<class task_type> task_parallel_queue<task_type>::
+			task_parallel_queue(int id, int event_fd):
 			queue_head(nullptr),
 			queue_tail(new task_type()),
 			queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
@@ -200,33 +209,39 @@ namespace CBB
 			pthread_mutex_init(&lock, nullptr);
 		}
 
-		template<class task_type> task_parallel_queue<task_type>::~task_parallel_queue()
+		template<class task_type> task_parallel_queue<task_type>::
+			~task_parallel_queue()
 		{
 			destory_queue();
 		}
 
-		template<class task_type> inline int task_parallel_queue<task_type>::try_lock_queue()
+		template<class task_type> inline int task_parallel_queue<task_type>::
+			try_lock_queue()
 		{
 			return pthread_mutex_trylock(&queue_lock);
 		}
 
-		template<class task_type> inline int task_parallel_queue<task_type>::unlock_queue()
+		template<class task_type> inline int task_parallel_queue<task_type>::
+			unlock_queue()
 		{
 			return pthread_mutex_unlock(&queue_lock);
 		}
 
-		template<class task_type> inline bool task_parallel_queue<task_type>::is_empty()
+		template<class task_type> inline bool task_parallel_queue<task_type>::
+			is_empty()
 		{
 			return this->queue_tail.load()->get_next() == this->queue_head.load();
 		}
 
-		template<class task_type> inline void task_parallel_queue<task_type>::task_dequeue()
+		template<class task_type> inline void task_parallel_queue<task_type>::
+			task_dequeue()
 		{
 			task_type* current_tmp_tail=this->queue_tmp_tail.load();
 			this->queue_tmp_tail.store(static_cast<task_type*>(current_tmp_tail->get_next()));
 		}
 
-		template<class task_type> bool task_parallel_queue<task_type>::task_wait()
+		template<class task_type> bool task_parallel_queue<task_type>::
+			task_wait()
 		{
 			static task_type* previous_head=nullptr;
 
@@ -248,7 +263,8 @@ namespace CBB
 			return true;
 		}
 
-		template<class task_type> task_type* task_parallel_queue<task_type>::get_task()
+		template<class task_type> task_type* task_parallel_queue<task_type>::
+			get_task()
 		{
 			while(is_empty())
 			{
@@ -264,7 +280,8 @@ namespace CBB
 			return new_task;
 		}
 
-		template<class task_type> task_type* task_parallel_queue<task_type>::allocate_tmp_node()
+		template<class task_type> task_type* task_parallel_queue<task_type>::
+			allocate_tmp_node()
 		{
 			task_type* ret=nullptr;
 			if(queue_tmp_tail.load() == queue_tmp_head.load()->get_next())
@@ -289,7 +306,8 @@ namespace CBB
 			return ret;
 		}
 
-		template<class task_type> int task_parallel_queue<task_type>::task_enqueue_signal_notification()
+		template<class task_type> int task_parallel_queue<task_type>::
+			task_enqueue_signal_notification()
 		{
 			_DEBUG("task enqueue of queue %p task %p\n", this, queue_head.load());
 			this->queue_head.store(static_cast<task_type*>(
@@ -300,7 +318,8 @@ namespace CBB
 			return SUCCESS;
 		}
 
-		template<class task_type> int task_parallel_queue<task_type>::task_enqueue()
+		template<class task_type> int task_parallel_queue<task_type>::
+			task_enqueue()
 		{
 			_DEBUG("task enqueue of queue %p task %p\n", this, queue_head.load());
 			this->queue_head.store(static_cast<task_type*>(
@@ -316,9 +335,16 @@ namespace CBB
 			return SUCCESS;
 		}
 
-		template<class task_type> void task_parallel_queue<task_type>::destory_queue()
+		template<class task_type> void task_parallel_queue<task_type>::
+			destory_queue()
 		{
 			basic_task* tmp=nullptr, *next=queue_head.load();
+
+			if(nullptr == next || nullptr == queue_tail.load())
+			{
+				//queue is empty
+				return;
+			}
 			while(this->queue_tail.load() != next)
 			{
 				tmp=next;
@@ -326,10 +352,13 @@ namespace CBB
 				delete tmp;
 			}
 			delete queue_tail;
+			queue_head.store(nullptr);
+			queue_tail.store(nullptr);
 			return;
 		}
 
-		template<class task_type>void task_parallel_queue<task_type>::set_queue_id(int id)
+		template<class task_type>void task_parallel_queue<task_type>::
+			set_queue_id(int id)
 		{
 			queue_id=id;
 			basic_task* next=queue_head.load();
@@ -343,12 +372,14 @@ namespace CBB
 			return;
 		}
 
-		template<class task_type> void task_parallel_queue<task_type>::putback_tmp_node()
+		template<class task_type> void task_parallel_queue<task_type>::
+			putback_tmp_node()
 		{
 			queue_tmp_head.store(queue_head.load());
 		}
 
-		template<class task_type> void task_parallel_queue<task_type>::flush_queue()const
+		template<class task_type> void task_parallel_queue<task_type>::
+			flush_queue()const
 		{
 			basic_task* next=queue_head.load()->get_next();
 			_DEBUG("queue entry %p\n", queue_head.load());
@@ -358,7 +389,6 @@ namespace CBB
 				next=next->get_next();
 			}
 			_DEBUG("end of queue entry\n");
-			//_DEBUG("queue head %p, queue tmp head %p, queue tail %p, queue tmp tail %p\n", queue_head, queue_tmp_head, queue_tail, queue_tmp_tail);
 			return;
 		}
 

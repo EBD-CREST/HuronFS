@@ -78,7 +78,9 @@ const char *mount_point=nullptr;
 }while(0)
 
 CBB_client::CBB_client()try:
+	//base class
 	Client(CLIENT_QUEUE_NUM),
+	//field
 	_fid_now(0),
 	_file_list(_file_list_t()),
 	_opened_file(_file_t(MAX_FILE)),
@@ -141,9 +143,6 @@ catch(exception &e)
 void CBB_client::
 start_threads()
 {
-	_client_addr.sin_family = AF_INET;
-	_client_addr.sin_port = htons(0);
-	_client_addr.sin_addr.s_addr = htons(INADDR_ANY);
 	Client::start_client();
 	if(-1 == _register_to_master())
 	{
@@ -158,7 +157,7 @@ _register_to_master()
 {
 	int ret=0;
 	const char* master_ip_list=getenv(MASTER_IP_LIST);
-	char master_ip[20];
+	char master_ip[IP_STRING_LEN];
 	if(nullptr == master_ip_list)
 	{
 		fprintf(stderr, "please set master ip\n");
@@ -264,7 +263,7 @@ _parse_blocks_from_master(
 			end(IOnode_cache), 
 			node_id) == end(IOnode_cache))
 		{
-			IOnode_cache.push_back(node_id);
+			IOnode_cache.insert(node_id);
 		}
 	}
 	response->pop(count);
@@ -277,7 +276,10 @@ _parse_blocks_from_master(
 
 		//always insert, will return false when the block is 
 		//already in the cache, but ignore the return value
-		block_cache.insert(make_pair(start_point, block_size));
+		if(_using_IOnode_cache())
+		{
+			block_cache.insert(make_pair(start_point, block_size));
+		}
 		/*_block_list_t::iterator it;
 		if(std::end(block_cache) != 
 				(it=std::find(std::begin(block_cache),
@@ -314,6 +316,61 @@ int CBB_client::_get_fid()
 	return -1;
 }
 
+file_meta* CBB_client::
+remote_open(const char* 	path,
+	   int 	  		flag,
+	   mode_t 	  	mode)
+{
+	int 		  master_number	=_get_master_number_from_path(path);
+	comm_handle_t	  master_handle	=_get_master_handle_from_master_number(master_number);
+	extended_IO_task* response	=nullptr;
+	file_meta* 	  file_meta_p	=nullptr;
+	int 		  ret		=master_number;
+
+	_DEBUG("connect to master\n");
+	do{
+		master_number = ret;
+		extended_IO_task* query=allocate_new_query(master_handle);
+		query->push_back(OPEN_FILE); 
+		query->push_back_string(path);
+
+		if(flag & O_CREAT)
+		{
+			query->push_back(flag); 
+		}
+		query->push_back(mode);
+		send_query(query);
+		response=get_query_response(query);
+		master_handle = _get_master_handle_from_master_number(ret);
+	}while(master_number != ret && response_dequeue(response));
+	response->pop(ret);
+	if(SUCCESS == ret)
+	{
+		_DEBUG("open finished\n");
+		if(nullptr == file_meta_p)
+		{
+			file_meta_p=
+				_create_new_file(response,
+						_get_scbb_from_master_number(master_number));
+
+		}
+		else
+		{
+			response->pop(file_meta_p->remote_file_no);
+			response->pop(file_meta_p->block_size);
+			Recv_attr(response, &file_meta_p->file_stat);
+		}
+	}
+	else
+	{
+		errno=-ret;
+		_DEBUG("server return error!");
+	}
+	response_dequeue(response);
+
+	return  file_meta_p;
+}
+
 int CBB_client::
 _open(const char* path,
       int 	  flag,
@@ -323,11 +380,7 @@ throw(std::runtime_error)
 	CHECK_INIT();
 	file_meta* 	  file_meta_p	=nullptr;
 	string 	  	  string_path	=string(path);
-	int 		  master_number	=_get_master_number_from_path(path);
-	comm_handle_t	  master_handle	=_get_master_handle_from_master_number(master_number);
-	int 		  ret		=master_number;
 	int 		  fid		=0;
-	extended_IO_task* response	=nullptr;
 
 	if(-1 == (fid=_get_fid()))
 	{
@@ -341,55 +394,16 @@ throw(std::runtime_error)
 	}
 	catch(std::out_of_range& e)
 	{
-		_DEBUG("connect to master\n");
-		do{
-			master_number = ret;
-			extended_IO_task* query=allocate_new_query(master_handle);
-			query->push_back(OPEN_FILE); 
-			query->push_back_string(path);
-
-			if(flag & O_CREAT)
-			{
-				query->push_back(flag); 
-			}
-			query->push_back(mode);
-			send_query(query);
-			response=get_query_response(query);
-			master_handle = _get_master_handle_from_master_number(ret);
-		}while(master_number != ret && response_dequeue(response));
-		response->pop(ret);
-		if(SUCCESS == ret)
-		{
-			_DEBUG("open finished\n");
-			if(nullptr == file_meta_p)
-			{
-				file_meta_p=
-					_create_new_file(response,
-					_get_scbb_from_master_number(master_number));
-
-				_path_file_meta_map_t::iterator it=
-					_path_file_meta_map.insert(
-						make_pair(string_path,
-							file_meta_p)).first;
-				file_meta_p->it=it;
-			}
-			else
-			{
-				response->pop(file_meta_p->remote_file_no);
-				response->pop(file_meta_p->block_size);
-				Recv_attr(response, &file_meta_p->file_stat);
-			}
-		}
-		else
-		{
-			errno=-ret;
-			response_dequeue(response);
-			_DEBUG("server return error!");
-			return -1;
-		}
-		response_dequeue(response);
+		//forwarding to remote open
+		file_meta_p=remote_open(path, flag, mode);
 	}
 	int fd=_fid_to_fd(fid);
+	_path_file_meta_map_t::iterator it=
+		_path_file_meta_map.insert(
+				make_pair(std::string(path),
+					file_meta_p)).first;
+	file_meta_p->it=it;
+
 	opened_file_info& file=
 		_file_list.insert(make_pair(fid,
 			opened_file_info(fd, 
@@ -435,21 +449,34 @@ _create_new_file(extended_IO_task* response,
 
 ssize_t CBB_client::
 _read_from_IOnode(
-		SCBB* 	    		corresponding_SCBB,
-		opened_file_info& 	file,
+		file_meta* 	file_meta,
 		const _block_list_t& 	blocks,
 		const _node_pool_t& 	node_pool,
-		char* 			buffer,
-		size_t 			size)
+		char* 		buffer,
+		off64_t		offset,
+		size_t 		size)
 {
 	ssize_t 	   ans		=0;
 	int 		   ret		=0;
-	off64_t 	   current_point=file.current_point;
+	off64_t 	   current_point=offset;
 	size_t 		   read_size	=size;
 	off64_t 	   start_point	=begin(blocks)->first;
 	extended_IO_task*  response	=nullptr;
 	extended_IO_task*  query	=nullptr;
 	comm_handle_t	   IOnode_handle=begin(node_pool)->second;
+
+	if(size + offset> static_cast<size_t>(file_meta->get_file_stat().st_size))
+	{
+		if(file_meta->get_file_stat().st_size>offset)
+		{
+			read_size=file_meta->get_file_stat().st_size-offset;
+			_DEBUG("changing read size from %ld to %ld\n", size, read_size);
+		}
+		else
+		{
+			return 0;
+		}
+	}
 
 	while(0 < read_size)
 	{
@@ -464,7 +491,7 @@ _read_from_IOnode(
 			query=allocate_new_query(IOnode_handle);
 			query->setup_large_transfer(RMA_READ);
 			query->push_back(READ_FILE);
-			query->push_back(file.get_remote_file_no());
+			query->push_back(file_meta->get_remote_file_no());
 			query->push_back(start_point);
 			query->push_back(offset);
 			query->push_back(IO_size);
@@ -484,7 +511,7 @@ _read_from_IOnode(
 
 			_DEBUG("IO_size=%lu, start_point=%ld, remote_file_no=%ld, ret_size=%ld\n",
 				IO_size, start_point,
-				file.get_remote_file_no(), ret_size);
+				file_meta->remote_file_no, ret_size);
 			if(-1 == ret_size)
 			{
 				response_dequeue(response);
@@ -493,9 +520,9 @@ _read_from_IOnode(
 			else
 			{
 				_DEBUG("read size=%ld current point=%ld\n",
-					ret_size, file.current_point);
+					ret_size, current_point);
 				ans+=ret_size;
-				file.current_point += ret_size;
+				//file.current_point += ret_size;
 				current_point += ret_size;
 				start_point=find_start_point(blocks, start_point, ret_size);
 				read_size -= ret_size;
@@ -512,16 +539,17 @@ _read_from_IOnode(
 }
 
 ssize_t CBB_client::
-_write_to_IOnode(SCBB*			corresponding_SCBB,
-		opened_file_info& 	file,
+_write_to_IOnode(
+		file_meta* 	file_meta,
 		const _block_list_t& 	blocks,
 		const _node_pool_t& 	node_pool,
-		const char* 		buffer,
+		char* 		buffer,
+		off64_t		offset,
 		size_t 		size)
 {
 	ssize_t 		ans		=0;
 	int 			ret		=0;
-	off64_t 		current_point	=file.current_point;
+	off64_t 		current_point	=offset;
 	size_t 			write_size	=size;
 	off64_t 		start_point	=begin(blocks)->first;
 	comm_handle_t		IOnode_handle	=begin(node_pool)->second;
@@ -537,13 +565,13 @@ _write_to_IOnode(SCBB*			corresponding_SCBB,
 		size_t IO_size = MAX_TRANSFER_SIZE > write_size? write_size: MAX_TRANSFER_SIZE;
 
 		_DEBUG("IO_size=%lu, start_point=%ld, remote_file_no=%ld\n",
-				IO_size, start_point, file.get_remote_file_no());
+				IO_size, start_point, file_meta->get_remote_file_no());
 		do
 		{
 			query=allocate_new_query(IOnode_handle);
 			query->setup_large_transfer(RMA_WRITE);
 			query->push_back(WRITE_FILE);
-			query->push_back(file.get_remote_file_no());
+			query->push_back(file_meta->get_remote_file_no());
 			query->push_back(start_point);
 			query->push_back(offset);
 			query->push_back(IO_size);
@@ -566,9 +594,9 @@ _write_to_IOnode(SCBB*			corresponding_SCBB,
 			else
 			{
 				_DEBUG("write size=%ld current point=%ld\n",
-						ret_size, file.current_point);
+						ret_size, current_point);
 				ans+=ret_size;
-				file.current_point+=ret_size;
+				//file.current_point+=ret_size;
 				current_point += ret_size;
 				start_point=find_start_point(blocks,
 						start_point, ret_size);
@@ -620,25 +648,25 @@ _get_IOnode_handle(
 
 int CBB_client::
 _get_blocks_from_master(
-		opened_file_info& file,
-		SCBB* 		  corresponding_SCBB,
-		ssize_t 	  fd,
-		size_t 	  	  size, 
-		_block_list_t&	  blocks,
-		_node_pool_t&	  node_pool,
-		int 		  mode)
+		file_meta* 	file_meta_p,
+		off64_t		start_point,
+		size_t 	  	size, 
+		_block_list_t&	blocks,
+		_node_pool_t&	node_pool,
+		int 		mode)
 {
 	int ret=0;
 	_DEBUG("connect to master to get blocks\n");
-	comm_handle_t master_handle=_get_master_handle_from_fd(fd);
+	comm_handle_t master_handle=file_meta_p->get_master_handle();
 	extended_IO_task* query=allocate_new_query(master_handle);
 	query->push_back(mode);
-	query->push_back(file.get_remote_file_no());
+	query->push_back(file_meta_p->remote_file_no);
 	if(WRITE_FILE == mode)
 	{
-		Send_attr(query, &file.file_meta_p->file_stat);
+		_write_update_file_size(file_meta_p, start_point, size);
+		Send_attr(query, &file_meta_p->file_stat);
 	}
-	query->push_back(file.current_point);
+	query->push_back(start_point);
 	query->push_back(size);
 	send_query(query);
 
@@ -646,11 +674,10 @@ _get_blocks_from_master(
 	response->pop(ret);
 	if(SUCCESS == ret)
 	{
-		_update_file_size_from_master(response, file);
-		_parse_blocks_from_master(response, corresponding_SCBB, 
-				file.current_point, size,
-				blocks, file.block_list, 
-				node_pool, file.IOnode_list_cache);
+		_update_file_size_from_master(response, file_meta_p);
+		_parse_blocks_from_master(response, file_meta_p->corresponding_SCBB, 
+				start_point, size, blocks, file_meta_p->block_list, 
+				node_pool, file_meta_p->IOnode_list_cache);
 		response_dequeue(response);
 	}
 	else
@@ -664,31 +691,42 @@ _get_blocks_from_master(
 
 int CBB_client::
 _get_blocks_from_cache(
-		opened_file_info& file,
-		SCBB*		  corresponding_SCBB,
-		size_t 	  	  size,
-		_block_list_t&	  block_list,
-		_node_pool_t&	  node_pool)
+		file_meta*	file_meta_p,
+		off64_t		start_point,
+		size_t 	  	size,
+		_block_list_t&	block_list,
+		_node_pool_t&	node_pool)
 {
+	SCBB*  corresponding_SCBB=file_meta_p->corresponding_SCBB;
 	_DEBUG("getting blocks from cache\n");
-	if(static_cast<ssize_t> (size + file.current_point)
-		> file.get_file_metadata().st_size)
+
+	if(static_cast<ssize_t> (size + start_point)
+		> file_meta_p->get_file_stat().st_size)
 	{
 		//append new blocks, go to master
 		return FAILURE;
 	}
-	for(IOnode_list_t::const_iterator it = begin(file.IOnode_list_cache);
-			it != end(file.IOnode_list_cache); ++it)
+
+	if(DIRTY == file_meta_p->need_update)
+	{
+		return FAILURE;
+	}
+	file_meta_p->IOnode_list_cache.rd_lock();
+	for(IOnode_list_t::const_iterator it = begin(file_meta_p->IOnode_list_cache);
+			it != end(file_meta_p->IOnode_list_cache); ++it)
 	{
 		node_pool.insert(make_pair(*it, 
 				&corresponding_SCBB->get_IOnode_handle(*it)));
 	}
-	_block_list_t& blocks=file.block_list;
+	file_meta_p->IOnode_list_cache.unlock();
+
+	_block_list_t& blocks=file_meta_p->block_list;
 
 	//_block_list_t::const_iterator it=find_block_by_start_point(
 	//		blocks, get_block_start_point(file.current_point));
+	blocks.rd_lock();
 	_block_list_t::const_iterator it=
-			blocks.find(get_block_start_point(file.current_point));
+			blocks.find(get_block_start_point(start_point));
 
 	for(;0 < size && it != std::end(blocks); ++it)
 	{
@@ -697,6 +735,7 @@ _get_blocks_from_cache(
 					IO_size));
 		size-=IO_size;
 	}
+	blocks.unlock();
 
 	if(0 < size)
 	{
@@ -711,12 +750,54 @@ _get_blocks_from_cache(
 }
 
 ssize_t CBB_client::
+remote_IO(file_meta*	file_meta_p,
+	   void*     	buffer,
+	   off64_t	start_point,
+	   size_t     	size,
+	   int 		mode)
+{
+
+	ssize_t IO_size=0;
+	_block_list_t blocks;
+	_node_pool_t node_pool;
+	int ret=SUCCESS;
+
+	if((!_using_IOnode_cache()) || 
+		SUCCESS != (ret=_get_blocks_from_cache(file_meta_p,
+				start_point, size, blocks, node_pool)))
+	{
+		//if using cache and failed
+		//if not using cache
+		ret=_get_blocks_from_master(file_meta_p, start_point, size,
+				blocks, node_pool, mode);
+	}
+
+	if(SUCCESS == ret)
+	{
+		if(WRITE_FILE == mode)
+		{
+			IO_size+=_write_to_IOnode(file_meta_p, blocks, node_pool,
+					static_cast<char *>(buffer), start_point, size);
+		}
+		else if(READ_FILE == mode)
+		{
+			IO_size+=_read_from_IOnode(file_meta_p, blocks, node_pool,
+				static_cast<char *>(buffer), start_point, size);
+		}
+	}
+	else
+	{
+		errno=EINVAL;
+	}
+	return IO_size;
+}
+
+ssize_t CBB_client::
 _read(int 	fd,
       void* 	buffer,
       size_t 	size)
 throw(std::runtime_error)
 {
-	int 	ret	 =0;
 	ssize_t read_size=0;
 	CHECK_INIT();
 	if(0 == size)
@@ -727,12 +808,10 @@ throw(std::runtime_error)
 	try
 	{
 		opened_file_info& file	  =_file_list.at(fid);
-		_block_list_t blocks;
-		_node_pool_t node_pool;
-		SCBB* 	corresponding_SCBB=_get_scbb_from_fd(fid);
+
 
 		if(size + file.current_point > 
-			static_cast<size_t>(file.get_file_metadata().st_size))
+				static_cast<size_t>(file.get_file_metadata().st_size))
 		{
 			if(file.get_file_metadata().st_size>file.current_point)
 			{
@@ -744,29 +823,10 @@ throw(std::runtime_error)
 			}
 		}
 
-		if((!_using_IOnode_cache()) || 
-			SUCCESS != (ret=_get_blocks_from_cache(file,
-					corresponding_SCBB, size,
-					blocks, node_pool)))
-		{
-			//if using cache and failed
-			//if not using cache
-			ret=_get_blocks_from_master(file, corresponding_SCBB,
-					fid, size, blocks, node_pool,
-					READ_FILE);
-		}
-
-		if(SUCCESS == ret)
-		{
-			read_size+=_read_from_IOnode(corresponding_SCBB,
-					file, blocks, node_pool,
-					static_cast<char *>(buffer),
-					size);
-		}
-		else
-		{
-			errno=EINVAL;
-		}
+		//forwarding to basic_read for remote reading
+		read_size=remote_IO(file.get_meta_pointer(), 
+				buffer, file.current_point, size, READ_FILE);
+		file.current_point+=read_size;
 
 	}
 	catch(std::out_of_range &e)
@@ -783,10 +843,10 @@ _write(	int 		fd,
 	size_t 		size)
 throw(std::runtime_error)
 {
-	int ret		=0;
 	int write_size	=0;
 	int fid		=_fd_to_fid(fd);
 	CHECK_INIT();
+
 	if(0 == size)
 	{
 		return size;
@@ -795,35 +855,16 @@ throw(std::runtime_error)
 	{
 		opened_file_info& file	 	=_file_list.at(fid);
 		//off64_t&	  current_point	=file.current_point;
-		SCBB* 		  corresponding_SCBB=_get_scbb_from_fd(fid);
 		_block_list_t 	  blocks;
 		_node_pool_t 	  node_pool;
 
-		_write_update_file_size(file, size);
+		//_write_update_file_size(file, size);
 		_update_access_time(fd);
 
-		if((!_using_IOnode_cache()) || 
-			SUCCESS != (ret=_get_blocks_from_cache(file,
-					corresponding_SCBB, size,
-					blocks, node_pool)))
-		{
-			//if using cache and failed
-			//if not using cache
-			//connect to master
-			ret=_get_blocks_from_master(file, corresponding_SCBB,
-					fid, size, blocks, node_pool,
-					WRITE_FILE);
-		}
-		if(SUCCESS == ret)
-		{
-			write_size+=_write_to_IOnode(corresponding_SCBB,
-					file, blocks, node_pool,
-					static_cast<const char *>(buffer), size);
-		}
-		else
-		{
-			errno=EINVAL;
-		}
+		//bad hack
+		write_size += remote_IO(file.get_meta_pointer(), 
+				const_cast<void*>(buffer), file.current_point, size, WRITE_FILE);
+		file.current_point+=write_size;
 	}
 	catch(std::out_of_range &e)
 	{
@@ -837,28 +878,32 @@ throw(std::runtime_error)
 size_t CBB_client::
 _update_file_size_from_master(
 		extended_IO_task* response,
-		opened_file_info& file)
+		file_meta*	  file_meta_p)
+		//opened_file_info& file)
 {
 	size_t file_size;
 	response->pop(file_size);
-	/*if(file_size > file.file_meta_p->file_stat.st_size)
-	  {
-	  file.file_meta_p->file_stat.st_size = file_size;
-	  }*/
+	if(file_size > static_cast<size_t>(
+		file_meta_p->get_file_stat().st_size))
+	{
+		file_meta_p->file_stat.st_size = file_size;
+	}
 	return file_size;
 }
-
 int CBB_client::
 _write_update_file_size(
-		opened_file_info& file,
-		size_t 		  size)
+		file_meta* file_meta_p,
+		off64_t	   current_point,
+		size_t 	   size)
 {
-	if(file.current_point + size > (size_t)file.file_meta_p->file_stat.st_size)
+	if(current_point + size > (size_t)file_meta_p->file_stat.st_size)
 	{
-		file.file_meta_p->file_stat.st_size=file.current_point + size;
-		return SUCCESS;
+		_DEBUG("update size from %ld to %ld\n", file_meta_p->file_stat.st_size,
+				current_point + size);
+		file_meta_p->file_stat.st_size=current_point + size;
 	}
-	return FAILURE;
+	_DEBUG("file size = %ld\n", file_meta_p->file_stat.st_size);
+	return SUCCESS;
 }
 
 int CBB_client::
@@ -873,6 +918,7 @@ _update_file_size(int fd, size_t size)
 		{
 			file.file_meta_p->file_stat.st_size = size;
 		}
+		file.file_meta_p->need_update=DIRTY;
 		return 0;
 	}
 	catch(std::out_of_range&e)
@@ -893,6 +939,7 @@ _update_access_time(int fd)
 		time_t new_time=time(nullptr);
 		file.get_file_metadata().st_mtime=new_time;
 		file.get_file_metadata().st_atime=file.get_file_metadata().st_mtime;
+		file.file_meta_p->need_update=DIRTY;
 		return 0;
 	}
 	catch(std::out_of_range&e)
@@ -1010,17 +1057,53 @@ _lseek(	int 	fd,
 }
 
 int CBB_client::
+remote_getattr(	const char* 	path,
+	 	struct stat* 	fstat)
+{
+	CHECK_INIT();
+
+	int master_number=_get_master_number_from_path(path);
+	comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
+	int ret=master_number;
+	extended_IO_task* response=nullptr;
+	_DEBUG("connect to master\n");
+
+	do{
+		//problem
+		master_number=ret;
+		extended_IO_task* query=allocate_new_query(master_handle);
+		query->push_back(GET_ATTR); 
+		query->push_back_string(path);
+
+		send_query(query);
+
+		response=get_query_response(query);
+		response->pop(ret);
+		master_handle = _get_master_handle_from_master_number(ret);
+	}while(master_number != ret && response_dequeue(response));
+	//end_recording();
+	response->pop(ret);
+	if(SUCCESS == ret)
+	{
+		_DEBUG("SUCCESS\n");
+		Recv_attr(response, fstat);
+	}
+	else
+	{
+		errno=-ret;
+	}
+	response_dequeue(response);
+	return ret;
+}
+
+int CBB_client::
 _getattr(const char* path,
 	 struct stat* fstat)
 throw(std::runtime_error)
 {
 	CHECK_INIT();
-	int master_number=_get_master_number_from_path(path);
-	comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
-	int ret=master_number;
-	extended_IO_task* response=nullptr;
 
-	start_recording();
+	//start_recording();
 	if(SUCCESS == _get_local_attr(path, fstat))
 	{
 		_DEBUG("use local stat\n");
@@ -1028,34 +1111,8 @@ throw(std::runtime_error)
 	}
 	else
 	{
-		_DEBUG("connect to master\n");
-		do{
-			//problem
-			master_number=ret;
-			extended_IO_task* query=allocate_new_query(master_handle);
-			query->push_back(GET_ATTR); 
-			query->push_back_string(path);
-			record_raws();
-			send_query(query);
-			end_recording();
-
-			response=get_query_response(query);
-			response->pop(ret);
-			master_handle = _get_master_handle_from_master_number(ret);
-		}while(master_number != ret && response_dequeue(response));
-		end_recording();
-		response->pop(ret);
-		if(SUCCESS == ret)
-		{
-			_DEBUG("SUCCESS\n");
-			Recv_attr(response, fstat);
-		}
-		else
-		{
-			errno=-ret;
-		}
-		response_dequeue(response);
-		return ret;
+		//forwarding
+		return remote_getattr(path, fstat);
 	}
 }
 
@@ -1204,13 +1261,49 @@ _close_local_opened_file(const char* path)
 }
 
 int CBB_client::
+remote_access(
+		const char* 	path,
+		int 		mode)
+{
+	CHECK_INIT();
+
+	int master_number=_get_master_number_from_path(path);
+	comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
+	int ret=master_number;
+	extended_IO_task* response=nullptr;
+
+	do{
+		master_number=ret;
+		extended_IO_task* query=allocate_new_query(master_handle);
+		query->push_back(ACCESS); 
+		query->push_back_string(path);
+		query->push_back(mode);
+		send_query(query);
+
+		response=get_query_response(query);
+		response->pop(ret);
+		master_handle = _get_master_handle_from_master_number(ret);
+	}while(master_number != ret && response_dequeue(response));
+	response->pop(ret);
+	response_dequeue(response);
+	if(SUCCESS == ret)
+	{
+		return 0;
+	}
+	else
+	{
+		errno=-ret;
+		return -errno;
+	}
+}
+
+int CBB_client::
 _access(const char* 	path,
 	int 		mode)
 throw(std::runtime_error)
 {
 	_DEBUG("connect to master\n");
 	CHECK_INIT();
-	extended_IO_task* response=nullptr;
 	std::string string_path(path);
 
 	auto file_meta=_path_file_meta_map.find(string_path);
@@ -1220,41 +1313,16 @@ throw(std::runtime_error)
 	}
 	else
 	{
-		int master_number=_get_master_number_from_path(path);
-		comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
-		int ret=master_number;
-		do{
-			master_number=ret;
-			extended_IO_task* query=allocate_new_query(master_handle);
-			query->push_back(ACCESS); 
-			query->push_back_string(path);
-			query->push_back(mode);
-			send_query(query);
-
-			response=get_query_response(query);
-			response->pop(ret);
-			master_handle = _get_master_handle_from_master_number(ret);
-		}while(master_number != ret && response_dequeue(response));
-		response->pop(ret);
-		response_dequeue(response);
-		if(SUCCESS == ret)
-		{
-			return 0;
-		}
-		else
-		{
-			errno=-ret;
-			return -errno;
-		}
+		return remote_access(path, mode);
 	}
 }
 
 int CBB_client::
-_stat(	const char*  path,
-	struct stat* buf)
-throw(std::runtime_error)
+remote_stat(	const char*  path,
+		struct stat* buf)
 {
 	CHECK_INIT();
+
 	memset(buf, 0, sizeof(struct stat));
 	int master_number=_get_master_number_from_path(path);
 	comm_handle_t master_handle=_get_master_handle_from_master_number(master_number);
@@ -1473,7 +1541,7 @@ _get_local_attr(const char*  path,
 
 int CBB_client::
 _truncate(const char* 	path,
-		off64_t 	size)
+	  off64_t 	size)
 throw(std::runtime_error)
 {
 	_DEBUG("connect to master\n");
@@ -1509,7 +1577,9 @@ throw(std::runtime_error)
 	}
 }
 
-int CBB_client::_ftruncate(int fd, off64_t size)throw(std::runtime_error)
+int CBB_client::
+_ftruncate(int fd, off64_t size)
+throw(std::runtime_error)
 {
 	int fid=_fd_to_fid(fd);
 	CHECK_INIT();
@@ -1744,9 +1814,9 @@ stat(const char* path, struct stat* buf)
 	{
 		try
 		{
-			start_recording();
-			ret=_stat(path, buf);
-			end_recording();
+			//start_recording();
+			ret=remote_stat(path, buf);
+			//end_recording();
 			break;
 		}
 		catch(std::runtime_error &e)
@@ -1871,7 +1941,8 @@ _report_IOnode_failure(comm_handle_t handle)
 	return SUCCESS;
 }
 
-SCBB* CBB_client::_find_scbb_by_handle(comm_handle_t handle)
+SCBB* CBB_client::
+_find_scbb_by_handle(comm_handle_t handle)
 {
 	for(auto& scbb:master_handle_list)
 	{

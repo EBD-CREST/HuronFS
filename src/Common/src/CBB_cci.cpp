@@ -24,7 +24,6 @@
  */
 
 #include <pthread.h>
-#include <regex>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
@@ -368,7 +367,7 @@ Connect(const char* uri,
 					   buf, *size+MESSAGE_META_OFF,
 					   attr, &handle, 0, &timeout)))
 	{
-		_DEBUG("cci_finalize() failed with %s\n",
+		printf("cci_connect() failed with %s\n",
 			cci_strerror(nullptr, (cci_status)ret));
 		return FAILURE;
 	}

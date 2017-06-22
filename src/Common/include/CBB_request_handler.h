@@ -42,6 +42,9 @@ namespace CBB
 				CBB_request_handler();
 				virtual ~CBB_request_handler();
 				virtual int _parse_request(extended_IO_task* new_task)=0; 
+				//do some delayed processes during the interval of request processing
+				virtual int interval_process();
+
 				int start_handler();
 				int stop_handler();
 				static void* handle_routine(void *arg);
@@ -50,13 +53,19 @@ namespace CBB
 						communication_queue_array_t* output_queue);
 
 			private:
-				bool thread_started;
-				pthread_t handler_thread;
-				int keepAlive;
+				bool 		thread_started;
+				pthread_t 	handler_thread;
+				int 		keepAlive;
 				communication_queue_array_t* input_queue;
 				communication_queue_array_t* output_queue;
 
 		};
+
+		inline int CBB_request_handler::
+			interval_process()
+		{
+			return SUCCESS;
+		}
 	}
 }
 

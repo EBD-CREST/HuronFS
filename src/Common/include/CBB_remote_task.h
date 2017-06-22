@@ -46,9 +46,9 @@ namespace CBB
 				void set_extended_task_data(void* task_data);
 				void* get_extended_task_data();
 			private:
-				int task_id;
-				void *task_data;
-				void *extended_task_data;
+				int 	task_id;
+				void*	task_data;
+				void*	extended_task_data;
 		};
 
 		class CBB_remote_task
@@ -65,10 +65,10 @@ namespace CBB
 				void remote_task_dequeue(remote_task* new_task);
 				static void* thread_fun(void* args);
 			private:
-				int keepAlive;
-				bool thread_started;
+				int 		keepAlive;
+				bool 		thread_started;
 				task_parallel_queue<remote_task> remote_task_queue;
-				pthread_t remote_task_thread;
+				pthread_t 	remote_task_thread;
 				pthread_mutex_t locker;
 		};
 

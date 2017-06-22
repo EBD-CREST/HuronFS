@@ -28,8 +28,10 @@ using namespace CBB::Common;
 using namespace std;
 
 basic_IO_task::basic_IO_task():
+	//base class
 	basic_task(),
 	connection_task(),
+	//fields
 	handle(),
 	message_buffer(),
 	error(),
@@ -43,9 +45,12 @@ basic_IO_task::basic_IO_task():
 	*sender_id=get_id();
 }
 
-basic_IO_task::basic_IO_task(int id, basic_IO_task* next):
+basic_IO_task::
+basic_IO_task(int id, basic_IO_task* next):
+	//base class
 	basic_task(id, next),
 	connection_task(),
+	//fields
 	handle(),
 	message_buffer(),
 	error(),
@@ -59,26 +64,36 @@ basic_IO_task::basic_IO_task(int id, basic_IO_task* next):
 	*sender_id=get_id();
 }
 
-send_buffer_element::send_buffer_element(char* buffer, size_t size):
+send_buffer_element::
+send_buffer_element(char* buffer, size_t size):
 	buffer(buffer),
 	size(size)
 {}
 
-extended_IO_task::extended_IO_task():
+extended_IO_task::
+extended_IO_task():
+	//base class
 	basic_IO_task(),
+	//fields
 	mode(RMA_READ),
 	extended_size(reinterpret_cast<size_t*>(get_message()+EXTENDED_SIZE_OFF)),
 	send_buffer(),
 	receive_buffer(nullptr),
-	current_receive_buffer_ptr(nullptr)
+	current_receive_buffer_ptr(nullptr),
+	extended_buffer()
 {}
 
-extended_IO_task::extended_IO_task(int id, extended_IO_task* next):
+extended_IO_task::
+extended_IO_task(int id, extended_IO_task* next):
+	//base class
 	basic_IO_task(id, next),
+	//fields
+	mode(RMA_READ),
 	extended_size(reinterpret_cast<size_t*>(get_message()+EXTENDED_SIZE_OFF)),
 	send_buffer(),
 	receive_buffer(nullptr),
-	current_receive_buffer_ptr(nullptr)
+	current_receive_buffer_ptr(nullptr),
+	extended_buffer()
 {}
 
 extended_IO_task::~extended_IO_task()

@@ -42,13 +42,13 @@ namespace CBB
 				virtual ~data_sync_task()=default;
 				void set_handle(comm_handle_t handle);
 
-				int task_id;
-				comm_handle handle;
-				int receiver_id;
-				void* _file;
-				off64_t start_point;
-				off64_t offset;
-				ssize_t size;
+				int 		task_id;
+				comm_handle 	handle;
+				int 		receiver_id;
+				void* 		_file;
+				off64_t 	start_point;
+				off64_t 	offset;
+				ssize_t 	size;
 		};
 		typedef task_parallel_queue<data_sync_task> data_sync_queue_t;
 
@@ -77,12 +77,12 @@ namespace CBB
 				void data_sync_response_dequeue(extended_IO_task* response);
 
 			private:
-				int keepAlive;
-				int thread_started;
-				pthread_t pthread_id;
-				data_sync_queue_t data_sync_queue;
-				communication_queue_t* communication_input_queue_ptr;
-				communication_queue_t* communication_output_queue_ptr;
+				int 			keepAlive;
+				int 			thread_started;
+				pthread_t 		pthread_id;
+				data_sync_queue_t 	data_sync_queue;
+				communication_queue_t* 	communication_input_queue_ptr;
+				communication_queue_t* 	communication_output_queue_ptr;
 		};
 
 		inline extended_IO_task* CBB_data_sync::allocate_data_sync_task()

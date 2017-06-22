@@ -179,3 +179,8 @@ On client nodes:
 * using LD_PRELOAD:
 
         LD_PRELOAD=${HUFS_HOME}/lib/libHuFS.so your_application
+
+
+PUBLICATIONS:
+--------------------------------------------------------------------------------------------------------------
+ * Tianqi Xu, Kento Sato and Satoshi Matsuoka, “CloudBB: Scalable I/O Accelerator for Shared Cloud Storage”, The 22nd IEEE International Conference on Parallel and Distributed Systems (ICPADS 2016), Wuhan, China, Dec, 2016

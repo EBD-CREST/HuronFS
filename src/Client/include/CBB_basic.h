@@ -25,11 +25,11 @@
 #ifndef CBB_BASIC_H_
 #define CBB_BASIC_H_
 
-#include <map>
-#include <set>
 #include <string>
 #include <sys/stat.h>
 
+#include "CBB_set.h"
+#include "CBB_map.h"
 #include "CBB_error.h"
 #include "CBB_const.h"
 #include "Comm_api.h"
@@ -43,12 +43,12 @@ namespace CBB
 		class opened_file_info;
 		class CBB_client;
 
-		typedef std::map<ssize_t, Common::comm_handle> IOnode_fd_map_t;
+		typedef Common::CBB_map<ssize_t, Common::comm_handle> IOnode_fd_map_t;
 		typedef std::set<int> _opened_fd_t;
 		typedef std::map<std::string, file_meta*> _path_file_meta_map_t; //map path, fd
-		typedef std::vector<ssize_t> IOnode_list_t;
+		typedef Common::CBB_set<ssize_t> IOnode_list_t;
 		//typedef std::vector<block_info> _block_list_t;
-		typedef std::map<off64_t, size_t> _block_list_t;
+		typedef Common::CBB_map<off64_t, size_t> _block_list_t;
 
 		_block_list_t::const_iterator
 			find_block_by_start_point(
@@ -105,14 +105,20 @@ namespace CBB
 						SCBB* corresponding_SCBB);
 				Common::comm_handle_t get_master_handle();
 				int get_master_number();
+				ssize_t get_remote_file_no()const;
+				struct stat& get_file_stat();
 			private:
 				ssize_t 	remote_file_no;
 				int 		open_count;
 				size_t 		block_size;
 				struct stat 	file_stat;
 				_opened_fd_t 	opened_fd;
-				SCBB		*corresponding_SCBB;
+				SCBB*		corresponding_SCBB;
 				//int 		master_handle;
+				IOnode_list_t	IOnode_list_cache;
+				_block_list_t	block_list;
+				bool		need_update;
+
 				_path_file_meta_map_t::iterator it;
 
 		};
@@ -125,18 +131,18 @@ namespace CBB
 				opened_file_info();
 				opened_file_info(const opened_file_info& src);
 				~opened_file_info();
+				file_meta* get_meta_pointer();
 				struct stat& get_file_metadata();
 				const struct stat& get_file_metadata()const;
 				ssize_t get_remote_file_no()const;
 			private:
 				const opened_file_info& operator=(const opened_file_info&)=delete;
 				//current offset in file
+			private:
 				off64_t 	current_point;
 				int 		fd;
 				int 		flag;
 				file_meta* 	file_meta_p;
-				IOnode_list_t	IOnode_list_cache;
-				_block_list_t	block_list;
 		};
 
 
@@ -221,6 +227,24 @@ namespace CBB
 		inline bool operator == (const block_info& src, const block_info& des)
 		{
 			return src.start_point == des.start_point;
+		}
+
+		inline ssize_t file_meta::
+			get_remote_file_no()const
+		{
+			return this->remote_file_no;
+		}
+
+		inline struct stat& file_meta::
+			get_file_stat()
+		{
+			return this->file_stat;
+		}
+
+		inline file_meta* opened_file_info::
+			get_meta_pointer()
+		{
+			return this->file_meta_p;
 		}
 	}
 }

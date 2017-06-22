@@ -67,6 +67,9 @@ AC_FUNC_MALLOC
 AC_FUNC_MMAP
 AC_CHECK_FUNCS([fdatasync ftruncate gettimeofday inet_ntoa memset mkdir munmap realpath rmdir socket strchr])
 
+AC_PROG_CXX([icpc g++])
+AC_PROG_CC([icc gcc])
+
 AC_ARG_WITH([fuse],
     [AS_HELP_STRING([--with-fuse=DIR],
                     [use the fuse installed in DIR])],
@@ -92,6 +95,29 @@ AC_ARG_ENABLE([write-back],
 	esac],[write_back=false])
 
 AM_CONDITIONAL([WRITE_BACK], [test "x$write_back" = xtrue])
+
+AC_ARG_ENABLE([async],
+	      [AS_HELP_STRING([--enable-async],[ enable asynchronous write back, requires --enable-write-back])],
+	      [ case "${enableval}" in
+	       	yes) async=true 
+		AC_MSG_RESULT(Asynchronous writing back on IOnode);;
+       		no)  async=false;;
+		*) AC_MSG_FAILURE([bad value ${enableval} for --enable-async], 1) ;;
+	esac],[async=false])
+
+AM_CONDITIONAL([ASYNC_WRITE_BACK], [test "x$async" = xtrue])
+
+AC_ARG_ENABLE([client-multiple],
+	      [AS_HELP_STRING([--enable-client-multiple],[ enable multiple threading on client, requires --enable-client-multiple])],
+	      [ case "${enableval}" in
+	       	yes) client_multiple_threading=true 
+		AC_MSG_RESULT(Using multiple threading on client);;
+       		no)  client_multiple_threading=false
+		AC_MSG_RESULT(Using single thread on client);;
+		*) AC_MSG_FAILURE([bad value ${enableval} for --enable-client-multiple], 1) ;;
+	esac],[client_multiple_threading=false])
+
+AM_CONDITIONAL([CLIENT_MULTIPLE_THREADS], [test "x$client_multiple_threading" = xtrue])
 
 AC_ARG_WITH([cci],
     [AS_HELP_STRING([--with-cci(=DIR)],
@@ -143,9 +169,9 @@ AC_ARG_ENABLE([debug],
 AM_CONDITIONAL([DEBUG], [test "x$debuging" = xtrue])
 
 #check gcc version, must use version larger than 4.9, for the 4.8 has incomplete support for re
-AM_CONDITIONAL(GCC_VER_49, [test `g++ -dumpversion | gawk '{print $1>=4.9?"1":"0"}'` = 1])
-AM_COND_IF(GCC_VER_49, [AC_MSG_RESULT([Have g++ version larger than 4.9])],
-		[AC_MSG_FAILURE([Need g++ version larger than 4.9], 1)])
+#AM_CONDITIONAL(GCC_VER_49, [test `g++ -dumpversion | gawk '{print $1>=4.9?"1":"0"}'` = 1])
+#AM_COND_IF(GCC_VER_49, [AC_MSG_RESULT([Have g++ version larger than 4.9])],
+#		[AC_MSG_FAILURE([Need g++ version larger than 4.9], 1)])
 
 AC_CONFIG_FILES([Makefile
                  src/Client/Makefile

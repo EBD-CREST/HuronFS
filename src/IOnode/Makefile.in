@@ -14,6 +14,50 @@
 
 @SET_MAKE@
 
+# Copyright (c) 2017, Tokyo Institute of Technology
+# Written by Tianqi Xu, xu.t.aa@m.titech.ac.jp.
+# All rights reserved. 
+# 
+# This file is part of HuronFS.
+# 
+# Please also read the file "LICENSE" included in this package for 
+# Our Notice and GNU Lesser General Public License.
+# 
+# This program is free software; you can redistribute it and/or modify it under the 
+# terms of the GNU General Public License (as published by the Free Software 
+# Foundation) version 2.1 dated February 1999. 
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY 
+# WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY or 
+# FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the GNU 
+# General Public License for more details. 
+# 
+# You should have received a copy of the GNU Lesser General Public License along 
+# with this program; if not, write to the Free Software Foundation, Inc., 59 Temple 
+# Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Copyright (c) 2017, Tokyo Institute of Technology
+# Written by Tianqi Xu, xu.t.aa@m.titech.ac.jp.
+# All rights reserved. 
+# 
+# This file is part of HuronFS.
+# 
+# Please also read the file "LICENSE" included in this package for 
+# Our Notice and GNU Lesser General Public License.
+# 
+# This program is free software; you can redistribute it and/or modify it under the 
+# terms of the GNU General Public License (as published by the Free Software 
+# Foundation) version 2.1 dated February 1999. 
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY 
+# WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY or 
+# FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the GNU 
+# General Public License for more details. 
+# 
+# You should have received a copy of the GNU Lesser General Public License along 
+# with this program; if not, write to the Free Software Foundation, Inc., 59 Temple 
+# Place, Suite 330, Boston, MA 02111-1307 USA
+
 VPATH = @srcdir@
 am__is_gnu_make = test -n '$(MAKEFILE_LIST)' && test -n '$(MAKELEVEL)'
 am__make_running_with_option = \
@@ -80,10 +124,11 @@ build_triplet = @build@
 host_triplet = @host@
 DIST_COMMON = $(srcdir)/../../common.mk $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/depcomp
-@DEBUG_TRUE@am__append_1 = -DDEBUG
-@USING_CCI_TRUE@am__append_2 = -DCCI $(CCI_INCLUDE)
-@USING_CCI_TRUE@am__append_3 = ${CCI_LIB} -lcci
-@USING_CCI_FALSE@am__append_4 = -DTCP
+@ASYNC_WRITE_BACK_TRUE@@WRITE_BACK_TRUE@am__append_1 = -DASYNC
+@DEBUG_TRUE@am__append_2 = -DDEBUG
+@USING_CCI_TRUE@am__append_3 = -DCCI $(CCI_INCLUDE)
+@USING_CCI_TRUE@am__append_4 = ${CCI_LIB} -lcci
+@USING_CCI_FALSE@am__append_5 = -DTCP
 bin_PROGRAMS = IOnode$(EXEEXT)
 subdir = src/IOnode
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -99,7 +144,8 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_IOnode_OBJECTS = IOnode.$(OBJEXT) node_main.$(OBJEXT)
+am_IOnode_OBJECTS = IOnode.$(OBJEXT) node_main.$(OBJEXT) \
+	IOnode_basic.$(OBJEXT)
 IOnode_OBJECTS = $(am_IOnode_OBJECTS)
 IOnode_DEPENDENCIES = ../Common/libCommon.a
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -230,6 +276,7 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
@@ -309,20 +356,24 @@ top_srcdir = @top_srcdir@
 
 # this lists the binaries to produce, the (non-PHONY, binary) targets in
 # the previous manual Makefile
-AM_CPPFLAGS = -DCBB_PRELOAD -DLOG $(am__append_1) $(am__append_2) \
-	$(am__append_4) -I./include/ -I../Common/include \
-	$(SERVER_WAIT_FLAG) $(WRITE_BACK) $(SYNC_FLAG)
+AM_CPPFLAGS = -DCBB_PRELOAD -DLOG $(am__append_2) $(am__append_3) \
+	$(am__append_5) -I./include/ -I../Common/include \
+	$(SERVER_WAIT_FLAG) $(WRITE_BACK) $(SYNC_FLAG) \
+	$(SWAP_ALGORITHM)
 AM_CXXFLAGS = -Wall -std=c++11
-AM_LDFLAGS = -lpthread $(am__append_3)
+AM_LDFLAGS = -lpthread $(am__append_4)
 SYNC_FLAG = -DSTRICT_SYNC_DATA -DSYNC_DATA_WITH_REPLY
 SERVER_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
 CLIENT_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
-@WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK
+SWAP_ALGORITHM = -DLRU
+@WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK $(am__append_1)
+@CLIENT_MULTIPLE_THREADS_FALSE@CLIENT_THREADS = -DSINGLE_THREAD
 SRC_DIR = src
 HEADER_DIR = include
 
 #headers
-IOnode_SOURCES = IOnode.cpp node_main.cpp IOnode.h
+IOnode_SOURCES = IOnode.cpp node_main.cpp IOnode_basic.cpp IOnode.h \
+	IOnode_basic.h
 IOnode_LDADD = ../Common/libCommon.a
 all: all-am
 
@@ -337,9 +388,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/../../common.mk $(am__co
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/IOnode/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/IOnode/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu src/IOnode/Makefile
+	  $(AUTOMAKE) --foreign src/IOnode/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -420,6 +471,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/IOnode.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/IOnode_basic.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/node_main.Po@am__quote@
 
 .cpp.o:

@@ -68,6 +68,8 @@ namespace CBB
 #else
 			int 		 	socket;
 #endif
+			CBB_handle()=default;
+			~CBB_handle()=default;
 			//define in each protocal
 			CBB_handle& operator = (const CBB_handle& src);
 		};

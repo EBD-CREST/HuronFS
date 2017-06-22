@@ -34,10 +34,12 @@
 using namespace CBB::Common;
 using namespace std;
 
-CBB_communication_thread::CBB_communication_thread()throw(std::runtime_error):
+CBB_communication_thread::
+CBB_communication_thread()throw(std::runtime_error):
     keepAlive(KEEP_ALIVE),
     sender_epollfd(-1),
     receiver_epollfd(-1),
+    server_socket(-1),
     _handle_pool(),
     thread_started(UNSTARTED),
     input_queue(nullptr),
@@ -173,9 +175,6 @@ void *CBB_communication_thread::sender_thread_function(void *args)
     while (KEEP_ALIVE == this_obj->keepAlive)
     {
         int nfds = epoll_wait(this_obj->sender_epollfd, events, LENGTH_OF_LISTEN_QUEUE, -1);
-        obj_record_raws(this_obj);
-        obj_start_recording(this_obj);
-        obj_end_recording(this_obj);
         for (int i = 0; i < nfds; ++i)
         {
             int socket = events[i].data.fd;
@@ -192,8 +191,6 @@ void *CBB_communication_thread::sender_thread_function(void *args)
                 _DEBUG("error\n");
             }
         }
-        obj_end_recording(this_obj);
-        obj_record_raws(this_obj);
     }
     return nullptr;
 }
@@ -209,9 +206,6 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
     while (KEEP_ALIVE == this_obj->keepAlive)
     {
         int nfds = epoll_wait(this_obj->receiver_epollfd, events, LENGTH_OF_LISTEN_QUEUE, -1);
-        obj_record_raws(this_obj);
-        obj_start_recording(this_obj);
-        obj_end_recording(this_obj);
         for (int i = 0; i < nfds; ++i)
         {
             handle.socket = events[i].data.fd;
@@ -219,7 +213,6 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
             _DEBUG("socket %d\n", handle.socket);
             this_obj->input_from_network(&handle, this_obj->output_queue);
         }
-        obj_end_recording(this_obj);
     }
 #else
     int 		ret	= 0;
@@ -289,16 +282,12 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
             }
             break;
         case CCI_EVENT_RECV:
-            obj_record_raws(this_obj);
-            obj_start_recording(this_obj);
-            obj_end_recording(this_obj);
             _DEBUG("cci_recv finished from %p\n",
                    event->recv.connection);
             handle.cci_handle = event->recv.connection;
             handle.buf = event->recv.ptr;
             handle.size = event->recv.len;
             this_obj->input_from_network(&handle, this_obj->output_queue);
-            obj_end_recording(this_obj);
             break;
         case CCI_EVENT_CONNECT:
             _DEBUG("cci_event_connect finished\n");
@@ -321,7 +310,6 @@ throw(std::runtime_error)
 {
     size_t ret = 0;
     comm_handle_t handle = new_task->get_handle();
-    end_recording();
     _DEBUG("send message size=%ld, element=%p\n", new_task->get_message_size(), new_task);
     _DEBUG("send message to id =%d from %d\n", new_task->get_receiver_id(), new_task->get_sender_id());
 
@@ -365,7 +353,6 @@ throw(std::runtime_error)
                      new_task->get_message_size() +
                      MESSAGE_META_OFF);
     }
-    end_recording();
     return ret;
 }
 
@@ -451,9 +438,9 @@ throw(std::runtime_error)
     size_t ret = 0;
 
     ret = Recvv_pre_alloc(handle, new_task->get_message() + SENDER_ID_OFF, RECV_MESSAGE_OFF);
+    _DEBUG("receive basic message size=%ld from %d to %d element=%p extended_size=%ld\n", new_task->get_message_size(),
+           new_task->get_sender_id(), new_task->get_receiver_id(), new_task, new_task->get_extended_data_size());
     new_task->swap_sender_receiver();//swap sender receiver id
-    _DEBUG("receive basic message size=%ld to %d element=%p extended_size=%ld\n", new_task->get_message_size(),
-           new_task->get_receiver_id(), new_task, new_task->get_extended_data_size());
     ret += Recvv_pre_alloc(handle, new_task->get_basic_message(), new_task->get_message_size());
 
     new_task->set_handle(handle);

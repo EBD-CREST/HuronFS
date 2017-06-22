@@ -56,7 +56,7 @@ const int MAX_IONODE = 1000;
 //the size of basic message in communication
 const int MAX_BASIC_MESSAGE_SIZE = 4*KB;
 //the size of extended message located in IO task
-const int MAX_EXTENDED_MESSAGE_SIZE=2*MB;
+const int MAX_EXTENDED_MESSAGE_SIZE=5*MB;
 //the size of files in a directory
 const int MAX_DIR_FILE_SIZE=MAX_EXTENDED_MESSAGE_SIZE;
 //the max retry for communication
@@ -74,7 +74,7 @@ const int RECV_MESSAGE_OFF = MESSAGE_META_OFF - sizeof(int);
 //the number of handler threads in server
 const int SERVER_THREAD_NUM = 1;
 //the number of handler threads in client
-const int CLIENT_THREAD_NUM = 1;
+const int CLIENT_THREAD_NUM = 10;
 
 //the number of queue used to send heart beat in Master= 1
 const int HEART_BEAT_THREAD_NUM = 1;
@@ -82,6 +82,14 @@ const int HEART_BEAT_THREAD_NUM = 1;
 const int DATA_SYNC_THREAD_NUM = 1;
 //the number of queue used to send heart beat in Master= 1
 const int CONNECTION_THREAD_NUM=1;
+
+const int IONODE_PRE_ALLOCATE_MEMORY_COUNT=100;
+
+#ifdef SINGLE_THREAD
+const int CLIENT_PRE_ALLOCATE_MEMORY_COUNT=10;
+#else
+const int CLIENT_PRE_ALLOCATE_MEMORY_COUNT=0;
+#endif
 
 //the number of communication queues used in master
 //the number = # of handler threads in server + # of queue used to send heart beat
@@ -100,20 +108,19 @@ const int IONODE_DATA_SYNC_QUEUE_NUM=CONNECTION_QUEUE_NUM+CONNECTION_THREAD_NUM;
 const int CLIENT_QUEUE_NUM=CLIENT_THREAD_NUM;
 
 //the total memory available in each IOnode
-//ignored currently
+//this is the default value
 const int MEMORY = 10000; 
 //the maximum number of block for each file
 //not used
 const int MAX_BLOCK_NUMBER = 1000; 
 //the size of block used by all the file
 //important
-const size_t BLOCK_SIZE = 100*MB;
+const size_t BLOCK_SIZE = 5*MB;
 //the maximum file size supported;
 //the number = block size * max block number
 //not used
 const size_t MAX_FILE_SIZE = BLOCK_SIZE*MAX_BLOCK_NUMBER;
-//the maximum file size supported;
-//not used
+//the maximum file number supported;
 const int MAX_FILE_NUMBER = 1000000; 
 //the max queue used in server listen as "backlog"
 const int MAX_QUEUE = 100; 
@@ -261,4 +268,13 @@ const bool NORMAL_IO=false;
 const int RMA_READ=0;
 const int RMA_WRITE=1;
 const int RMA_DIR=2;
+
+//the len of ip
+const int IP_STRING_LEN=20;
+
+//write back status
+const int IDLE=0;
+const int ON_GOING=1;
+
+const int WRITEBACK_SIZE=10;
 #endif

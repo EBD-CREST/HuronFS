@@ -48,8 +48,10 @@ const char *Master::MASTER_BACKUP_POINT	="HUFS_MASTER_BACKUP_POINT";
 const char *Master::MASTER_IP_LIST	="HUFS_MASTER_IP_LIST";
 
 Master::Master()throw(CBB_configure_error):
+	//base class
 	Server(MASTER_QUEUE_NUM, MASTER_PORT), 
 	CBB_heart_beat(),
+	//fields
 	_registered_IOnodes(IOnode_t()), 
 	_file_stat_pool(),
 	_buffered_files(), 
@@ -60,6 +62,9 @@ Master::Master()throw(CBB_configure_error):
 	_current_node_number(0), 
 	_current_file_no(0),
 	_mount_point(),
+	metadata_backup_point(),
+	master_number(0),
+	master_total_size(0),
 	_current_IOnode(_registered_IOnodes.end())
 {
 	const char *master_mount_point		=getenv(MASTER_MOUNT_POINT);
@@ -519,7 +524,7 @@ CBB::CBB_error Master::_parse_attr(extended_IO_task* new_task)
 	int 	    	  ret	=0;
 	extended_IO_task *output=init_response_task(new_task);
 
-	end_recording();
+	start_recording(this);
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
 	_DEBUG("file path=%s\n", real_path.c_str());
 	try
@@ -548,8 +553,7 @@ CBB::CBB_error Master::_parse_attr(extended_IO_task* new_task)
 		output->push_back(-ENOENT);
 		ret=FAILURE;
 	}
-	end_recording();
-	record_raws();
+	end_recording(this);
 	output_task_enqueue(output);
 	return ret;
 }
@@ -667,7 +671,7 @@ CBB::CBB_error Master::_parse_access(extended_IO_task* new_task)
 	extended_IO_task* output=init_response_task(new_task);
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
 	new_task->pop(mode);
-	_LOG("path=%s\n, mode=%d", real_path.c_str(), mode);
+	_LOG("path=%s, mode=%d\n", real_path.c_str(), mode);
 	try
 	{
 		//_file_stat_pool.rd_lock();
@@ -1578,6 +1582,7 @@ _allocate_new_blocks_for_writing(open_file_info 	&file,
 			return SUCCESS;
 		}
 	}
+
 	for(;remaining_size>0;remaining_size-=BLOCK_SIZE, current_point+=BLOCK_SIZE)
 	{
 		size_t block_size=MIN(remaining_size, static_cast<ssize_t>(BLOCK_SIZE));

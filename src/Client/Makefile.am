@@ -28,7 +28,7 @@ lib_LTLIBRARIES = libHuFS.la
 SRC_DIR = src
 HEADER_DIR = include
 AM_CPPFLAGS += -I./include/ -I../Common/include
-AM_CPPFLAGS += $(CLIENT_WAIT_FLAG)
+AM_CPPFLAGS += $(CLIENT_WAIT_FLAG) $(CLIENT_THREADS)
 
 vpath %.cpp $(SRC_DIR)
 vpath %.h $(HEADER_DIR)

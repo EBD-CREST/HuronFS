@@ -28,6 +28,7 @@
 
 #include <netinet/in.h>
 #include <stdexcept>
+
 #include "CBB_task_parallel.h"
 #include "CBB_communication_thread.h"
 #include "CBB_request_handler.h"
@@ -79,7 +80,8 @@ namespace CBB
 				communication_queue_t* get_communication_input_queue(int index);
 				communication_queue_t* get_communication_output_queue(int index);
 				int _recv_real_path(extended_IO_task* new_task, std::string& real_path);
-				int _recv_real_relative_path(extended_IO_task* new_task, std::string& real_path, std::string &relative_path);
+				int _recv_real_relative_path(extended_IO_task* new_task,
+						std::string& real_path, std::string &relative_path);
 				//id = thread id, temporarily id=0
 				extended_IO_task* allocate_output_task(int id);
 				const char* _get_my_uri()const;

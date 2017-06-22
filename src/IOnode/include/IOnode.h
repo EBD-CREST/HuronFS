@@ -40,11 +40,14 @@
 #include <exception>
 #include <stdlib.h>
 #include <map>
+#include <vector>
 
 #include "Server.h"
 #include "CBB_data_sync.h"
 #include "Comm_api.h"
 #include "CBB_error.h"
+#include "IOnode_basic.h"
+#include "CBB_swap.h"
 
 namespace CBB
 {
@@ -52,7 +55,8 @@ namespace CBB
 	{
 		class IOnode:
 			public 	Common::Server,
-			public	Common::CBB_data_sync
+			public	Common::CBB_data_sync,
+			public  Common::CBB_swap<block>
 		{
 			//API
 			public:
@@ -63,61 +67,18 @@ namespace CBB
 				int start_server();
 
 				typedef std::map<ssize_t, Common::comm_handle> node_handle_pool_t; //map node id: handle
-				typedef std::map<ssize_t, Common::comm_handle_t> handle_ptr_pool_t; //map node id: handle
 				typedef std::map<ssize_t, std::string> node_ip_t; //map node id: ip
 
 				//nested class
 			private:
 
-				struct file;
-				struct block
-				{
-					block(off64_t 	start_point,
-					      size_t 	size,
-					      bool 	dirty_flag,
-					      bool 	valid,
-					      file* 	file_stat)
-					      throw(std::bad_alloc);
-					~block();
-					block(const block&);
-
-					void allocate_memory()throw(std::bad_alloc);
-					int lock();
-					int unlock();
-					
-					size_t 			data_size;
-					void* 			data;
-					off64_t 		start_point;
-					bool 			dirty_flag;
-					bool 			valid;
-					int 			exist_flag;
-					file*			file_stat;
-					Common::remote_task* 	write_back_task;
-					pthread_mutex_t 	locker;
-					//remote handler will delete this struct if TO_BE_DELETED is setted
-					//this appends when user unlink file while remote handler is writing back
-					bool 			TO_BE_DELETED;
-				};
-				typedef std::map<off64_t, block*> block_info_t; //map: start_point : block*
-
-				struct file
-				{
-					file(const char *path, int exist_flag, ssize_t file_no);
-					~file();
-
-					std::string 		file_path;
-					int 			exist_flag;
-					bool 			dirty_flag;
-					int 			main_flag; //main replica indicator
-					ssize_t 		file_no;
-					block_info_t  		blocks;
-					handle_ptr_pool_t 	IOnode_pool;
-				};
-
 				//map: file_no: struct file
 				typedef std::map<ssize_t, file> file_t; 
 
+				typedef std::vector<file_t::const_iterator> remove_file_list_t;
+
 				static const char * IONODE_MOUNT_POINT;
+				static const char * IONODE_MEMORY_LIMIT;
 
 				//private function
 			private:
@@ -137,6 +98,10 @@ namespace CBB
 				virtual void configure_dump()override final;
 				virtual CBB_error connection_failure_handler(
 						Common::extended_IO_task* new_task)override final;
+				virtual size_t free_data(block* data)override final;
+				virtual bool need_writeback(block* data)override final;
+				virtual size_t writeback(block* data)override final;
+				virtual int interval_process()override final;
 
 				int _send_data(Common::extended_IO_task* new_task);
 				int _receive_data(Common::extended_IO_task* new_task);
@@ -185,9 +150,10 @@ namespace CBB
 						off64_t start_point,
 						off64_t offset,
 						ssize_t size,
+						int	receiver_id,
 						Common::comm_handle_t handle);
 				int _send_sync_data(Common::comm_handle_t handle,
-						file* requested_file,
+						file* 	requested_file,
 						off64_t start_point,
 						off64_t offset,
 						ssize_t size);
@@ -200,33 +166,90 @@ namespace CBB
 
 				int _setup_queues();
 				int _get_sync_response();
+				int update_access_order(block* requested_file);
+				int add_write_back();
+				bool have_dirty_page()const;
+				void new_dirty_page();
+				void clear_dirty_page();
+				bool has_memory_left(size_t size)const;
+				size_t allocate_memory_for_block(block* requested_block);
+				size_t free_memory(size_t size);
+				block* create_new_block(off64_t	 start_point,
+						size_t	 data_size,
+						bool 	 dirty_flag,
+						bool 	 valid,
+						file* 	 file_stat);
+				size_t _set_memory_limit(const char* limit_string)throw(std::runtime_error);
+				int remove_files();
+
 
 				//private member
 			private:
 
-				ssize_t 	   my_node_id; //node id
-				file_t 		   _files;
-				int 		   _current_block_number;
-				int 		   _MAX_BLOCK_NUMBER;
-				size_t 		   _memory; //remain available memory; 
+				ssize_t 	   	my_node_id; //node id
+				file_t 		   	_files;
+				int 		   	_current_block_number;
+				int 		   	_MAX_BLOCK_NUMBER;
+				//size_t 		   	_memory; //remain available memory; 
 
-				std::string		   master_uri;
+				std::string		master_uri;
 
-				Common::comm_handle	   master_handle;
-				Common::comm_handle	   my_handle;
+				Common::comm_handle	master_handle;
+				Common::comm_handle	my_handle;
 
-				std::string 	   _mount_point;
-				node_handle_pool_t IOnode_handle_pool;
+				std::string 	   	_mount_point;
+				node_handle_pool_t 	IOnode_handle_pool;
+				std::vector<block*> 	writeback_queue;
+				int			writeback_status;
+				bool			dirty_pages;
+				Common::memory_pool	memory_pool_for_blocks;
+				remove_file_list_t	remove_file_list;
 		};
 
-		inline int IOnode::block::lock()
+
+		inline bool IOnode::
+			need_writeback(block* data)
 		{
-			return pthread_mutex_lock(&locker);
+			data->lock();
+			bool ret=DIRTY == data->dirty_flag;
+			data->unlock();
+			return ret;
 		}
 
-		inline int IOnode::block::unlock()
+		inline bool IOnode::
+			have_dirty_page()const
 		{
-			return pthread_mutex_unlock(&locker);
+			return dirty_pages;
+		}
+
+		inline void IOnode::
+			new_dirty_page()
+		{
+			dirty_pages=true;
+		}
+
+		inline void IOnode::
+			clear_dirty_page()
+		{
+			dirty_pages=false;
+		}
+
+		inline bool IOnode::
+			has_memory_left(size_t size)const
+		{
+			return this->memory_pool_for_blocks.has_memory_left(size);
+		}
+
+		inline size_t IOnode::
+			free_data(block* data)
+		{
+			_DEBUG("free memory of %s start point %ld\n",
+					data->file_stat->file_path.c_str(),
+					data->start_point);
+			data->lock();
+			size_t ret=data->free_memory();
+			data->unlock();
+			return ret;
 		}
 	}
 }

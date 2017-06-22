@@ -26,7 +26,7 @@ include ../../common.mk
 AM_CPPFLAGS += -I./include/ -I../Common/include
 SRC_DIR = src
 HEADER_DIR = include
-AM_CPPFLAGS += $(SERVER_WAIT_FLAG) $(WRITE_BACK) $(SYNC_FLAG)
+AM_CPPFLAGS += $(SERVER_WAIT_FLAG) $(WRITE_BACK) $(SYNC_FLAG) $(SWAP_ALGORITHM)
 
 vpath %.cpp $(SRC_DIR)
 vpath %.h $(HEADER_DIR)
@@ -34,9 +34,11 @@ vpath %.h $(HEADER_DIR)
 bin_PROGRAMS = IOnode
 
 IOnode_SOURCES = IOnode.cpp	\
-		 node_main.cpp
+		 node_main.cpp	\
+		 IOnode_basic.cpp
 
 #headers
-IOnode_SOURCES += IOnode.h
+IOnode_SOURCES += IOnode.h	\
+		  IOnode_basic.h
 
 IOnode_LDADD = ../Common/libCommon.a

@@ -22,44 +22,66 @@
  * Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef CBB_HEART_BEAT_H_
-#define CBB_HEART_BEAT_H_
+/* this file is for writing back operations in IOnode or Master*/
 
-#include "CBB_task_parallel.h"
-#include "CBB_communication_thread.h"
+#ifndef CBB_LIST_H_
+#define CBB_LIST_H_
 
 namespace CBB
 {
 	namespace Common
 	{
-		class CBB_heart_beat
+
+		class list
 		{
 			public:
-				//socket, IOnode_id
-				typedef std::map<comm_handle_t, ssize_t> handle_map_t;
-				CBB_heart_beat();
-				CBB_heart_beat(communication_queue_t* input_queue,
-						communication_queue_t* output_queue);	
-				virtual ~CBB_heart_beat() = default;	
-
-				void set_queues(communication_queue_t* input_queue,
-						communication_queue_t* output_queue);
-				int heart_beat_check();
-
-				void heart_beat_func();
-
-				int send_heart_beat_check(comm_handle_t handle);
-				virtual int get_IOnode_handle_map(handle_map_t& map)=0;
-			private:
-				CBB_heart_beat(const CBB_heart_beat&) = delete;	
-				CBB_heart_beat& operator=(const CBB_heart_beat&) = delete;
+				list();
+				~list();
+				list* get_next();
+				list* get_prev();
+				list* set_next(list* next);
+				list* set_prev(list* prev);
 
 			private:
-				int 			keepAlive;
-				communication_queue_t* 	input_queue;
-				communication_queue_t* 	output_queue;
+				list*	next;
+				list*	prev;
 		};
+
+		inline list::
+			list():
+				next(nullptr),
+				prev(nullptr)
+		{}
+
+		inline list::
+			~list()
+		{}
+
+		inline list* list::
+			get_next()
+		{
+			return this->next;
+		}
+
+		inline list* list::
+			get_prev()
+		{
+			return this->prev;
+		}
+
+		inline list* list::
+			set_next(list* next)
+		{
+			this->next=next;
+			return next;
+		}
+		
+		inline list* list::
+			set_prev(list* prev)
+		{
+			this->prev=prev;
+			return next;
+		}
 	}
 }
-
 #endif

@@ -14,6 +14,50 @@
 
 @SET_MAKE@
 
+# Copyright (c) 2017, Tokyo Institute of Technology
+# Written by Tianqi Xu, xu.t.aa@m.titech.ac.jp.
+# All rights reserved. 
+# 
+# This file is part of HuronFS.
+# 
+# Please also read the file "LICENSE" included in this package for 
+# Our Notice and GNU Lesser General Public License.
+# 
+# This program is free software; you can redistribute it and/or modify it under the 
+# terms of the GNU General Public License (as published by the Free Software 
+# Foundation) version 2.1 dated February 1999. 
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY 
+# WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY or 
+# FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the GNU 
+# General Public License for more details. 
+# 
+# You should have received a copy of the GNU Lesser General Public License along 
+# with this program; if not, write to the Free Software Foundation, Inc., 59 Temple 
+# Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Copyright (c) 2017, Tokyo Institute of Technology
+# Written by Tianqi Xu, xu.t.aa@m.titech.ac.jp.
+# All rights reserved. 
+# 
+# This file is part of HuronFS.
+# 
+# Please also read the file "LICENSE" included in this package for 
+# Our Notice and GNU Lesser General Public License.
+# 
+# This program is free software; you can redistribute it and/or modify it under the 
+# terms of the GNU General Public License (as published by the Free Software 
+# Foundation) version 2.1 dated February 1999. 
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY 
+# WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY or 
+# FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the GNU 
+# General Public License for more details. 
+# 
+# You should have received a copy of the GNU Lesser General Public License along 
+# with this program; if not, write to the Free Software Foundation, Inc., 59 Temple 
+# Place, Suite 330, Boston, MA 02111-1307 USA
+
 VPATH = @srcdir@
 am__is_gnu_make = test -n '$(MAKEFILE_LIST)' && test -n '$(MAKELEVEL)'
 am__make_running_with_option = \
@@ -80,12 +124,13 @@ build_triplet = @build@
 host_triplet = @host@
 DIST_COMMON = $(srcdir)/../../common.mk $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/depcomp
-@DEBUG_TRUE@am__append_1 = -DDEBUG
-@USING_CCI_TRUE@am__append_2 = -DCCI $(CCI_INCLUDE)
-@USING_CCI_TRUE@am__append_3 = ${CCI_LIB} -lcci
-@USING_CCI_FALSE@am__append_4 = -DTCP
-@USING_CCI_TRUE@am__append_5 = CBB_cci.cpp
-@USING_CCI_FALSE@am__append_6 = CBB_tcp.cpp
+@ASYNC_WRITE_BACK_TRUE@@WRITE_BACK_TRUE@am__append_1 = -DASYNC
+@DEBUG_TRUE@am__append_2 = -DDEBUG
+@USING_CCI_TRUE@am__append_3 = -DCCI $(CCI_INCLUDE)
+@USING_CCI_TRUE@am__append_4 = ${CCI_LIB} -lcci
+@USING_CCI_FALSE@am__append_5 = -DTCP
+@USING_CCI_TRUE@am__append_6 = CBB_cci.cpp
+@USING_CCI_FALSE@am__append_7 = CBB_tcp.cpp
 subdir = src/Common
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -110,8 +155,8 @@ am__libCommon_a_SOURCES_DIST = Server.cpp Client.cpp \
 	CBB_mutex_lock.cpp CBB_rwlock.cpp CBB_communication_thread.cpp \
 	CBB_request_handler.cpp CBB_serialization.cpp \
 	CBB_remote_task.cpp CBB_heart_beat.cpp CBB_data_sync.cpp \
-	CBB_profiling.cpp Comm_basic.cpp CBB_IO_task.cpp CBB_cci.cpp \
-	CBB_tcp.cpp
+	CBB_profiling.cpp Comm_basic.cpp CBB_memory_pool.cpp \
+	CBB_IO_task.cpp CBB_cci.cpp CBB_tcp.cpp
 @USING_CCI_TRUE@am__objects_1 = CBB_cci.$(OBJEXT)
 @USING_CCI_FALSE@am__objects_2 = CBB_tcp.$(OBJEXT)
 am_libCommon_a_OBJECTS = Server.$(OBJEXT) Client.$(OBJEXT) \
@@ -120,8 +165,8 @@ am_libCommon_a_OBJECTS = Server.$(OBJEXT) Client.$(OBJEXT) \
 	CBB_request_handler.$(OBJEXT) CBB_serialization.$(OBJEXT) \
 	CBB_remote_task.$(OBJEXT) CBB_heart_beat.$(OBJEXT) \
 	CBB_data_sync.$(OBJEXT) CBB_profiling.$(OBJEXT) \
-	Comm_basic.$(OBJEXT) CBB_IO_task.$(OBJEXT) $(am__objects_1) \
-	$(am__objects_2)
+	Comm_basic.$(OBJEXT) CBB_memory_pool.$(OBJEXT) \
+	CBB_IO_task.$(OBJEXT) $(am__objects_1) $(am__objects_2)
 libCommon_a_OBJECTS = $(am_libCommon_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -233,6 +278,7 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
@@ -309,14 +355,16 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CPPFLAGS = -DCBB_PRELOAD -DLOG $(am__append_1) $(am__append_2) \
-	$(am__append_4) -I./include/
+AM_CPPFLAGS = -DCBB_PRELOAD -DLOG $(am__append_2) $(am__append_3) \
+	$(am__append_5) -I./include/
 AM_CXXFLAGS = -Wall -std=c++11
-AM_LDFLAGS = -lpthread $(am__append_3)
+AM_LDFLAGS = -lpthread $(am__append_4)
 SYNC_FLAG = -DSTRICT_SYNC_DATA -DSYNC_DATA_WITH_REPLY
 SERVER_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
 CLIENT_WAIT_FLAG = -DBUSY_WAIT -DSLEEP_YIELD
-@WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK
+SWAP_ALGORITHM = -DLRU
+@WRITE_BACK_TRUE@WRITE_BACK = -DWRITE_BACK $(am__append_1)
+@CLIENT_MULTIPLE_THREADS_FALSE@CLIENT_THREADS = -DSINGLE_THREAD
 
 # this lists the binaries to produce, the (non-PHONY, binary) targets in
 # the previous manual Makefile
@@ -327,8 +375,8 @@ libCommon_a_SOURCES = Server.cpp Client.cpp CBB_mutex_lock.cpp \
 	CBB_rwlock.cpp CBB_communication_thread.cpp \
 	CBB_request_handler.cpp CBB_serialization.cpp \
 	CBB_remote_task.cpp CBB_heart_beat.cpp CBB_data_sync.cpp \
-	CBB_profiling.cpp Comm_basic.cpp CBB_IO_task.cpp \
-	$(am__append_5) $(am__append_6)
+	CBB_profiling.cpp Comm_basic.cpp CBB_memory_pool.cpp \
+	CBB_IO_task.cpp $(am__append_6) $(am__append_7)
 all: all-am
 
 .SUFFIXES:
@@ -342,9 +390,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/../../common.mk $(am__co
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/Common/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/Common/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu src/Common/Makefile
+	  $(AUTOMAKE) --foreign src/Common/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -384,6 +432,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_communication_thread.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_data_sync.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_heart_beat.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_memory_pool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_mutex_lock.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_profiling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_remote_task.Po@am__quote@

@@ -43,6 +43,7 @@ libCommon_a_SOURCES = Server.cpp \
 		      CBB_data_sync.cpp \
 		      CBB_profiling.cpp \
 		      Comm_basic.cpp \
+		      CBB_memory_pool.cpp \
 		      CBB_IO_task.cpp 
 
 

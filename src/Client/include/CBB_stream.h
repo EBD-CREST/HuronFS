@@ -25,25 +25,30 @@
 #ifndef CBB_STREAM_H_
 #define CBB_STREAM_H_
 
-#include "CBB_client.h"
 #include <linux/limits.h>
+
+#include "CBB_client.h"
+#include "CBB_memory_pool.h"
 
 namespace CBB
 {
 	namespace Client
 	{
-		class CBB_stream:public CBB_client
+		class CBB_stream:
+			public CBB_client
 		{
 			private:
 				class stream_info
 				{
 					public:
-						friend class CBB_stream; stream_info(bool dirty_flag, bool buffer_flag,
+						friend class CBB_stream;
+						stream_info(bool dirty_flag, bool buffer_flag,
 								int fd,
 								size_t file_size,
 								off64_t cur_file_ptr,
 								int open_flag,
-								mode_t open_mode);
+								mode_t open_mode,
+								Common::allocator& mem_allocator);
 						~stream_info();
 						size_t _update_cur_buf_ptr(CBB_stream& stream, size_t size);
 						off64_t _cur_buf_off()const;
@@ -54,22 +59,25 @@ namespace CBB
 						size_t _write_meta_update(size_t write_size);
 						void _update_meta_for_rebuf(bool dirty_flag, size_t update_size);
 						off64_t _get_buf_off_from_file_off(off64_t file_off)const;
+						void free_buffer();
 					private:
-						bool dirty_flag;
-						bool buffer_flag;
-						int fd;
-						int err;
-						int open_flag;
-						mode_t open_mode;
-						char* buf;
-						char* cur_buf_ptr;
-						size_t buffer_size;
-						size_t buffered_data_size;
-						size_t file_size;
+						bool 	dirty_flag;
+						bool 	buffer_flag;
+						int 	fd;
+						int 	err;
+						int 	open_flag;
+						mode_t 	open_mode;
+						char* 	buf;
+						char* 	cur_buf_ptr;
+						size_t 	buffer_size;
+						size_t 	buffered_data_size;
+						size_t 	file_size;
 						//buf start point file offset
-						off64_t buf_file_off;
+						off64_t	buf_file_off;
+						Common::allocator& 	mem_allocator;
+						Common::memory_elem*	_elem;
 					private:
-						stream_info(const stream_info&);
+						stream_info(const stream_info&)=delete;
 				};
 			private:
 				typedef stream_info stream_info_t;
@@ -78,23 +86,23 @@ namespace CBB
 			public:
 				CBB_stream();
 				~CBB_stream();
-				bool _interpret_stream(void* stream)const;
-				FILE* _open_stream(const char* path, const char* mode);
-				FILE* _open_stream(const char* path, int flag, mode_t mode);
-				int _flush_stream(FILE* stream);
-				int _close_stream(FILE* stream);
-				void _freebuf_stream(FILE* stream);
-				void _setbuf_stream(FILE* stream, char* buf);
-				size_t _read_stream(FILE* stream, void* buf, size_t size);
-				size_t _write_stream(FILE* stream, const void* buf, size_t size);
-				off64_t _seek_stream(FILE* stream, off64_t offset, int whence);
-				off64_t _tell_stream(FILE* stream);
-				void _clearerr_stream(FILE* stream);
-				int _eof_stream(FILE* stream);
-				int _error_stream(FILE* stream);
-				int _fileno_stream(FILE* stream);
-				int _update_underlying_file_size(FILE* file_stream);
-				int _truncate_stream(FILE* stream, off64_t size);
+				FILE* open_stream(const char* path, const char* mode);
+				FILE* open_stream(const char* path, int flag, mode_t mode);
+				int flush_stream(FILE* stream);
+				int close_stream(FILE* stream);
+				void freebuf_stream(FILE* stream);
+				void setbuf_stream(FILE* stream, char* buf);
+				size_t read_stream(FILE* stream, void* buf, size_t size);
+				size_t write_stream(FILE* stream, const void* buf, size_t size);
+				off64_t seek_stream(FILE* stream, off64_t offset, int whence);
+				off64_t tell_stream(FILE* stream);
+				void clearerr_stream(FILE* stream);
+				int eof_stream(FILE* stream);
+				int error_stream(FILE* stream);
+				int fileno_stream(FILE* stream);
+				int truncate_stream(FILE* stream, off64_t size);
+				bool interpret_stream(void* stream)const;
+				int update_underlying_file_size(FILE* file_stream);
 			private:
 				int _init_buffer_for_writing(stream_info_t* file_stream);
 				int _flush_stream(stream_info_t* stream);
@@ -103,9 +111,30 @@ namespace CBB
 				//FILE* _get_stream_from_path(const char* path);
 			private:
 				int _parse_open_mode_flag(const char* path, int& flag, mode_t& open_mode)const;
+			private:
 
-				stream_pool_t _stream_pool;
+				stream_pool_t 		_stream_pool;
+				Common::allocator	buffer_pool;
 		};
+		
+		inline off64_t CBB_stream::stream_info::
+			_get_buf_off_from_file_off(off64_t file_off)const
+		{
+			return file_off - _cur_file_off() + static_cast<const off64_t>(cur_buf_ptr - buf);
+		}
+
+		inline void CBB_stream::stream_info::
+			free_buffer()
+		{
+			if(buffer_flag &&
+				nullptr != _elem)
+			{
+				mem_allocator.free(_elem);
+				_elem=nullptr;
+				cur_buf_ptr=nullptr;
+			}
+			buffered_data_size=0;
+		}
 	}
 }
 
