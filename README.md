@@ -23,7 +23,11 @@
  */
 -->
 
-##This is HuronFS (Hierarchical, User-level and ON-demand FileSystem
+<img src="files/HuronFS_logo.png" height="60%" width="60%" alt="HuronFS logo" title="HuronFS" align="middle" />
+
+Introduction
+--------------------------------------------------------------------------------------------------------------
+This is HuronFS (Hierarchical, User-level and ON-demand FileSystem)
 
 OVERVIEW:
 --------------------------------------------------------------------------------------------------------------
