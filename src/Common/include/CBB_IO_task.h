@@ -140,6 +140,8 @@ namespace CBB
 				size_t get_extended_data_size()const;
 				virtual void reset()override final;
 				const send_buffer_t* get_send_buffer()const;
+				send_buffer_t* get_send_buffer();
+				void set_send_buffer(send_buffer_t* buffer);
 				unsigned char* get_receive_buffer(size_t size);
 				void push_send_buffer(char* buf, size_t size);
 				void push_recv_buffer(char* buf, size_t size);
@@ -503,6 +505,12 @@ namespace CBB
 		{
 			return &this->send_buffer;
 		}
+		
+		inline send_buffer_t* extended_IO_task::
+			get_send_buffer()
+		{
+			return &this->send_buffer;
+		}
 
 		inline unsigned char* extended_IO_task::
 			get_receive_buffer(size_t size)
@@ -523,6 +531,12 @@ namespace CBB
 		{
 			send_buffer.push_back(send_buffer_element(buf, size));
 			*(this->extended_size)+=size;
+		}
+
+		inline void extended_IO_task::
+			set_send_buffer(send_buffer_t* buffer)
+		{
+			this->send_buffer.swap(*buffer);
 		}
 
 		inline void extended_IO_task::

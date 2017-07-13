@@ -151,7 +151,8 @@ namespace CBB
 						off64_t offset,
 						ssize_t size,
 						int	receiver_id,
-						Common::comm_handle_t handle);
+						Common::comm_handle_t handle,
+						Common::send_buffer_t* send_buffer);
 				int _send_sync_data(Common::comm_handle_t handle,
 						file* 	requested_file,
 						off64_t start_point,

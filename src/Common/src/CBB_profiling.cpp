@@ -58,11 +58,39 @@ void CBB_profiling::_print_time()
 	if(is_profiling())
 	{
 		_DEBUG("record\n");
-		_RECORD(this->fp, "from %s %d to %s %d difference %ld us\n",
-				st.function_name, st.line_number,
-				et.function_name, et.line_number, st.diff(et));
+		double new_time=(double)st.diff(et)/1000000;
+		total_time += new_time;
+
+		if( 0 == -- delay_count)
+		{
+			double total_size = (total_read + total_write)/(double)MB;
+			_RECORD(this->fp, "new time %f s total time %f s, total read %f MB, total write %f MB, total_size %f MB, throughput %f MB/s\n",
+					new_time, total_time, total_read/(double)MB, total_write/(double)MB, total_size, total_size/total_time);
+			delay_count=PRINT_DELAY;
+			/*_RECORD(this->fp, "from %s %d to %s %d difference %ld us\n",
+			  st.function_name, st.line_number,
+			  et.function_name, et.line_number, new_time);*/
+		}
 	}
 }
+
+CBB_profiling::
+~CBB_profiling()
+{
+	if(is_profiling())
+	{
+		_close_profile_file();
+
+		if(PRINT_DELAY != delay_count)
+		{
+			double new_time=(double)st.diff(et)/1000000;
+			total_time += new_time;
+			_RECORD(this->fp, "new time %f s total time %f s, total read %ld, total write %ld, throughput %f MB/s\n",
+					new_time, total_time, total_read, total_write, (total_read+total_write)/total_time/1000000);
+		}
+	}
+}
+
 
 void CBB_profiling::print_raw_time()
 {
@@ -116,7 +144,11 @@ CBB_profiling::CBB_profiling():
 	et(),
 	raw(),
 	fp(nullptr),
-	profiling_flag(false)
+	profiling_flag(false),
+	total_time(0.0),
+	total_read(0),
+	total_write(0),
+	delay_count(PRINT_DELAY)
 {
 	const char* hufs_profiling=nullptr;
 	const char* hufs_profile_path=".";
@@ -155,13 +187,5 @@ CBB_profiling::CBB_profiling():
 		//may have the same pid
 		sprintf(filename, "%s/profile-%d", hufs_profile_path, getpid());
 		_open_profile_file(filename);
-	}
-}
-
-CBB_profiling::~CBB_profiling()
-{
-	if(is_profiling())
-	{
-		_close_profile_file();
 	}
 }

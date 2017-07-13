@@ -34,10 +34,10 @@ namespace CBB
 	{
 #define _RECORD(fp, fmt, args... ) fprintf(fp, "[%s]" fmt, __func__, ##args)
 
-
-#define start_recording(obj)			\
+#define start_recording(obj, size, mode)	\
 		do{				\
 			(obj)->st.record();	\
+			(obj)->record_size(size, mode);\
 		}while(0)
 
 #define end_recording(obj)			\
@@ -79,6 +79,7 @@ namespace CBB
 				void _print_time();
 				void print_raw_time();
 				void flush_record();
+				void record_size(size_t size, int mode);
 			private:
 				int _open_profile_file(const char* file_name);
 				int _close_profile_file();
@@ -91,6 +92,11 @@ namespace CBB
 				time_record     raw;
 				FILE*		fp; //fp for recording
 				bool		profiling_flag;
+
+				double 		total_time;
+				size_t		total_read;
+				size_t		total_write;
+				int 		delay_count;
 		};
 
 		inline void time_record::
@@ -103,6 +109,19 @@ namespace CBB
 			is_profiling()const
 		{
 			return profiling_flag;
+		}
+
+		inline void CBB_profiling::
+			record_size(size_t size, int mode)
+		{
+			if(READ_FILE == mode)
+			{
+				total_read += size;
+			}
+			else
+			{
+				total_write += size;
+			}
 		}
 	}
 }

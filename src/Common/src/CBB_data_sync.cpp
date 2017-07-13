@@ -113,7 +113,8 @@ int CBB_data_sync::add_data_sync_task(int task_id,
 		off64_t offset,
 		ssize_t size,
 		int receiver_id,
-		comm_handle_t handle)
+		comm_handle_t handle,
+		send_buffer_t* send_buffer)
 {
 	data_sync_task* new_data_sync_task=data_sync_queue.allocate_tmp_node();
 	new_data_sync_task->task_id=task_id;
@@ -123,5 +124,6 @@ int CBB_data_sync::add_data_sync_task(int task_id,
 	new_data_sync_task->offset=offset;
 	new_data_sync_task->size=size;
 	new_data_sync_task->set_handle(handle);
+	new_data_sync_task->set_send_buffer(send_buffer);
 	return data_sync_queue.task_enqueue_signal_notification();
 }

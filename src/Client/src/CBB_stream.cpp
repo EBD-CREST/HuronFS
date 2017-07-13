@@ -35,7 +35,7 @@ using namespace CBB::Common;
 using namespace CBB::Client;
 
 bool USE_BUFFER=false;
-const char* CBB_stream::STREAM_USE_BUFFER="CBB_STREAM_USE_BUFFER";
+const char* CBB_stream::STREAM_USE_BUFFER="HUFS_STREAM_USE_BUFFER";
 
 CBB_stream::stream_info::
 stream_info(	bool 	dirty_flag,

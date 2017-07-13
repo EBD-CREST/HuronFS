@@ -29,6 +29,7 @@
 
 #include "CBB_task_parallel.h"
 #include "CBB_communication_thread.h"
+#include "CBB_IO_task.h"
 
 namespace CBB
 {
@@ -41,6 +42,8 @@ namespace CBB
 				data_sync_task()=default;
 				virtual ~data_sync_task()=default;
 				void set_handle(comm_handle_t handle);
+				void set_send_buffer(send_buffer_t* send_buffer);
+				send_buffer_t* get_send_buffer();
 
 				int 		task_id;
 				comm_handle 	handle;
@@ -49,6 +52,7 @@ namespace CBB
 				off64_t 	start_point;
 				off64_t 	offset;
 				ssize_t 	size;
+				send_buffer_t 	send_buffer;
 		};
 		typedef task_parallel_queue<data_sync_task> data_sync_queue_t;
 
@@ -66,7 +70,8 @@ namespace CBB
 						off64_t offset,
 						ssize_t size,
 						int receiver_id,
-						comm_handle_t handle);
+						comm_handle_t handle,
+						send_buffer_t* send_buffer);
 				static void* data_sync_thread_fun(void* argv);
 				void set_queues(communication_queue_t* input_queue,
 						communication_queue_t* output_queue);
@@ -114,7 +119,20 @@ namespace CBB
 			this->handle=*handle;
 		}
 
+		inline void data_sync_task::
+			set_send_buffer(send_buffer_t* send_buffer)
+		{
+			if(nullptr != send_buffer)
+			{
+				this->send_buffer.swap(*send_buffer);
+			}
+		}
+
+		inline send_buffer_t* data_sync_task::
+			get_send_buffer()
+		{
+			return &this->send_buffer;
+		}
 	}
 }
-
 #endif

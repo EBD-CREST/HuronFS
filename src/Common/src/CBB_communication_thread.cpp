@@ -399,7 +399,7 @@ throw(std::runtime_error)
         count = send_buffer->size();
         for (auto &buf : *send_buffer)
         {
-            _DEBUG("register size=%ld\n", buf.size);
+            _DEBUG("register memory\n");
             //DELETE debug
             register_mem(buf.buffer, buf.size, handle, CCI_FLAG_READ | CCI_FLAG_WRITE);
 

@@ -269,7 +269,7 @@ _promoted_to_primary(extended_IO_task* new_task)
 			_get_replica_node_info(new_task, file_info);
 			add_data_sync_task(DATA_SYNC_INIT,
 					&file_info, 0, 0, -1, 0,
-					&IOnode_handle_pool.at(new_node_id));
+					&IOnode_handle_pool.at(new_node_id), nullptr);
 		}
 	}
 	catch(std::runtime_error&e) {
@@ -381,6 +381,11 @@ _send_data(extended_IO_task* new_task)
 			try
 			{
 				requested_block=_file.blocks.at(start_point);
+				if(0 == strcmp("/solvers/gxp_make/c2mass-atlas-981105n-j2320032_area.fits",
+							path.c_str()))
+				{
+					_DEBUG("check this one\n");
+				}
 			}
 			catch(std::out_of_range&e )
 			{
@@ -459,7 +464,7 @@ _receive_data(extended_IO_task* new_task)
 		while(0 < remaining_size)
 		{
 			_DEBUG("receive_data start point %ld, offset %ld, receive size %ld, remaining size %ld\n",
-					start_point, tmp_offset,
+					tmp_start_point, tmp_offset,
 					receive_size, remaining_size);
 			ssize_t IOsize=update_block_data(blocks,
 					_file, tmp_start_point,
@@ -476,7 +481,8 @@ _receive_data(extended_IO_task* new_task)
 		_file.dirty_flag=DIRTY;
 
 		_sync_data(_file, start_point, 
-			offset, size, new_task->get_receiver_id(), new_task->get_handle());
+			offset, size, new_task->get_receiver_id(), 
+			new_task->get_handle(), new_task->get_send_buffer());
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -526,6 +532,7 @@ update_block_data(block_info_t&		blocks,
 		_block->data_size = offset+size;
 	}
 
+	_DEBUG("receive data at %p, size=%ld\n", _block->data, size);
 	ret=new_task->get_received_data(
 			static_cast<unsigned char*>(_block->data)+offset,
 			size);
@@ -540,11 +547,12 @@ _sync_data(file& 	 file_info,
 	   off64_t	 offset,
 	   ssize_t	 size,
 	   int		 receiver_id,
-	   comm_handle_t handle)
+	   comm_handle_t handle,
+	   send_buffer_t* send_buffer)
 {
 	_DEBUG("offset %ld\n", offset);
 	return add_data_sync_task(DATA_SYNC_WRITE, &file_info,
-			start_point, offset, size, receiver_id, handle);
+			start_point, offset, size, receiver_id, handle, send_buffer);
 }
 
 int IOnode::
@@ -817,8 +825,8 @@ throw(std::runtime_error)
 
 	if(block_data->TO_BE_DELETED)
 	{
-		size_t size=block_data->data_size;
-		return size;
+		block_data->unlock();
+		return block_data->data_size;
 	}
 
 	string real_path	=_get_real_path(block_data->file_stat->file_path);
@@ -1103,23 +1111,14 @@ _sync_write_data(data_sync_task* new_task)
 	output_task->set_receiver_id(receiver_id);
 #ifdef CCI
 	output_task->set_extended_data_size(new_task->size);
-
-	ssize_t tmp_size=new_task->size;
-	size_t  tmp_offset=new_task->offset;
-	auto block_it=requested_file->blocks.find(new_task->start_point);
-
-	while(end(requested_file->blocks) != block_it && 0 < tmp_size)
+	_DEBUG("dump output buffer\n");
+	for(auto& buf:*new_task->get_send_buffer())
 	{
-		block* requested_block=block_it->second;
-		size_t IO_size=min(tmp_size, 
-				(ssize_t)requested_block->data_size);
-		output_task->push_send_buffer(
-			(static_cast<char*>(requested_block->data)+tmp_offset),
-			IO_size);
-		tmp_size-=IO_size;
-		block_it++;
-		tmp_offset=0;
+		_DEBUG("output task buffer %p, %ld\n", buf.buffer, buf.size);
 	}
+
+	output_task->set_send_buffer(new_task->get_send_buffer());
+
 #endif
 	output_task->push_back(SUCCESS);
 	data_sync_task_enqueue(output_task);
