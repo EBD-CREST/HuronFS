@@ -174,11 +174,6 @@ namespace CBB
 				size_t 		total_size;
 				unsigned char*  cur_ptr;
 		};
-
-		int Send_attr(extended_IO_task* output_task,
-			      const struct stat* file_stat);
-		int Recv_attr(extended_IO_task* new_task,
-				struct stat* file_stat);
 		typedef task_parallel_queue<extended_IO_task> communication_queue_t;
 
 		template<typename T> size_t basic_IO_task::

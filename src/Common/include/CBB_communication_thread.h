@@ -43,6 +43,10 @@ namespace CBB
 		//each thread set the handle which it is waiting on
 		typedef std::vector<comm_handle_t> threads_handle_map_t;
 
+		int Send_attr(extended_IO_task* output_task,
+			      const struct stat* file_stat);
+		int Recv_attr(extended_IO_task* new_task,
+				struct stat* file_stat);
 		class CBB_communication_thread:
 			public CBB_communication,
 			public CBB_profiling

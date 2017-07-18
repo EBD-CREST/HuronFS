@@ -62,6 +62,7 @@ namespace CBB
 			off64_t 		start_point;
 			bool 			dirty_flag;
 			bool 			valid;
+			volatile bool		writing_back;
 			int 			exist_flag;
 			file*			file_stat;
 			//Common::remote_task* 	write_back_task;

@@ -34,15 +34,15 @@ namespace CBB
 	{
 #define _RECORD(fp, fmt, args... ) fprintf(fp, "[%s]" fmt, __func__, ##args)
 
-#define start_recording(obj, size, mode)	\
+#define start_recording(obj)	\
 		do{				\
 			(obj)->st.record();	\
-			(obj)->record_size(size, mode);\
 		}while(0)
 
-#define end_recording(obj)			\
+#define end_recording(obj, size, mode)		\
 		do{				\
 			(obj)->et.record();	\
+			(obj)->record_size(size, mode);\
 			(obj)->_print_time();	\
 		}while(0)
 	
@@ -80,6 +80,10 @@ namespace CBB
 				void print_raw_time();
 				void flush_record();
 				void record_size(size_t size, int mode);
+				void print_log(	const char* mode, 
+					const char* io_path,
+					size_t offset,
+					size_t length);
 			private:
 				int _open_profile_file(const char* file_name);
 				int _close_profile_file();
@@ -122,6 +126,16 @@ namespace CBB
 			{
 				total_write += size;
 			}
+		}
+
+		inline void CBB_profiling::
+			print_log(	const char* mode, 
+					const char* io_path,
+					size_t offset,
+					size_t length)
+		{
+
+			fprintf(fp, "0.0\t0.0\t0\t%s\t%s\t%lu\t%lu\n", mode, io_path, offset, length);
 		}
 	}
 }

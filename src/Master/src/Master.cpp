@@ -1495,6 +1495,7 @@ throw(std::invalid_argument)
 	file_status.st_uid=getuid();
 	file_status.st_gid=getgid();
 	file_status.st_mode=mode;
+	file_status.st_blksize=128*KiB;
 	_DEBUG("add new file states\n");
 	file_stat_pool_t::iterator it=_file_stat_pool.insert(std::make_pair(relative_path_string, Master_file_stat())).first;
 	Master_file_stat& new_file_stat=it->second;

@@ -494,11 +494,13 @@ int CBB::Common::Send_attr(extended_IO_task *output_task, const struct stat *fil
     output_task->push_back(file_stat->st_atime);   /* time of last access */
     output_task->push_back(file_stat->st_mtime);   /* time of last modification */
     output_task->push_back(file_stat->st_ctime);   /* time of last status change */
+    output_task->push_back(file_stat->st_blksize); /* blocksize for file system I/O */
     return SUCCESS;
 }
 
 int CBB::Common::Recv_attr(extended_IO_task *new_task, struct stat *file_stat)
 {
+    memset(file_stat, 0, sizeof(struct stat));
     new_task->pop(file_stat->st_mode);    /* protection */
     new_task->pop(file_stat->st_uid);     /* user ID of owner */
     new_task->pop(file_stat->st_gid);     /* group ID of owner */
@@ -506,5 +508,6 @@ int CBB::Common::Recv_attr(extended_IO_task *new_task, struct stat *file_stat)
     new_task->pop(file_stat->st_atime);   /* time of last access */
     new_task->pop(file_stat->st_mtime);   /* time of last modification */
     new_task->pop(file_stat->st_ctime);   /* time of last status change */
+    new_task->pop(file_stat->st_blksize); /* blocksize for file system I/O */
     return SUCCESS;
 }

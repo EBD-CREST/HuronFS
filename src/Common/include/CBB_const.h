@@ -29,6 +29,10 @@ const size_t KB=1000;
 const size_t MB=KB*1000;
 const size_t GB=MB*1000;
 
+const size_t KiB=1024;
+const size_t MiB=KiB*1024;
+const size_t GiB=MiB*1024;
+
 //the port number used by master
 const int MASTER_SOCKET_PORT = 9000; 
 //the port number used to Connect master in each IOnode
@@ -165,6 +169,7 @@ const int SUCCESS = 0;
 //used as a return value in socket error report
 const int NO_ERROR=0;
 const bool SET = true;
+const bool UNSET = false;
 
 //command operations
 const int CLOSE_PIPE = 0;

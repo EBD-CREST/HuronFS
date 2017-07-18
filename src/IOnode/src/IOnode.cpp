@@ -381,11 +381,6 @@ _send_data(extended_IO_task* new_task)
 			try
 			{
 				requested_block=_file.blocks.at(start_point);
-				if(0 == strcmp("/solvers/gxp_make/c2mass-atlas-981105n-j2320032_area.fits",
-							path.c_str()))
-				{
-					_DEBUG("check this one\n");
-				}
 			}
 			catch(std::out_of_range&e )
 			{
@@ -517,6 +512,8 @@ update_block_data(block_info_t&		blocks,
 				create_new_block(start_point, size, CLEAN, 
 				INVALID, &file))).first->second;
 	}
+
+	_block->lock();
 	if(_block->need_allocation())
 	{
 		allocate_memory_for_block(_block);
@@ -536,8 +533,13 @@ update_block_data(block_info_t&		blocks,
 	ret=new_task->get_received_data(
 			static_cast<unsigned char*>(_block->data)+offset,
 			size);
+
+	_DEBUG("%p is dirty now\n", _block);
 	_block->dirty_flag=DIRTY;
+
 	update_access_order(_block);
+	_block->unlock();
+
 	return ret;
 }
 
@@ -823,6 +825,8 @@ throw(std::runtime_error)
 {
 	block_data->lock();
 
+	block_data->dirty_flag=CLEAN;
+
 	if(block_data->TO_BE_DELETED)
 	{
 		block_data->unlock();
@@ -834,6 +838,9 @@ throw(std::runtime_error)
 	size_t	    size	=block_data->data_size, len=size;
 	const char* buf		=static_cast<const char*>(block_data->data);
 	ssize_t	    ret		=0;
+
+	block_data->set_to_existing();
+	block_data->unlock();
 
 	int fd = open64(real_path.c_str(),O_WRONLY|O_CREAT, 0600);
 	if( -1 == fd)
@@ -865,10 +872,6 @@ throw(std::runtime_error)
 	}
 	close(fd);
 
-	block_data->dirty_flag=CLEAN;
-	block_data->set_to_existing();
-
-	block_data->unlock();
 	return size-len;
 }
 
@@ -1111,13 +1114,13 @@ _sync_write_data(data_sync_task* new_task)
 	output_task->set_receiver_id(receiver_id);
 #ifdef CCI
 	output_task->set_extended_data_size(new_task->size);
-	_DEBUG("dump output buffer\n");
-	for(auto& buf:*new_task->get_send_buffer())
-	{
-		_DEBUG("output task buffer %p, %ld\n", buf.buffer, buf.size);
-	}
-
 	output_task->set_send_buffer(new_task->get_send_buffer());
+	_LOG("send buffer size %ld\n", output_task->get_send_buffer()->size());
+	for(auto& buf : *(output_task->get_send_buffer()))
+	{
+		_LOG("buf address %p\n", buf.buffer);
+		_LOG("buf size %ld\n", buf.size);
+	}
 
 #endif
 	output_task->push_back(SUCCESS);
@@ -1277,7 +1280,13 @@ writeback(block* requested_block)
 	//_write_to_storage(path, _block);
 	if(DIRTY == requested_block->dirty_flag)
 	{
-		return _write_to_storage(requested_block);
+		size_t ret=0;
+		_DEBUG("writing back %p\n", requested_block);
+		requested_block->writing_back=SET;
+		ret=_write_to_storage(requested_block);
+		requested_block->writing_back=UNSET;
+		_DEBUG("finishing writing %p\n", requested_block);
+		return ret;
 	}
 	else
 	{

@@ -212,7 +212,8 @@ namespace CBB
 			need_writeback(block* data)
 		{
 			data->lock();
-			bool ret=DIRTY == data->dirty_flag;
+			bool ret = (DIRTY == data->dirty_flag);
+			_DEBUG("need to write back %p, %s\n", data, ret?"true":"false");
 			data->unlock();
 			return ret;
 		}
@@ -248,6 +249,12 @@ namespace CBB
 					data->file_stat->file_path.c_str(),
 					data->start_point);
 			data->lock();
+
+			//wait for ongoing write back to finish 
+			_DEBUG("testing block %p\n", data);
+			while(SET == data->writing_back);
+			_DEBUG("start to free block %p\n", data);
+
 			size_t ret=data->free_memory();
 			data->unlock();
 			return ret;

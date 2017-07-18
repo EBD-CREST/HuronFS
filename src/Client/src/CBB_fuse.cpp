@@ -136,14 +136,15 @@ static int CBB_read(	const char* 	path,
 	if(nullptr != stream)
 	{
 
-		start_recording(&client, count, READ_FILE);
+		start_recording(&client);
 		if(-1 == client.seek_stream(stream, offset, SEEK_SET))
 		{
 			return -1;
 		}
 		ret=client.read_stream(stream, buffer, count);
 		_DEBUG("ret=%d path=%s\n", ret,path);
-		end_recording(&client);
+		end_recording(&client, ret, READ_FILE);
+		client.print_log("r", path, offset, count);
 
 		return ret;
 	}
@@ -179,44 +180,8 @@ static int CBB_write(	const char* 	path,
 	int ret;
 	if(nullptr != stream)
 	{
-		//CLEAN LATER
-		/*{
-			char new_path[PATH_MAX], base_path[PATH_MAX];
-			struct stat stat_buf;
-			size_t len=count;
-			const char* buf=buffer;
-			strcpy(base_path, path);
-			sprintf(new_path, "/tmp/back/%s", basename(base_path));
-			int fd = open64(new_path,O_WRONLY|O_CREAT, 0600);
-			if( -1 == fd)
-			{
-				perror("Open File");
-				throw std::runtime_error("Open File Error\n");
-			}
-			off64_t pos;
-			if(-1 == (pos=lseek64(fd, offset, SEEK_SET)))
-			{
-				perror("Seek"); 
-				throw std::runtime_error("Seek File Error"); 
-			}
-			while(0 != len && 0 != (ret=write(fd, buf, len)))
-			{
-				if(-1 == ret)
-				{
-					if(EINVAL == errno || EAGAIN == errno)
-					{
-						continue;
-					}
-					perror("do_recv");
-					break;
-				}
-				buf += ret;
-				len -= ret;
-			}
-			close(fd);
-		}*/
 
-		start_recording(&client, count, WRITE_FILE);
+		start_recording(&client);
 		if(-1 == client.seek_stream(stream, offset, SEEK_SET))
 		{
 
@@ -225,7 +190,8 @@ static int CBB_write(	const char* 	path,
 		_DEBUG("path=%s\n", path);
 		ret=client.write_stream(stream, buffer, count);
 		client.update_underlying_file_size(stream);
-		end_recording(&client);
+		end_recording(&client, ret, WRITE_FILE);
+		client.print_log("w", path, offset, count);
 
 		return ret;
 	}
