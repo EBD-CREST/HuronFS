@@ -144,7 +144,7 @@ static int CBB_read(	const char* 	path,
 		ret=client.read_stream(stream, buffer, count);
 		_DEBUG("ret=%d path=%s\n", ret,path);
 		end_recording(&client, ret, READ_FILE);
-		client.print_log("r", path, offset, count);
+		client.print_log("r", path, offset, ret);
 
 		return ret;
 	}
@@ -191,7 +191,7 @@ static int CBB_write(	const char* 	path,
 		ret=client.write_stream(stream, buffer, count);
 		client.update_underlying_file_size(stream);
 		end_recording(&client, ret, WRITE_FILE);
-		client.print_log("w", path, offset, count);
+		client.print_log("w", path, offset, ret);
 
 		return ret;
 	}
