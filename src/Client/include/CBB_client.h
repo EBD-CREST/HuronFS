@@ -204,6 +204,13 @@ namespace CBB
 				off64_t find_start_point(const _block_list_t& blocks, off64_t start_point, ssize_t update_size);
 				size_t _update_file_size_from_master(Common::extended_IO_task* response, file_meta* file_meta_p);
 
+				int write_over_block(file_meta* file_meta_p,
+						     off64_t	start_point,
+						     size_t	size);
+				int _update_meta( file_meta* 	file_meta_p,
+						off64_t		start_point,
+						size_t 	  	size);
+
 			private:
 				int 			_fid_now;
 				_file_list_t 		_file_list;

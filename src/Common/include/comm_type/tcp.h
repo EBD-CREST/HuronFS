@@ -27,6 +27,7 @@
 
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <string.h>
 
 #include "Comm_basic.h"
@@ -118,7 +119,7 @@ namespace CBB
 			throw(std::runtime_error)
 			{
 				//simply forward
-				return Do_recv(handle, buffer, count, MSG_DONTWAIT);
+				return Do_recv(handle, buffer, count, MSG_WAITALL);
 			}
 
 		inline size_t CBB_tcp::

@@ -59,8 +59,10 @@ namespace CBB
 				~time_record()=default;
 				//void record();
 				void print();
-				ssize_t diff(time_record& et);
+				double diff(time_record& et);
 				void record();
+				size_t get_sec()const;
+				size_t get_usec()const;
 			public:
 				const char*	file_name;
 				const char*	function_name; 
@@ -84,6 +86,10 @@ namespace CBB
 					const char* io_path,
 					size_t offset,
 					size_t length);
+				void print_log_debug(	const char* mode, 
+					const char* io_path,
+					size_t offset,
+					size_t length);
 			private:
 				int _open_profile_file(const char* file_name);
 				int _close_profile_file();
@@ -97,6 +103,7 @@ namespace CBB
 				FILE*		fp; //fp for recording
 				bool		profiling_flag;
 
+				double		last_duration;
 				double 		total_time;
 				size_t		total_read;
 				size_t		total_write;
@@ -107,6 +114,18 @@ namespace CBB
 			print()
 		{
 			_LOG("[%s] line %d in file %s\n", this->function_name, this->line_number, this->file_name);
+		}
+
+		inline size_t time_record::
+			get_sec()const
+		{
+			return this->time.tv_sec;
+		}
+
+		inline size_t time_record::
+			get_usec()const
+		{
+			return this->time.tv_usec;
 		}
 
 		inline bool CBB_profiling::
@@ -134,8 +153,24 @@ namespace CBB
 					size_t offset,
 					size_t length)
 		{
+			if(is_profiling())
+			{
+				fprintf(fp, "%ld.%ld\t%f\t0\t%s\t%s\t%lu\t%lu\n", et.get_sec(), et.get_usec(), 
+						last_duration, mode, io_path, offset, length);
+			}
+		}
 
-			fprintf(fp, "0.0\t0.0\t0\t%s\t%s\t%lu\t%lu\n", mode, io_path, offset, length);
+		inline void CBB_profiling::
+			print_log_debug(const char* mode, 
+					const char* io_path,
+					size_t offset,
+					size_t length)
+		{
+			if(is_profiling())
+			{
+				_DEBUG("%ld.%ld\t%f\t0\t%s\t%s\t%lu\t%lu\n", et.get_sec(), et.get_usec(), 
+						last_duration, mode, io_path, offset, length);
+			}
 		}
 	}
 }

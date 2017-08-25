@@ -205,6 +205,7 @@ const int PROMOTED_TO_PRIMARY_REPLICA = 29;
 const int REPLACE_REPLICA = 30;
 const int REMOVE_IONODE = 31;
 const int IONODE_FAILURE = 32;
+const int UPDATE_META = 33;
 
 const int SERVER_SHUT_DOWN = 40; 
 const int I_AM_SHUT_DOWN = 41;
@@ -284,4 +285,8 @@ const int ON_GOING=1;
 const int WRITEBACK_SIZE=10;
 
 const int PRINT_DELAY=100;
+
+const int NO_NEED_UPDATE = 4;
+const int UPDATE_META_ONLY= 5;
+const int NEED_UPDATE = 6;
 #endif

@@ -71,10 +71,11 @@ opened_file_info::opened_file_info():
 
 opened_file_info::~opened_file_info()
 {
-	if(nullptr != file_meta_p && 0 == --file_meta_p->open_count)
+	/*if(nullptr != file_meta_p && 0 == --file_meta_p->open_count)
 	{
-		delete file_meta_p;
-	}
+		//delete file_meta_p;
+	}*/
+	file_meta_p->opened_fd.erase(fd);
 }
 
 opened_file_info::opened_file_info(const opened_file_info& src):

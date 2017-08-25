@@ -148,9 +148,7 @@ namespace CBB
 
 		template<class Key, class Value> inline typename CBB_map<Key, Value>::size_type CBB_map<Key, Value>::size()const
 		{
-			CBB_rwlock::rd_lock();
 			size_type size=_actual_map.size();
-			CBB_rwlock::unlock();
 			return size;
 		}
 

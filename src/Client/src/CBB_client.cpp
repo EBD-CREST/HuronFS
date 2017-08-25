@@ -351,7 +351,7 @@ remote_open(const char* 	path,
 		{
 			file_meta_p=
 				_create_new_file(response,
-						_get_scbb_from_master_number(master_number));
+				_get_scbb_from_master_number(master_number));
 
 		}
 		else
@@ -396,13 +396,13 @@ throw(std::runtime_error)
 	{
 		//forwarding to remote open
 		file_meta_p=remote_open(path, flag, mode);
+		_path_file_meta_map_t::iterator it=
+			_path_file_meta_map.insert(
+				make_pair(std::string(path),
+				file_meta_p)).first;
+		file_meta_p->it=it;
 	}
 	int fd=_fid_to_fd(fid);
-	_path_file_meta_map_t::iterator it=
-		_path_file_meta_map.insert(
-				make_pair(std::string(path),
-					file_meta_p)).first;
-	file_meta_p->it=it;
 
 	opened_file_info& file=
 		_file_list.insert(make_pair(fid,
@@ -578,7 +578,20 @@ _write_to_IOnode(
 			query->push_send_buffer((char*)buffer, IO_size);
 			send_query(query);
 
+			//tmp code
+			end_recording(this, 0, WRITE_FILE);
+
+			this->print_log("w", "wait for response", start_point, size);
+			start_recording(this);
+
 			response=get_query_response(query);
+
+			//tmp code
+			end_recording(this, 0, WRITE_FILE);
+
+			this->print_log("w", "got response", start_point, size);
+			start_recording(this);
+
 			response->pop(ret);
 		}
 		while(FILE_NOT_FOUND == ret &&
@@ -647,6 +660,26 @@ _get_IOnode_handle(
 }
 
 int CBB_client::
+_update_meta( file_meta* 	file_meta_p,
+	      off64_t		start_point,
+	      size_t 	  	size)
+{
+	_DEBUG("connect to master to update metadata\n");
+	_write_update_file_size(file_meta_p, start_point, size);
+
+	comm_handle_t master_handle=file_meta_p->get_master_handle();
+	extended_IO_task* query=allocate_new_query(master_handle);
+
+	query->push_back(UPDATE_META);
+	query->push_back(file_meta_p->remote_file_no);
+	Send_attr(query, &file_meta_p->file_stat);
+	send_query(query);
+
+	release_communication_queue(query);
+	return SUCCESS;
+}
+
+int CBB_client::
 _get_blocks_from_master(
 		file_meta* 	file_meta_p,
 		off64_t		start_point,
@@ -659,6 +692,7 @@ _get_blocks_from_master(
 	_DEBUG("connect to master to get blocks\n");
 	comm_handle_t master_handle=file_meta_p->get_master_handle();
 	extended_IO_task* query=allocate_new_query(master_handle);
+
 	query->push_back(mode);
 	query->push_back(file_meta_p->remote_file_no);
 	if(WRITE_FILE == mode)
@@ -690,6 +724,35 @@ _get_blocks_from_master(
 }
 
 int CBB_client::
+write_over_block(file_meta* 	file_meta_p,
+		 off64_t	start_point,
+		 size_t		size)
+{
+	//if write over the end
+	if(static_cast<ssize_t> (size + start_point)
+		> file_meta_p->get_file_stat().st_size)
+	{
+		//if write over the block
+		if(static_cast<ssize_t> (size + start_point)
+			> get_block_start_point(
+				file_meta_p->get_file_stat().st_size)+
+			file_meta_p->block_size)
+		{
+			return NEED_UPDATE;
+		}
+		else
+		{
+			return UPDATE_META_ONLY;
+		}
+	}
+	else
+	{
+		return NO_NEED_UPDATE;
+	}
+
+}
+
+int CBB_client::
 _get_blocks_from_cache(
 		file_meta*	file_meta_p,
 		off64_t		start_point,
@@ -697,20 +760,30 @@ _get_blocks_from_cache(
 		_block_list_t&	block_list,
 		_node_pool_t&	node_pool)
 {
+	int ret=FAILURE;
 	SCBB*  corresponding_SCBB=file_meta_p->corresponding_SCBB;
+
+	_block_list_t& blocks=file_meta_p->block_list;
+
 	_DEBUG("getting blocks from cache\n");
 
-	if(static_cast<ssize_t> (size + start_point)
-		> file_meta_p->get_file_stat().st_size)
+	//for the first look up
+	if(0 == blocks.size())
 	{
-		//append new blocks, go to master
-		return FAILURE;
+		return NEED_UPDATE;
+	}
+
+	if(NEED_UPDATE == (ret=
+		write_over_block(file_meta_p, start_point, size)))
+	{
+		return ret;
 	}
 
 	if(DIRTY == file_meta_p->need_update)
 	{
-		return FAILURE;
+		ret=UPDATE_META_ONLY;
 	}
+
 	file_meta_p->IOnode_list_cache.rd_lock();
 	for(IOnode_list_t::const_iterator it = begin(file_meta_p->IOnode_list_cache);
 			it != end(file_meta_p->IOnode_list_cache); ++it)
@@ -719,8 +792,6 @@ _get_blocks_from_cache(
 				&corresponding_SCBB->get_IOnode_handle(*it)));
 	}
 	file_meta_p->IOnode_list_cache.unlock();
-
-	_block_list_t& blocks=file_meta_p->block_list;
 
 	//_block_list_t::const_iterator it=find_block_by_start_point(
 	//		blocks, get_block_start_point(file.current_point));
@@ -741,11 +812,11 @@ _get_blocks_from_cache(
 	{
 		//still some blocks left, which are not buffered locally
 		//go to master
-		return FAILURE;
+		return NEED_UPDATE;
 	}
 	else
 	{
-		return SUCCESS;
+		return ret;
 	}
 }
 
@@ -762,15 +833,35 @@ remote_IO(file_meta*	file_meta_p,
 	_node_pool_t node_pool;
 	int ret=SUCCESS;
 
-	if((!_using_IOnode_cache()) || 
-		SUCCESS != (ret=_get_blocks_from_cache(file_meta_p,
-				start_point, size, blocks, node_pool)))
+	if(_using_IOnode_cache())
 	{
 		//if using cache and failed
 		//if not using cache
+		if(NEED_UPDATE == (ret=_get_blocks_from_cache(file_meta_p,
+			start_point, size, blocks, node_pool)))
+		{
+			_DEBUG("get blocks from master\n");
+			ret=_get_blocks_from_master(file_meta_p, start_point, size,
+					blocks, node_pool, mode);
+		}
+		else if(UPDATE_META_ONLY == ret)
+		{
+			_DEBUG("update meta data only\n");
+			ret=_update_meta(file_meta_p, start_point, size);
+
+		}
+	}
+	else
+	{
 		ret=_get_blocks_from_master(file_meta_p, start_point, size,
 				blocks, node_pool, mode);
 	}
+
+	//tmp code
+	//end_recording(this, 0, WRITE_FILE);
+
+	//this->print_log("w", "before IO with IOnode", start_point, size);
+	//start_recording(this);
 
 	if(SUCCESS == ret)
 	{
@@ -971,10 +1062,10 @@ throw(std::runtime_error)
 		if(SUCCESS == ret)
 		{
 			_opened_file[fid]=false;
-			if(1 == file.file_meta_p->open_count)
+			/*if(1 == file.file_meta_p->open_count)
 			{
 				_path_file_meta_map.erase(file.file_meta_p->it);
-			}
+			}*/
 			_file_list.erase(fid);
 
 			return 0;
@@ -1247,11 +1338,11 @@ _close_local_opened_file(const char* path)
 			_close(*it);
 			--count;
 		}
-		if(count)
+		/*if(count)
 		{
 			delete file_meta_p;
 		}
-		_path_file_meta_map.erase(string_path);
+		_path_file_meta_map.erase(string_path);*/
 		return 0;
 	}
 	catch(std::out_of_range &e)

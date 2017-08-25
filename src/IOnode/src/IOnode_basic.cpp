@@ -101,7 +101,12 @@ file(const char	 *path,
 	file_no(file_no),
 	blocks(),
 	IOnode_pool()
-{}
+{
+	if(EXISTING == this->exist_flag)
+	{
+		_DEBUG("existing\n");
+	}
+}
 
 file::
 ~file()

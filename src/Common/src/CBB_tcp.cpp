@@ -161,6 +161,13 @@ throw(std::runtime_error)
 		throw std::runtime_error("sockopt Failed");   
 	}
 
+	if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &on,
+			sizeof(on)) < 0)
+	{
+		perror("setsockopt failed");
+		throw std::runtime_error("sockopt Failed");   
+	}
+
 	if(0 != bind(sockfd, 
 			reinterpret_cast<const struct sockaddr*>(&addr),
 				sizeof(addr)))
@@ -190,11 +197,13 @@ throw(std::runtime_error)
 	}
 	while(0 != length && 
 			0 != (ret=recv(sockfd, buff_tmp, length, flag)))
+
 	{
 		if(-1 == ret)
 		{
 			if(EINTR == errno || EAGAIN == errno)
 			{
+				perror("do_recv");
 				continue;
 			}
 			perror("do_recv");

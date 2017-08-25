@@ -108,9 +108,7 @@ static int CBB_creat(const char * path, mode_t mode, struct fuse_file_info* fi)
 #else
 	file_meta* stream=nullptr;
 
-	start_recording(&client);
 	stream=client.remote_open(path, O_CREAT|O_WRONLY|O_TRUNC, mode);
-	end_recording(&client);
 #endif
 
 	fi->fh=(uint64_t)stream;
@@ -154,10 +152,8 @@ static int CBB_read(	const char* 	path,
 	if(nullptr != stream)
 	{
 
-		start_recording(&client);
 		ret=client.remote_IO(stream, buffer, offset, count, READ_FILE);
 		_DEBUG("ret=%d path=%s\n", ret,path);
-		end_recording(&client);
 
 		return ret;
 	}
@@ -201,11 +197,9 @@ static int CBB_write(	const char* 	path,
 	if(nullptr != stream)
 	{
 
-		start_recording(&client);
 		_DEBUG("path=%s\n", path);
 		ret=client.remote_IO(stream, (char*)(buffer), offset, count, WRITE_FILE);
 		//client._update_underlying_file_size(stream);
-		end_recording(&client);
 
 		return ret;
 	}
@@ -307,9 +301,7 @@ static int CBB_release(const char* path, struct fuse_file_info* fi)
 	file_meta* stream=(file_meta*)fi->fh;
 	int ret=-1;
 
-	start_recording(&client);
 	//ret=client.close(stream);
-	end_recording(&client);
 #endif
 	_DEBUG("ret=%d path=%s\n", ret, path);
 	return ret;

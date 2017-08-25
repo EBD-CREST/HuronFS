@@ -458,6 +458,8 @@ _receive_data(extended_IO_task* new_task)
 
 		while(0 < remaining_size)
 		{
+			start_recording(this);
+
 			_DEBUG("receive_data start point %ld, offset %ld, receive size %ld, remaining size %ld\n",
 					tmp_start_point, tmp_offset,
 					receive_size, remaining_size);
@@ -472,6 +474,10 @@ _receive_data(extended_IO_task* new_task)
 					static_cast<ssize_t>(BLOCK_SIZE));
 			tmp_start_point	+=IOsize+tmp_offset;
 			tmp_offset	=0;
+
+			end_recording(this, 0, WRITE_FILE);
+
+			this->print_log_debug("w", "get receive data", tmp_start_point, size);
 		}
 		_file.dirty_flag=DIRTY;
 
@@ -482,6 +488,7 @@ _receive_data(extended_IO_task* new_task)
 	}
 	catch(std::out_of_range &e)
 	{
+		_DEBUG("File is not found\n");
 		extended_IO_task* response=init_response_task(new_task);
 		response->push_back(FILE_NOT_FOUND);
 		output_task_enqueue(response);
@@ -524,6 +531,12 @@ update_block_data(block_info_t&		blocks,
 		}
 		_block->valid = VALID;
 	}
+
+	if(offset + size > _block->block_size)
+	{
+		size = _block->block_size - offset;
+	}
+
 	if(_block->data_size < offset+size)
 	{
 		_block->data_size = offset+size;
@@ -839,7 +852,6 @@ throw(std::runtime_error)
 	const char* buf		=static_cast<const char*>(block_data->data);
 	ssize_t	    ret		=0;
 
-	block_data->set_to_existing();
 	block_data->unlock();
 
 	int fd = open64(real_path.c_str(),O_WRONLY|O_CREAT, 0600);
@@ -1154,6 +1166,8 @@ _get_sync_response()
 
 	extended_IO_task* response=get_data_sync_response();
 	response->pop(ret);
+	_DEBUG("got sync response from %p\n", response->get_handle());
+
 	data_sync_response_dequeue(response);
 	return ret;
 }

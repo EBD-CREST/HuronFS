@@ -163,6 +163,10 @@ input_from_network(comm_handle_t handle,
 			new_task=output_queue->allocate_tmp_node();
 			new_task->set_receiver_id(to_id);
 			CBB_communication_thread::receive_message(handle, new_task);
+
+			//tmp code
+			start_recording(this);
+
 			output_queue->task_enqueue_signal_notification();
 		}
 		catch(std::runtime_error &e)

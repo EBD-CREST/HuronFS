@@ -195,6 +195,8 @@ CBB::CBB_error Master::_parse_request(extended_IO_task* new_task)
 			_parse_close_file(new_task);	break;
 		case GET_ATTR:
 			_parse_attr(new_task);		break;
+		case UPDATE_META:
+			_parse_meta_update(new_task);	break;
 		case READ_DIR:
 			_parse_readdir(new_task);	break;
 		case RM_DIR:
@@ -220,6 +222,37 @@ CBB::CBB_error Master::_parse_request(extended_IO_task* new_task)
 	}
 	return ans; 
 }
+
+CBB::CBB_error Master::
+_parse_meta_update(extended_IO_task* new_task)
+{
+	_LOG("request for writing\n");
+	ssize_t file_no		=0;
+	size_t 	original_size	=0;
+	int 	ret		=0;
+
+	new_task->pop(file_no);
+	_DEBUG("file no=%ld\n", file_no);
+	try
+	{
+		open_file_info &file=*_buffered_files.at(file_no);
+		struct stat& file_status=file.get_stat();
+		original_size=file_status.st_size;
+		Recv_attr(new_task, &file.get_stat());
+
+		if(static_cast<ssize_t>(original_size) > file_status.st_size)
+		{
+			file_status.st_size=original_size;
+		}
+	}
+	catch(std::out_of_range &e)
+	{
+		ret=FAILURE;
+	}
+	return ret;
+}
+
+
 
 //R: uri	:char
 //R: total memory: size_t
@@ -270,7 +303,7 @@ CBB::CBB_error Master::_parse_open_file(extended_IO_task* new_task)
 	int 	flag		=0;
 	int 	ret		=SUCCESS;
 	ssize_t file_no		=0;
-	int 	exist_flag	=EXISTING;
+	//int 	exist_flag	=EXISTING;
 	mode_t 	mode		=S_IFREG|0660;
 	_LOG("request for open file\n");
 
@@ -284,7 +317,7 @@ CBB::CBB_error Master::_parse_open_file(extended_IO_task* new_task)
 	if(flag & O_CREAT)
 	{
 		new_task->pop(mode);
-		exist_flag=NOT_EXIST;
+		//exist_flag=NOT_EXIST;
 		flag &= ~(O_CREAT | O_TRUNC);
 	}
 	if((_file_stat_pool.end() != it))
@@ -300,7 +333,7 @@ CBB::CBB_error Master::_parse_open_file(extended_IO_task* new_task)
 	}
 	try
 	{
-		_open_file(file_path, flag, file_no, exist_flag, mode); 
+		_open_file(file_path, flag, file_no, mode); 
 		open_file_info *opened_file=_buffered_files.at(file_no);
 		size_t block_size=opened_file->block_size;
 		_DEBUG("file path= %s, file no=%ld\n", file_path, file_no);
@@ -358,6 +391,8 @@ CBB::CBB_error Master::_parse_read_file(extended_IO_task* new_task)
 
 		block_list_t block_list;
 		node_info_pool_t node_pool;
+
+		_DEBUG("start_point=%ld, size %lu\n", start_point, size);
 		//_get_blocks_for_IO(start_point, size, *file, IO_blocks);
 		_select_node_block_set(*file, start_point, size, node_pool, block_list);
 		output=init_response_task(new_task);
@@ -389,6 +424,11 @@ CBB::CBB_error Master::_parse_write_file(extended_IO_task* new_task)
 	int 	ret		=0;
 	off64_t start_point	=0;
 
+	//tmp code
+	//end_recording(this, 0, WRITE_FILE);
+	//this->print_log("w", "start parse write", start_point, size);
+	//start_recording(this);
+
 	new_task->pop(file_no);
 	_DEBUG("file no=%ld\n", file_no);
 	extended_IO_task* output=nullptr;
@@ -406,7 +446,8 @@ CBB::CBB_error Master::_parse_write_file(extended_IO_task* new_task)
 
 		new_task->pop(start_point);
 		new_task->pop(size);
-		_DEBUG("real_path=%s, file_size=%ld\n", real_path.c_str(), file_status.st_size);
+		_DEBUG("real_path=%s, file_size=%ld, start_point=%ld, size %lu\n",
+				real_path.c_str(), file_status.st_size, start_point, size);
 
 		block_list_t block_list;
 		node_info_pool_t node_pool;
@@ -415,6 +456,11 @@ CBB::CBB_error Master::_parse_write_file(extended_IO_task* new_task)
 		_select_node_block_set(file, start_point, size, node_pool, block_list);
 		output=init_response_task(new_task);
 		_send_block_info(output, file_status.st_size, node_pool, block_list);
+
+		//tmp code
+		//end_recording(this, 0, WRITE_FILE);
+		//this->print_log("w", "after handling write", start_point, size);
+
 		ret=SUCCESS;
 	}
 	catch(std::out_of_range &e)
@@ -1237,6 +1283,7 @@ _send_open_request_to_IOnodes(struct open_file_info  &file,
 	output->push_back(file.file_no); 
 	output->push_back(file.flag);
 	output->push_back(file.file_status->exist_flag);
+
 	output->push_back_string(file.get_path().c_str(), file.get_path().length());
 	_DEBUG("%s\n", file.get_path().c_str());
 
@@ -1316,7 +1363,6 @@ const node_info_pool_t& Master::
 _open_file(const char 	*file_path,
 	   int 		flag,
 	   ssize_t	&file_no,
-	   int 		exist_flag,
 	   mode_t 	mode)
 throw(std::runtime_error,
 	std::invalid_argument,
@@ -1330,7 +1376,7 @@ throw(std::runtime_error,
 		file_no=_get_file_no(); 
 		if(-1 != file_no)
 		{
-			Master_file_stat* file_status=_create_new_file_stat(file_path, exist_flag, S_IFREG|mode);
+			Master_file_stat* file_status=_create_new_file_stat(file_path, NOT_EXIST, S_IFREG|mode);
 			file=_create_new_open_file_info(file_no, flag, file_status);
 		}
 		else

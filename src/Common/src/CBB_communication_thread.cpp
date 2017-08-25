@@ -310,6 +310,7 @@ throw(std::runtime_error)
 {
     size_t ret = 0;
     comm_handle_t handle = new_task->get_handle();
+    start_recording(this);
     _DEBUG("send message size=%ld, element=%p\n", new_task->get_message_size(), new_task);
     _DEBUG("send message to id =%d from %d\n", new_task->get_receiver_id(), new_task->get_sender_id());
 
@@ -353,6 +354,11 @@ throw(std::runtime_error)
                      new_task->get_message_size() +
                      MESSAGE_META_OFF);
     }
+
+    end_recording(this, 0, WRITE_FILE);
+
+    this->print_log_debug("w", "send data", 0, ret);
+
     return ret;
 }
 
@@ -376,6 +382,8 @@ throw(std::runtime_error)
         for (auto &buf : *send_buffer)
         {
             _DEBUG("register size=%ld\n", buf.size);
+	    start_recording(this);
+
             //DELETE debug
             register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE | CCI_FLAG_READ);
             if (0 != --count)
@@ -391,11 +399,16 @@ throw(std::runtime_error)
 
             }
             ret += buf.size;
+
+	    end_recording(this, 0, WRITE_FILE);
+
+	    this->print_log_debug("w", "send rdma", 0, ret);
         }
 
         break;
     case RMA_WRITE:
 	_DEBUG("RMA WRITE\n");
+
         count = send_buffer->size();
         for (auto &buf : *send_buffer)
         {
@@ -446,6 +459,8 @@ throw(std::runtime_error)
     new_task->set_handle(handle);
 
 #ifdef TCP
+    //start_recording(this);
+
     if (0 != new_task->get_extended_data_size())
     {
         size_t tmp_size = Recv_large(handle,
@@ -455,7 +470,13 @@ throw(std::runtime_error)
                new_task->get_extended_data_size(), tmp_size);
         ret += tmp_size;
     }
+
+    //end_recording(this, 0, WRITE_FILE);
+
+    //this->print_log_debug("w", "receive extended data", 0, ret);
+
 #endif
+
     return ret;
 }
 

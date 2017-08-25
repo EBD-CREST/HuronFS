@@ -119,6 +119,7 @@ namespace CBB
 				CBB_error _parse_rename_migrating(Common::extended_IO_task* new_task);
 				CBB_error _parse_node_failure(Common::extended_IO_task* new_task);
 				CBB_error _parse_IOnode_failure(Common::extended_IO_task* new_task);
+				CBB_error _parse_meta_update(Common::extended_IO_task* new_task);
 
 				//remote request parsar
 				CBB_error _remote_rename(Common::remote_task* new_task);
@@ -160,7 +161,6 @@ namespace CBB
 				const node_info_pool_t& _open_file(const char* file_path,
 								   int flag,
 								   ssize_t& file_no,
-								   int exist_flag,
 								   mode_t mode)
 								   throw(std::runtime_error,
 									 std::invalid_argument,
