@@ -84,6 +84,9 @@ start_communication_server()
 
     set_event_fd();
 
+
+    cpu_set_t cpu_set;
+
     if (0 == (ret = pthread_create(&sender_thread, nullptr, sender_thread_function, this)))
     {
         thread_started = STARTED;
@@ -96,6 +99,15 @@ start_communication_server()
     {
         perror("pthread_create");
     }
+    CPU_ZERO(&cpu_set);
+    CPU_SET(CBB_RECEIVER_THREAD_NUMBER, &cpu_set);
+
+    pthread_setaffinity_np(receiver_thread, sizeof(cpu_set), &cpu_set);
+
+    CPU_ZERO(&cpu_set);
+    CPU_SET(CBB_SENDER_THREAD_NUMBER, &cpu_set);
+
+    pthread_setaffinity_np(sender_thread, sizeof(cpu_set), &cpu_set);
     return ret;
 }
 

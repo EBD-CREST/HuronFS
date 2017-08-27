@@ -579,18 +579,18 @@ _write_to_IOnode(
 			send_query(query);
 
 			//tmp code
-			end_recording(this, 0, WRITE_FILE);
+			//end_recording(this, 0, WRITE_FILE);
 
-			this->print_log("w", "wait for response", start_point, size);
-			start_recording(this);
+			//this->print_log("w", "wait for response", start_point, size);
+			//start_recording(this);
 
 			response=get_query_response(query);
 
 			//tmp code
-			end_recording(this, 0, WRITE_FILE);
+			//end_recording(this, 0, WRITE_FILE);
 
-			this->print_log("w", "got response", start_point, size);
-			start_recording(this);
+			//this->print_log("w", "got response", start_point, size);
+			//start_recording(this);
 
 			response->pop(ret);
 		}

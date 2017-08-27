@@ -49,10 +49,9 @@ remote_task::remote_task(int id, remote_task* next):
 {}
 
 CBB_remote_task::CBB_remote_task():
-	keepAlive(KEEP_ALIVE),
+	CBB_basic_thread(CBB_REMOTE_TASK_THREAD_NUMBER),
 	thread_started(UNSTARTED),
 	remote_task_queue(0),
-	remote_task_thread(),
 	locker()
 {}
 
@@ -63,25 +62,14 @@ CBB_remote_task::~CBB_remote_task()
 
 int CBB_remote_task::start_listening()
 {
-	int ret=0;
-	if(0 == (ret=pthread_create(&remote_task_thread, nullptr, thread_fun, this)))
-	{
-		thread_started=STARTED;
-	}
-	else
-	{
-		perror("pthread_create");
-	}
-	return ret;
+	return create_thread(thread_fun, this);
 }
 
 void CBB_remote_task::stop_listening()
 {
-	keepAlive=NOT_KEEP_ALIVE;
-	void* ret=nullptr;
 	if(STARTED == thread_started)
 	{
-		pthread_join(remote_task_thread, &ret);
+		end_thread();
 		thread_started = UNSTARTED;
 	}
 	return;
@@ -91,7 +79,7 @@ void* CBB_remote_task::thread_fun(void* args)
 {
 	CBB_remote_task* this_obj=static_cast<CBB_remote_task*>(args);
 
-	while(KEEP_ALIVE == this_obj->keepAlive)
+	while(this_obj->keepAlive())
 	{
 		remote_task* new_task=this_obj->remote_task_queue.get_task();
 		_DEBUG("remote task received\n");

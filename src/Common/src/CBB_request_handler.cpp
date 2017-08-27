@@ -29,18 +29,16 @@ using namespace CBB::Common;
 CBB_request_handler::
 CBB_request_handler(	communication_queue_array_t* input_queue,
 			communication_queue_array_t* output_queue):
+	CBB_basic_thread(CBB_REQUEST_HANDLER_THREAD_NUMBER),
 	thread_started(UNSTARTED),
-	handler_thread(-1),
-	keepAlive(KEEP_ALIVE),
 	input_queue(input_queue),
 	output_queue(output_queue)
 {}
 
 CBB_request_handler::
 CBB_request_handler():
+	CBB_basic_thread(CBB_REQUEST_HANDLER_THREAD_NUMBER),
 	thread_started(UNSTARTED),
-	handler_thread(),
-	keepAlive(KEEP_ALIVE),
 	input_queue(nullptr),
 	output_queue(nullptr)
 {}
@@ -57,9 +55,7 @@ int CBB_request_handler::start_handler()
 		return FAILURE;
 	}
 	int ret=SUCCESS;;
-	if(0 == (ret=pthread_create(&handler_thread,
-				nullptr, handle_routine, 
-				static_cast<void*>(this))))
+	if(SUCCESS == (ret=create_thread(handle_routine, this)))
 	{
 		thread_started=STARTED;
 	}
@@ -68,11 +64,10 @@ int CBB_request_handler::start_handler()
 
 int CBB_request_handler::stop_handler()
 {
-	keepAlive = NOT_KEEP_ALIVE;
-	void* ret=nullptr;
+	
 	if(STARTED == thread_started)
 	{
-		return pthread_join(handler_thread, &ret);
+		return end_thread();
 	}
 	else
 	{
@@ -87,7 +82,7 @@ handle_routine(void* args)
 	communication_queue_t& input_queue=this_obj->input_queue->at(0);
 	//communication_queue_t& output_queue=this_obj->output_queue->at(id);
 
-	while(KEEP_ALIVE == this_obj->keepAlive)
+	while(this_obj->keepAlive())
 	{
 		this_obj->interval_process();
 

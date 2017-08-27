@@ -44,9 +44,8 @@ data_sync_task(int id, data_sync_task* next):
 
 CBB_data_sync::CBB_data_sync():
 	//fields
-	keepAlive(KEEP_ALIVE),
+	CBB_basic_thread(DATA_SYNC_THREAD_NUMBER),
 	thread_started(UNSTARTED),
-	pthread_id(-1),
 	data_sync_queue(),
 	communication_input_queue_ptr(nullptr),
 	communication_output_queue_ptr(nullptr)
@@ -59,25 +58,14 @@ CBB_data_sync::~CBB_data_sync()
 
 int CBB_data_sync::start_listening()
 {
-	int ret=0;
-	if(0 == (ret=pthread_create(&pthread_id, nullptr, data_sync_thread_fun, this)))
-	{
-		thread_started=STARTED;
-	}
-	else
-	{
-		perror("pthread_create");
-	}
-	return ret;
+	return CBB_basic_thread::create_thread(data_sync_thread_fun, this);
 }
 
 void CBB_data_sync::stop_listening()
 {
-	keepAlive=NOT_KEEP_ALIVE;
-	void* ret=nullptr;
 	if(STARTED == thread_started)
 	{
-		pthread_join(pthread_id, &ret);
+		end_thread();
 		//pthread_join(queue_event_wait_thread, &ret);
 		thread_started = UNSTARTED;
 	}
@@ -89,7 +77,7 @@ data_sync_thread_fun(void* args)
 {
 	CBB_data_sync* this_obj=static_cast<CBB_data_sync*>(args);
 
-	while(KEEP_ALIVE == this_obj->keepAlive)
+	while(this_obj->keepAlive())
 	{
 		data_sync_task* new_task=this_obj->data_sync_queue.get_task();
 		_DEBUG("data sync parser received\n");

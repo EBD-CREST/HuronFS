@@ -25,11 +25,10 @@
 #ifndef CBB_DATA_SYNC_H_
 #define CBB_DATA_SYNC_H_
 
-#include <pthread.h>
-
 #include "CBB_task_parallel.h"
 #include "CBB_communication_thread.h"
 #include "CBB_IO_task.h"
+#include "CBB_basic_thread.h"
 
 namespace CBB
 {
@@ -56,7 +55,8 @@ namespace CBB
 		};
 		typedef task_parallel_queue<data_sync_task> data_sync_queue_t;
 
-		class CBB_data_sync
+		class CBB_data_sync:
+			public CBB_basic_thread
 		{
 			public:
 				CBB_data_sync();
@@ -82,9 +82,7 @@ namespace CBB
 				void data_sync_response_dequeue(extended_IO_task* response);
 
 			private:
-				int 			keepAlive;
 				int 			thread_started;
-				pthread_t 		pthread_id;
 				data_sync_queue_t 	data_sync_queue;
 				communication_queue_t* 	communication_input_queue_ptr;
 				communication_queue_t* 	communication_output_queue_ptr;
