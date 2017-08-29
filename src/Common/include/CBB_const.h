@@ -60,6 +60,7 @@ const int MAX_IONODE = 1000;
 //the size of basic message in communication
 const int MAX_BASIC_MESSAGE_SIZE = 4*KB;
 //the size of extended message located in IO task
+//const int MAX_EXTENDED_MESSAGE_SIZE=5*MB;
 const int MAX_EXTENDED_MESSAGE_SIZE=5*MB;
 //the size of files in a directory
 const int MAX_DIR_FILE_SIZE=MAX_EXTENDED_MESSAGE_SIZE;
@@ -289,4 +290,6 @@ const int PRINT_DELAY=100;
 const int NO_NEED_UPDATE = 4;
 const int UPDATE_META_ONLY= 5;
 const int NEED_UPDATE = 6;
+const bool SWAPPED_OUT = false;
+const bool INBUFFER = true;
 #endif

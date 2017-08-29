@@ -256,6 +256,7 @@ namespace CBB
 			_DEBUG("start to free block %p\n", data);
 
 			size_t ret=data->free_memory();
+			data->swapout_flag=SWAPPED_OUT;
 			data->unlock();
 			return ret;
 		}

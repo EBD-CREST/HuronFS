@@ -338,6 +338,7 @@ namespace CBB
 			while(0 < size &&
 				nullptr != (tmp=queue.pop()))
 			{
+				_LOG("swap out page\n");
 				if(need_writeback(tmp->get_data()))
 				{
 					_LOG("need write back\n");

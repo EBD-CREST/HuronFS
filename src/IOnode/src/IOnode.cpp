@@ -359,7 +359,7 @@ _send_data(extended_IO_task* new_task)
 	new_task->pop(offset);
 	new_task->pop(size);
 	_LOG("request for sending data\n");
-	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n",
+	_LOG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n",
 			file_no, start_point, offset, size);
 
 	extended_IO_task* output=init_response_task(new_task);
@@ -391,10 +391,19 @@ _send_data(extended_IO_task* new_task)
 			if(requested_block->need_allocation())
 			{
 				allocate_memory_for_block(requested_block);
-				if(EXISTING == requested_block->exist_flag)
+				//we read the data from remote back in following two situations
+				//the file exists in the remote as inputs
+				//the chunk has been swaped out
+				if(EXISTING == requested_block->exist_flag ||
+					SWAPPED_OUT == requested_block->swapout_flag)
 				{
+					if(SWAPPED_OUT == requested_block->swapout_flag)
+					{
+						_LOG("reswap in\n");
+					}
 					_read_from_storage(path,
 						requested_block);
+					requested_block->swapout_flag=INBUFFER;
 				}
 			}
 
@@ -438,7 +447,7 @@ _receive_data(extended_IO_task* new_task)
 	new_task->pop(offset);
 	new_task->pop(size);
 	_LOG("request for receiving data\n");
-	_DEBUG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n",
+	_LOG("file_no=%ld, start_point=%ld, offset=%ld, size=%lu\n",
 			file_no, start_point, offset, size);
 
 	new_task->init_for_large_transfer(RMA_READ);
@@ -524,10 +533,16 @@ update_block_data(block_info_t&		blocks,
 	if(_block->need_allocation())
 	{
 		allocate_memory_for_block(_block);
-		if(EXISTING == file.exist_flag)
+		if(EXISTING == file.exist_flag ||
+			SWAPPED_OUT == _block->swapout_flag)
 		{
+			if(SWAPPED_OUT == _block->swapout_flag)
+			{
+				_LOG("reswap in\n");
+			}
 			_block->data_size=
 				_read_from_storage(file.file_path, _block);
+			_block->swapout_flag=INBUFFER;
 		}
 		_block->valid = VALID;
 	}
@@ -798,6 +813,7 @@ throw(std::runtime_error)
 	char 		*buffer		=reinterpret_cast<char*>(
 			block_data->data);
 	size_t 		size		=block_data->data_size;
+	_LOG("start reading\n");
 	_DEBUG("%s\n", real_path.c_str());
 
 	if(-1 == fd)
@@ -829,6 +845,7 @@ throw(std::runtime_error)
 		vec.iov_len=size;
 	}
 	close(fd);
+	_LOG("end reading\n");
 	return block_data->data_size-size;
 }
 
@@ -837,6 +854,7 @@ _write_to_storage(block* block_data)
 throw(std::runtime_error)
 {
 	block_data->lock();
+	_LOG("start writing back\n");
 
 	block_data->dirty_flag=CLEAN;
 
@@ -883,11 +901,13 @@ throw(std::runtime_error)
 		len -= ret;
 	}
 	close(fd);
+	_LOG("write back ends\n");
 
 	return size-len;
 }
 
-int IOnode::_flush_file(extended_IO_task* new_task)
+int IOnode::
+_flush_file(extended_IO_task* new_task)
 {
 	ssize_t file_no=0;
 	new_task->pop(file_no);
@@ -1108,7 +1128,7 @@ _sync_write_data(data_sync_task* new_task)
 	file* 		requested_file	=static_cast<file*>(new_task->_file);
 	comm_handle_t	handle		=&new_task->handle;
 	int 		receiver_id	=new_task->receiver_id;
-	_LOG("send sync data file_no = %ld\n", requested_file->file_no);
+	_DEBUG("send sync data file_no = %ld\n", requested_file->file_no);
 
 #ifdef STRICT_SYNC_DATA
 	for(auto& replicas:requested_file->IOnode_pool)
@@ -1127,13 +1147,6 @@ _sync_write_data(data_sync_task* new_task)
 #ifdef CCI
 	output_task->set_extended_data_size(new_task->size);
 	output_task->set_send_buffer(new_task->get_send_buffer());
-	_LOG("send buffer size %ld\n", output_task->get_send_buffer()->size());
-	for(auto& buf : *(output_task->get_send_buffer()))
-	{
-		_LOG("buf address %p\n", buf.buffer);
-		_LOG("buf size %ld\n", buf.size);
-	}
-
 #endif
 	output_task->push_back(SUCCESS);
 	data_sync_task_enqueue(output_task);
