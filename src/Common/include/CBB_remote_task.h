@@ -26,7 +26,7 @@
 #define CBB_REMOTE_TASK_H_
 
 #include "CBB_task_parallel.h"
-#include <pthread.h>
+#include "CBB_basic_thread.h"
 
 namespace CBB
 {
@@ -51,7 +51,8 @@ namespace CBB
 				void*	extended_task_data;
 		};
 
-		class CBB_remote_task
+		class CBB_remote_task:
+			public CBB_basic_thread
 		{
 			public:
 				CBB_remote_task();
@@ -65,10 +66,8 @@ namespace CBB
 				void remote_task_dequeue(remote_task* new_task);
 				static void* thread_fun(void* args);
 			private:
-				int 		keepAlive;
 				bool 		thread_started;
 				task_parallel_queue<remote_task> remote_task_queue;
-				pthread_t 	remote_task_thread;
 				pthread_mutex_t locker;
 		};
 

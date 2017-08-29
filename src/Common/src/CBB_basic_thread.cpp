@@ -22,50 +22,68 @@
  * Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef CBB_REQUEST_HANDLER_H_
-#define CBB_REQUEST_HANDLER_H_
 
-#include "CBB_task_parallel.h"
-#include "CBB_communication_thread.h"
 #include "CBB_basic_thread.h"
 
-namespace CBB
+#include <sched.h>
+
+using namespace CBB;
+using namespace CBB::Common;
+
+
+CBB_basic_thread::
+CBB_basic_thread(int thread_number):
+	thread_number(thread_number),
+	keepAlive_flag(NOT_KEEP_ALIVE),
+	thread_id()
+{}
+
+CBB_basic_thread::
+~CBB_basic_thread()
+{}
+
+int CBB_basic_thread::
+create_thread(void* (*thread_fun)(void*), void* argument)
 {
-	namespace Common
+	int ret=0;
+
+	keepAlive_flag = KEEP_ALIVE;
+	if(0 == (ret=pthread_create(&thread_id, nullptr, thread_fun, argument)))
 	{
-
-		class CBB_request_handler:
-			public CBB_basic_thread
-		{
-			public:
-				CBB_request_handler(communication_queue_array_t* input_queue,
-						communication_queue_array_t* output_queue);
-				CBB_request_handler();
-				virtual ~CBB_request_handler();
-				virtual int _parse_request(extended_IO_task* new_task)=0; 
-				//do some delayed processes during the interval of request processing
-				virtual int interval_process();
-
-				int start_handler();
-				int stop_handler();
-				static void* handle_routine(void *arg);
-
-				void set_queues(communication_queue_array_t* input_queue,
-						communication_queue_array_t* output_queue);
-
-			private:
-				bool 		thread_started;
-				communication_queue_array_t* input_queue;
-				communication_queue_array_t* output_queue;
-
-		};
-
-		inline int CBB_request_handler::
-			interval_process()
-		{
-			return SUCCESS;
-		}
+		return SUCCESS;
 	}
+	else
+	{
+		perror("pthread_create");
+		return FAILURE;
+	}
+
+	setaffinity();
+
 }
 
-#endif
+int CBB_basic_thread::
+setaffinity()
+{
+	cpu_set_t cpu_set;
+	CPU_ZERO(&cpu_set);
+	CPU_SET(thread_number, &cpu_set);
+	
+	return pthread_setaffinity_np(thread_id, sizeof(cpu_set), &cpu_set);
+
+}
+
+int CBB_basic_thread::
+init_thread()
+{
+	return SUCCESS;
+}
+
+int CBB_basic_thread::
+end_thread()
+{
+	keepAlive_flag = NOT_KEEP_ALIVE;
+	void* ret=nullptr;
+
+	return pthread_join(thread_id, &ret);
+}

@@ -22,48 +22,39 @@
  * Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef CBB_REQUEST_HANDLER_H_
-#define CBB_REQUEST_HANDLER_H_
 
-#include "CBB_task_parallel.h"
-#include "CBB_communication_thread.h"
-#include "CBB_basic_thread.h"
+#ifndef CBB_BASIC_THREAD_H_
+#define CBB_BASIC_THREAD_H_
+
+#include <stdio.h>
+#include <pthread.h>
+
+#include "CBB_const.h"
 
 namespace CBB
 {
 	namespace Common
 	{
-
-		class CBB_request_handler:
-			public CBB_basic_thread
+		class CBB_basic_thread
 		{
-			public:
-				CBB_request_handler(communication_queue_array_t* input_queue,
-						communication_queue_array_t* output_queue);
-				CBB_request_handler();
-				virtual ~CBB_request_handler();
-				virtual int _parse_request(extended_IO_task* new_task)=0; 
-				//do some delayed processes during the interval of request processing
-				virtual int interval_process();
-
-				int start_handler();
-				int stop_handler();
-				static void* handle_routine(void *arg);
-
-				void set_queues(communication_queue_array_t* input_queue,
-						communication_queue_array_t* output_queue);
-
-			private:
-				bool 		thread_started;
-				communication_queue_array_t* input_queue;
-				communication_queue_array_t* output_queue;
-
+		public:
+			CBB_basic_thread(int thread_number);
+			virtual ~CBB_basic_thread();
+			int create_thread(void* (*thread_fun)(void*), void* argument);
+			virtual int init_thread();
+			bool keepAlive()const;
+			int end_thread();
+			int setaffinity();
+		private:
+			int		thread_number;
+			int 		keepAlive_flag;
+			pthread_t 	thread_id;
 		};
 
-		inline int CBB_request_handler::
-			interval_process()
+		inline bool CBB_basic_thread::
+			keepAlive()const
 		{
-			return SUCCESS;
+			return KEEP_ALIVE == this->keepAlive_flag;
 		}
 	}
 }
