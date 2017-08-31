@@ -46,7 +46,7 @@ namespace CBB
 				access(type*data)override final;
 			virtual size_t free_data(type* data)=0;
 			virtual bool need_writeback(type* data)=0;
-			virtual size_t writeback(type* data)=0;
+			virtual size_t writeback(type* data, const char* mode)=0;
 			
 		};
 

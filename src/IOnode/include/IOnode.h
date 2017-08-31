@@ -100,7 +100,7 @@ namespace CBB
 						Common::extended_IO_task* new_task)override final;
 				virtual size_t free_data(block* data)override final;
 				virtual bool need_writeback(block* data)override final;
-				virtual size_t writeback(block* data)override final;
+				virtual size_t writeback(block* data, const char* mode)override final;
 				virtual int interval_process()override final;
 
 				int _send_data(Common::extended_IO_task* new_task);
@@ -128,8 +128,9 @@ namespace CBB
 				block *_buffer_block(off64_t start_point,
 						size_t size)throw(std::runtime_error);
 
-				size_t _write_to_storage(block* block_data)throw(std::runtime_error); 
+				size_t _write_to_storage(block* block_data, const char* mode)throw(std::runtime_error); 
 				size_t _read_from_storage(const  std::string& path,
+							  file&	 file_stat,
 							  block* block_data)throw(std::runtime_error);
 				void _append_block(Common::extended_IO_task* new_task,
 						   file& 		     file_stat)throw(std::runtime_error);
@@ -181,8 +182,7 @@ namespace CBB
 						bool 	 valid,
 						file* 	 file_stat);
 				size_t _set_memory_limit(const char* limit_string)throw(std::runtime_error);
-				int remove_files();
-
+				int remove_files();//removes delated files during the interval
 
 				//private member
 			private:

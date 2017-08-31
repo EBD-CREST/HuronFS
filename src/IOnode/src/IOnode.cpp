@@ -401,8 +401,7 @@ _send_data(extended_IO_task* new_task)
 					{
 						_LOG("reswap in\n");
 					}
-					_read_from_storage(path,
-						requested_block);
+					_read_from_storage(path, _file, requested_block);
 					requested_block->swapout_flag=INBUFFER;
 				}
 			}
@@ -541,7 +540,7 @@ update_block_data(block_info_t&		blocks,
 				_LOG("reswap in\n");
 			}
 			_block->data_size=
-				_read_from_storage(file.file_path, _block);
+				_read_from_storage(file.file_path, file, _block);
 			_block->swapout_flag=INBUFFER;
 		}
 		_block->valid = VALID;
@@ -598,19 +597,27 @@ _open_file(extended_IO_task* new_task)
 	new_task->pop(flag);
 	new_task->pop(exist_flag);
 	new_task->pop_string(&path_buffer); 
-	_DEBUG("openfile fileno=%ld, path=%s\n", file_no, path_buffer);
+	_LOG("openfile fileno=%ld, path=%s\n", file_no, path_buffer);
+	file_t::iterator file_it=_files.find(file_no);
 	
-	file& _file=_files.insert(
-		make_pair(file_no, 
-		file(path_buffer, exist_flag, file_no))).first->second;
-	//get blocks
-	new_task->pop(count);
-	for(int i=0;i<count;++i)
+	if(end(_files) == file_it)
 	{
-		_append_block(new_task, _file);
+		file& _file=_files.insert(make_pair(file_no, 
+			file(path_buffer, exist_flag,
+				file_no))).first->second;
+		//get blocks
+		new_task->pop(count);
+		for(int i=0;i<count;++i)
+		{
+			_append_block(new_task, _file);
+		}
+		//get replica ips
+		_get_replica_node_info(new_task, _file);
 	}
-	//get replica ips
-	_get_replica_node_info(new_task, _file);
+	else
+	{
+		file_it->second.close_flag=OPEN;
+	}
 
 	return SUCCESS; 
 }
@@ -696,31 +703,31 @@ _close_file(extended_IO_task* new_task)
 {
 	ssize_t file_no=0;
 	new_task->pop(file_no);
-	try
-	{
-		//file& _file=_files.at(file_no);
-		//block_info_t &blocks=_file.blocks;
-		//_DEBUG("close file, path=%s\n", _file.file_path.c_str());
-		/*for(block_info_t::iterator it=blocks.begin();
-				it != blocks.end();++it)
-		{
-			block* _block=it->second;
-			_block->lock();
+	file_t::iterator _file=_files.find(file_no);
 
-			if((DIRTY == _block->dirty_flag 	&&
-			  nullptr == _block->write_back_task) 	||
-			  (CLEAN == _block->dirty_flag &&
-			   nullptr != _block->write_back_task))
-			{
-			}
-			_block->unlock();
-		}*/
-		return SUCCESS;
-	}
-	catch(std::out_of_range &e)
+	if(end(_files) != _file &&
+		-1 != _file->second.remote_open_fd)
 	{
-		return FAILURE;
+		CBB_remote_task::add_remote_task(
+			CBB_REMOTE_CLOSE, &(_file->second));
 	}
+	//block_info_t &blocks=_file.blocks;
+	//_DEBUG("close file, path=%s\n", _file.file_path.c_str());
+	/*for(block_info_t::iterator it=blocks.begin();
+	  it != blocks.end();++it)
+	  {
+	  block* _block=it->second;
+	  _block->lock();
+
+	  if((DIRTY == _block->dirty_flag 	&&
+	  nullptr == _block->write_back_task) 	||
+	  (CLEAN == _block->dirty_flag &&
+	  nullptr != _block->write_back_task))
+	  {
+	  }
+	  _block->unlock();
+	  }*/
+	return SUCCESS;
 }
 
 int IOnode::
@@ -802,24 +809,28 @@ _append_new_block(extended_IO_task* new_task)
 
 size_t IOnode::
 _read_from_storage(const string& 	path,
+		   file&		file_stat,
 		   block* 		block_data)
 throw(std::runtime_error)
 {
 	off64_t 	start_point	=block_data->start_point;
 	std::string 	real_path	=_get_real_path(path);
-	int 		fd		=open64(real_path.c_str(), O_RDONLY); 
 	ssize_t		ret		=SUCCESS; 
 	struct iovec 	vec;
 	char 		*buffer		=reinterpret_cast<char*>(
 			block_data->data);
 	size_t 		size		=block_data->data_size;
-	_LOG("start reading\n");
+	int&		fd		=file_stat.remote_open_fd;
 	_DEBUG("%s\n", real_path.c_str());
 
 	if(-1 == fd)
 	{
-		perror("File Open Error"); 
-		return 0;
+		fd=open64(real_path.c_str(), O_RDWR); 
+		if(-1 == fd)
+		{
+			perror("Open File Error");
+			return 0;
+		}
 	}
 	if(-1  == lseek(fd, start_point, SEEK_SET))
 	{
@@ -844,17 +855,16 @@ throw(std::runtime_error)
 		size-=ret;
 		vec.iov_len=size;
 	}
-	close(fd);
-	_LOG("end reading\n");
+
 	return block_data->data_size-size;
 }
 
 size_t IOnode::
-_write_to_storage(block* block_data)
+_write_to_storage(block* block_data, const char* mode)
 throw(std::runtime_error)
 {
 	block_data->lock();
-	_LOG("start writing back\n");
+	_LOG("start writing back %s\n", mode);
 
 	block_data->dirty_flag=CLEAN;
 
@@ -869,14 +879,18 @@ throw(std::runtime_error)
 	size_t	    size	=block_data->data_size, len=size;
 	const char* buf		=static_cast<const char*>(block_data->data);
 	ssize_t	    ret		=0;
+	int&	    fd		=block_data->file_stat->remote_open_fd;
 
 	block_data->unlock();
 
-	int fd = open64(real_path.c_str(),O_WRONLY|O_CREAT, 0600);
 	if( -1 == fd)
 	{
-		perror("Open File");
-		throw std::runtime_error("Open File Error\n");
+		fd = open64(real_path.c_str(),O_RDWR|O_CREAT, 0600);
+		if(-1 == fd)
+		{
+			perror("Open File");
+			throw std::runtime_error("Open File Error\n");
+		}
 	}
 	off64_t pos;
 	if(-1 == (pos=lseek64(fd, start_point, SEEK_SET)))
@@ -900,8 +914,6 @@ throw(std::runtime_error)
 		buf += ret;
 		len -= ret;
 	}
-	close(fd);
-	_LOG("write back ends\n");
 
 	return size-len;
 }
@@ -1026,7 +1038,9 @@ int IOnode::
 _remove_file(ssize_t file_no)
 {
 	file_t::iterator it=_files.find(file_no);
-	if(_files.end() != it)
+	_LOG("delete file no %ld\n", file_no);
+	if(_files.end() != it &&
+		SET != it->second.TO_BE_DELETED)
 	{
 		for(block_info_t::iterator block_it=it->second.blocks.begin();
 				block_it!=it->second.blocks.end();++block_it)
@@ -1036,6 +1050,7 @@ _remove_file(ssize_t file_no)
 				block_it->second->TO_BE_DELETED=SET;
 			}
 		}
+		it->second.TO_BE_DELETED=SET;
 		remove_file_list.push_back(it);
 	}
 	return SUCCESS;
@@ -1046,13 +1061,27 @@ remote_task_handler(remote_task* new_task)
 {
 	_DEBUG("start writing back\n");
 	writeback_status=ON_GOING;
-	for(auto* block : writeback_queue)
+	int task_id = new_task->get_task_id();
+	file* file_ptr=static_cast<file*>(new_task->get_task_data());
+	switch(task_id)
 	{
-		_DEBUG("writing back file %s\n", 
-			block->file_stat->file_path.c_str());
-		_DEBUG("block %ld\n", 
-			block->start_point);
-		writeback(block);
+		case CBB_REMOTE_CLOSE:
+			if(-1 != file_ptr->remote_open_fd)
+			{
+				_LOG("Close file\n");
+				close(file_ptr->remote_open_fd);
+				file_ptr->remote_open_fd=-1;
+			}
+			break;
+		case CBB_REMOTE_WRITE_BACK:
+			for(auto* block : writeback_queue)
+			{
+				_DEBUG("writing back file %s\n", 
+						block->file_stat->file_path.c_str());
+				_DEBUG("block %ld\n", 
+						block->start_point);
+				writeback(block, "background");
+			}break;
 	}
 	writeback_status=IDLE;
 	return SUCCESS;
@@ -1167,7 +1196,7 @@ _sync_write_data(data_sync_task* new_task)
 		_get_sync_response();
 	}
 #endif
-	new_dirty_page();
+	//new_dirty_page();
 
 	return SUCCESS;
 }
@@ -1302,7 +1331,7 @@ update_access_order(block* requested_block)
 }
 
 size_t IOnode::
-writeback(block* requested_block)
+writeback(block* requested_block, const char* mode)
 {
 	//_write_to_storage(path, _block);
 	if(DIRTY == requested_block->dirty_flag)
@@ -1310,7 +1339,7 @@ writeback(block* requested_block)
 		size_t ret=0;
 		_DEBUG("writing back %p\n", requested_block);
 		requested_block->writing_back=SET;
-		ret=_write_to_storage(requested_block);
+		ret=_write_to_storage(requested_block, mode);
 		requested_block->writing_back=UNSET;
 		_DEBUG("finishing writing %p\n", requested_block);
 		return ret;
@@ -1332,15 +1361,17 @@ interval_process()
 int IOnode::
 add_write_back()
 {
-	if(IDLE == writeback_status && 
-		have_dirty_page())
+	if(IDLE == writeback_status) //&& 
+		//have_dirty_page())
 	{
 #ifdef ASYNC
-		prepare_writeback_page(&writeback_queue, WRITEBACK_SIZE);
-		CBB_remote_task::add_remote_task(
-				CBB_REMOTE_WRITE_BACK, nullptr);
-		_DEBUG("add write back\n");
-		clear_dirty_page();
+		if(0 != prepare_writeback_page(&writeback_queue, WRITEBACK_SIZE))
+		{
+			CBB_remote_task::add_remote_task(
+					CBB_REMOTE_WRITE_BACK, nullptr);
+			_DEBUG("add write back\n");
+			clear_dirty_page();
+		}
 #endif
 	}
 	return SUCCESS;

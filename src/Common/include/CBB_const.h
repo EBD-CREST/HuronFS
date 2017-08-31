@@ -257,6 +257,7 @@ const bool UNSTARTED = false;
 
 //mode in write back
 const int CBB_REMOTE_WRITE_BACK = 0;
+const int CBB_REMOTE_CLOSE = 1;
 //the heart beat check interval
 const int HEART_BEAT_INTERVAL=1000;
 
@@ -297,4 +298,6 @@ const int UPDATE_META_ONLY= 5;
 const int NEED_UPDATE = 6;
 const bool SWAPPED_OUT = false;
 const bool INBUFFER = true;
+const bool OPEN = true;
+const bool CLOSED = false;
 #endif

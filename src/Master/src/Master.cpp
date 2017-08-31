@@ -529,7 +529,8 @@ CBB::CBB_error Master::_parse_flush_file(extended_IO_task* new_task)
 
 //R: file no: ssize_t
 //S: SUCCESS			errno: int
-CBB::CBB_error Master::_parse_close_file(extended_IO_task* new_task)
+CBB::CBB_error Master::
+_parse_close_file(extended_IO_task* new_task)
 {
 	ssize_t 	  file_no	=0;
 	extended_IO_task  *output	=init_response_task(new_task);

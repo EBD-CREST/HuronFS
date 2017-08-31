@@ -98,11 +98,14 @@ file(const char	 *path,
      ssize_t 	 file_no):
 	file_path(path),
 	exist_flag(exist_flag),
+	close_flag(OPEN),
 	dirty_flag(CLEAN),
+	TO_BE_DELETED(CLEAN),
 	main_flag(SUB_REPLICA),
 	file_no(file_no),
 	blocks(),
-	IOnode_pool()
+	IOnode_pool(),
+	remote_open_fd(-1)
 {
 	if(EXISTING == this->exist_flag)
 	{

@@ -93,7 +93,7 @@ namespace CBB
 			size_t swap_out(ssize_t size);
 			virtual size_t free_data(type* data)=0;
 			virtual bool need_writeback(type* data)=0;
-			virtual size_t writeback(type* data)=0;
+			virtual size_t writeback(type* data, const char* mode)=0;
 			virtual access_page<type>* 
 				access(access_page<type>* data)=0;
 			virtual access_page<type>* 
@@ -342,7 +342,7 @@ namespace CBB
 				if(need_writeback(tmp->get_data()))
 				{
 					_LOG("need write back\n");
-					writeback(tmp->get_data());
+					writeback(tmp->get_data(), "on demand");
 				}
 
 				size -= free_data(tmp->get_data());

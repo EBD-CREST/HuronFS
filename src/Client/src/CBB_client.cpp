@@ -1337,11 +1337,11 @@ _close_local_opened_file(const char* path)
 			_close(*it);
 			--count;
 		}
-		/*if(count)
+		if(count)
 		{
 			delete file_meta_p;
 		}
-		_path_file_meta_map.erase(string_path);*/
+		_path_file_meta_map.erase(string_path);
 		return 0;
 	}
 	catch(std::out_of_range &e)

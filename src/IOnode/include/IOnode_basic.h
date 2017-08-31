@@ -89,11 +89,14 @@ namespace CBB
 
 			std::string 		file_path;
 			int 			exist_flag;
+			bool			close_flag;
 			bool 			dirty_flag;
+			bool			TO_BE_DELETED;
 			int 			main_flag; //main replica indicator
 			ssize_t 		file_no;
 			block_info_t  		blocks;
 			handle_ptr_pool_t 	IOnode_pool;
+			int			remote_open_fd;
 		};
 
 		inline int block::
