@@ -40,6 +40,7 @@
 
 #include "CBB_stream.h"
 #include "CBB_internal.h"
+#include <libgen.h>
 
 //#define SINGLE_THREAD
 

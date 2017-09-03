@@ -105,7 +105,8 @@ file(const char	 *path,
 	file_no(file_no),
 	blocks(),
 	IOnode_pool(),
-	remote_open_fd(-1)
+	read_remote_fd(-1),
+	write_remote_fd(-1)
 {
 	if(EXISTING == this->exist_flag)
 	{

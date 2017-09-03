@@ -96,7 +96,8 @@ namespace CBB
 			ssize_t 		file_no;
 			block_info_t  		blocks;
 			handle_ptr_pool_t 	IOnode_pool;
-			int			remote_open_fd;
+			int			read_remote_fd;
+			int			write_remote_fd;
 		};
 
 		inline int block::

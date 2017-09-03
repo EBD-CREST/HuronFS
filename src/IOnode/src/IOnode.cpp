@@ -706,8 +706,11 @@ _close_file(extended_IO_task* new_task)
 	file_t::iterator _file=_files.find(file_no);
 
 	if(end(_files) != _file &&
-		-1 != _file->second.remote_open_fd)
+		(-1 != _file->second.read_remote_fd ||
+		 -1 != _file->second.write_remote_fd))
 	{
+		//_LOG("write remote fd %d\n", _file->second.write_remote_fd);
+		//_LOG("read remote fd %d\n", _file->second.read_remote_fd);
 		CBB_remote_task::add_remote_task(
 			CBB_REMOTE_CLOSE, &(_file->second));
 	}
@@ -820,7 +823,7 @@ throw(std::runtime_error)
 	char 		*buffer		=reinterpret_cast<char*>(
 			block_data->data);
 	size_t 		size		=block_data->data_size;
-	int&		fd		=file_stat.remote_open_fd;
+	int&		fd		=file_stat.read_remote_fd;
 	_DEBUG("%s\n", real_path.c_str());
 
 	if(-1 == fd)
@@ -835,6 +838,7 @@ throw(std::runtime_error)
 	if(-1  == lseek(fd, start_point, SEEK_SET))
 	{
 		perror("Seek"); 
+		_LOG("fd = %d\n", fd);
 		return 0;
 	}
 
@@ -855,6 +859,8 @@ throw(std::runtime_error)
 		size-=ret;
 		vec.iov_len=size;
 	}
+	/*close(fd);
+	fd=-1;*/
 
 	return block_data->data_size-size;
 }
@@ -879,7 +885,7 @@ throw(std::runtime_error)
 	size_t	    size	=block_data->data_size, len=size;
 	const char* buf		=static_cast<const char*>(block_data->data);
 	ssize_t	    ret		=0;
-	int&	    fd		=block_data->file_stat->remote_open_fd;
+	int&	    fd		=block_data->file_stat->write_remote_fd;
 
 	block_data->unlock();
 
@@ -1066,11 +1072,21 @@ remote_task_handler(remote_task* new_task)
 	switch(task_id)
 	{
 		case CBB_REMOTE_CLOSE:
-			if(-1 != file_ptr->remote_open_fd)
+			//close read fd
+			if(-1 != file_ptr->read_remote_fd)
 			{
-				_LOG("Close file\n");
-				close(file_ptr->remote_open_fd);
-				file_ptr->remote_open_fd=-1;
+				_DEBUG("Close read file %d\n",
+					file_ptr->read_remote_fd);
+				close(file_ptr->read_remote_fd);
+				file_ptr->read_remote_fd=-1;
+			}
+			//close write fd
+			if(-1 != file_ptr->write_remote_fd)
+			{
+				_DEBUG("Close write file %d\n",
+					file_ptr->write_remote_fd);
+				close(file_ptr->write_remote_fd);
+				file_ptr->write_remote_fd=-1;
 			}
 			break;
 		case CBB_REMOTE_WRITE_BACK:
