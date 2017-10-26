@@ -46,11 +46,12 @@ libHuFS_la_SOURCES += CBB_basic.h	\
 		      CBB_stream.h
 
 libHuFS_la_LDFLAGS = $(AM_LDFLAGS) -version-info 1:0:0
+libHuFS_la_LIBADD = ../Common/libCommon.la
 
 bin_PROGRAMS = hufs
 hufs_SOURCES = src/CBB_fuse.cpp 
 
 hufs_CPPFLAGS = $(AM_CPPFLAGS) -D_FILE_OFFSET_BITS=64
-hufs_LDADD = libHuFS.la ../Common/libCommon.la
+hufs_LDADD = libHuFS.la
 hufs_LDFLAGS = $(AM_LDFLAGS) -ldl 
 SUBDIRS = ../Common

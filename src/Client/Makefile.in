@@ -181,7 +181,7 @@ am__uninstall_files_from_dir = { \
   }
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libHuFS_la_LIBADD =
+libHuFS_la_DEPENDENCIES = ../Common/libCommon.la
 am_libHuFS_la_OBJECTS = CBB_basic.lo CBB_client.lo CBB_stream.lo \
 	CBB_posix.lo CBB_stdio.lo
 libHuFS_la_OBJECTS = $(am_libHuFS_la_OBJECTS)
@@ -195,7 +195,7 @@ libHuFS_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 PROGRAMS = $(bin_PROGRAMS)
 am_hufs_OBJECTS = hufs-CBB_fuse.$(OBJEXT)
 hufs_OBJECTS = $(am_hufs_OBJECTS)
-hufs_DEPENDENCIES = libHuFS.la ../Common/libCommon.la
+hufs_DEPENDENCIES = libHuFS.la
 hufs_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
 	$(CXXFLAGS) $(hufs_LDFLAGS) $(LDFLAGS) -o $@
@@ -466,9 +466,10 @@ libHuFS_la_SOURCES = CBB_basic.cpp CBB_client.cpp CBB_stream.cpp \
 	CBB_posix.cpp CBB_stdio.cpp CBB_basic.h CBB_client.h \
 	CBB_posix.h CBB_stdio.h CBB_stream.h
 libHuFS_la_LDFLAGS = $(AM_LDFLAGS) -version-info 1:0:0
+libHuFS_la_LIBADD = ../Common/libCommon.la
 hufs_SOURCES = src/CBB_fuse.cpp 
 hufs_CPPFLAGS = $(AM_CPPFLAGS) -D_FILE_OFFSET_BITS=64
-hufs_LDADD = libHuFS.la ../Common/libCommon.la
+hufs_LDADD = libHuFS.la
 hufs_LDFLAGS = $(AM_LDFLAGS) -ldl 
 SUBDIRS = ../Common
 all: all-recursive
