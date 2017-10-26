@@ -41,4 +41,4 @@ IOnode_SOURCES = IOnode.cpp	\
 IOnode_SOURCES += IOnode.h	\
 		  IOnode_basic.h
 
-IOnode_LDADD = ../Common/libCommon.a
+IOnode_LDADD = ../Common/libCommon.la

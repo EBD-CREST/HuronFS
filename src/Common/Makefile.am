@@ -23,7 +23,7 @@
 # this lists the binaries to produce, the (non-PHONY, binary) targets in
 # the previous manual Makefile
 include ../../common.mk
-noinst_LIBRARIES= libCommon.a
+noinst_LTLIBRARIES= libCommon.la
 SRC_DIR = src
 HEADER_DIR = include
 AM_CPPFLAGS += -I./include/
@@ -31,7 +31,7 @@ AM_CPPFLAGS += -I./include/
 vpath %.cpp $(SRC_DIR)
 vpath %.h $(HEADER_DIR)
 
-libCommon_a_SOURCES = Server.cpp \
+libCommon_la_SOURCES = Server.cpp \
 		      Client.cpp \
 		      CBB_mutex_lock.cpp \
 		      CBB_rwlock.cpp \
@@ -47,9 +47,8 @@ libCommon_a_SOURCES = Server.cpp \
 		      CBB_IO_task.cpp \
 		      CBB_basic_thread.cpp
 
-
 if USING_CCI
-libCommon_a_SOURCES += CBB_cci.cpp
+libCommon_la_SOURCES += CBB_cci.cpp
 else
-libCommon_a_SOURCES += CBB_tcp.cpp
+libCommon_la_SOURCES += CBB_tcp.cpp
 endif

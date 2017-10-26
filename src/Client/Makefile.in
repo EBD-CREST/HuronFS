@@ -195,7 +195,7 @@ libHuFS_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 PROGRAMS = $(bin_PROGRAMS)
 am_hufs_OBJECTS = hufs-CBB_fuse.$(OBJEXT)
 hufs_OBJECTS = $(am_hufs_OBJECTS)
-hufs_DEPENDENCIES = libHuFS.la ../Common/libCommon.a
+hufs_DEPENDENCIES = libHuFS.la ../Common/libCommon.la
 hufs_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
 	$(CXXFLAGS) $(hufs_LDFLAGS) $(LDFLAGS) -o $@
@@ -468,7 +468,7 @@ libHuFS_la_SOURCES = CBB_basic.cpp CBB_client.cpp CBB_stream.cpp \
 libHuFS_la_LDFLAGS = $(AM_LDFLAGS) -version-info 1:0:0
 hufs_SOURCES = src/CBB_fuse.cpp 
 hufs_CPPFLAGS = $(AM_CPPFLAGS) -D_FILE_OFFSET_BITS=64
-hufs_LDADD = libHuFS.la ../Common/libCommon.a
+hufs_LDADD = libHuFS.la ../Common/libCommon.la
 hufs_LDFLAGS = $(AM_LDFLAGS) -ldl 
 SUBDIRS = ../Common
 all: all-recursive

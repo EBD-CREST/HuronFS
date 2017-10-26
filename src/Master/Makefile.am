@@ -42,4 +42,4 @@ Master_SOURCES = Master.cpp	 \
 Master_SOURCES += Master.h	\
 		  Master_basic.h
 
-Master_LDADD = ../Common/libCommon.a
+Master_LDADD = ../Common/libCommon.la

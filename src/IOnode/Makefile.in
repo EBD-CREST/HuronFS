@@ -156,7 +156,7 @@ PROGRAMS = $(bin_PROGRAMS)
 am_IOnode_OBJECTS = IOnode.$(OBJEXT) node_main.$(OBJEXT) \
 	IOnode_basic.$(OBJEXT)
 IOnode_OBJECTS = $(am_IOnode_OBJECTS)
-IOnode_DEPENDENCIES = ../Common/libCommon.a
+IOnode_DEPENDENCIES = ../Common/libCommon.la
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -385,7 +385,7 @@ HEADER_DIR = include
 #headers
 IOnode_SOURCES = IOnode.cpp node_main.cpp IOnode_basic.cpp IOnode.h \
 	IOnode_basic.h
-IOnode_LDADD = ../Common/libCommon.a
+IOnode_LDADD = ../Common/libCommon.la
 all: all-am
 
 .SUFFIXES:

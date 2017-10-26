@@ -156,7 +156,7 @@ PROGRAMS = $(bin_PROGRAMS)
 am_Master_OBJECTS = Master.$(OBJEXT) master_main.$(OBJEXT) \
 	Master_basic.$(OBJEXT)
 Master_OBJECTS = $(am_Master_OBJECTS)
-Master_DEPENDENCIES = ../Common/libCommon.a
+Master_DEPENDENCIES = ../Common/libCommon.la
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -385,7 +385,7 @@ HEADER_DIR = include
 #headers
 Master_SOURCES = Master.cpp master_main.cpp Master_basic.cpp Master.h \
 	Master_basic.h
-Master_LDADD = ../Common/libCommon.a
+Master_LDADD = ../Common/libCommon.la
 all: all-am
 
 .SUFFIXES:

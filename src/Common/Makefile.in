@@ -152,32 +152,27 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-LIBRARIES = $(noinst_LIBRARIES)
-ARFLAGS = cru
-AM_V_AR = $(am__v_AR_@AM_V@)
-am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
-am__v_AR_0 = @echo "  AR      " $@;
-am__v_AR_1 = 
-libCommon_a_AR = $(AR) $(ARFLAGS)
-libCommon_a_LIBADD =
-am__libCommon_a_SOURCES_DIST = Server.cpp Client.cpp \
+LTLIBRARIES = $(noinst_LTLIBRARIES)
+libCommon_la_LIBADD =
+am__libCommon_la_SOURCES_DIST = Server.cpp Client.cpp \
 	CBB_mutex_lock.cpp CBB_rwlock.cpp CBB_communication_thread.cpp \
 	CBB_request_handler.cpp CBB_serialization.cpp \
 	CBB_remote_task.cpp CBB_heart_beat.cpp CBB_data_sync.cpp \
 	CBB_profiling.cpp Comm_basic.cpp CBB_memory_pool.cpp \
 	CBB_IO_task.cpp CBB_basic_thread.cpp CBB_cci.cpp CBB_tcp.cpp
-@USING_CCI_TRUE@am__objects_1 = CBB_cci.$(OBJEXT)
-@USING_CCI_FALSE@am__objects_2 = CBB_tcp.$(OBJEXT)
-am_libCommon_a_OBJECTS = Server.$(OBJEXT) Client.$(OBJEXT) \
-	CBB_mutex_lock.$(OBJEXT) CBB_rwlock.$(OBJEXT) \
-	CBB_communication_thread.$(OBJEXT) \
-	CBB_request_handler.$(OBJEXT) CBB_serialization.$(OBJEXT) \
-	CBB_remote_task.$(OBJEXT) CBB_heart_beat.$(OBJEXT) \
-	CBB_data_sync.$(OBJEXT) CBB_profiling.$(OBJEXT) \
-	Comm_basic.$(OBJEXT) CBB_memory_pool.$(OBJEXT) \
-	CBB_IO_task.$(OBJEXT) CBB_basic_thread.$(OBJEXT) \
-	$(am__objects_1) $(am__objects_2)
-libCommon_a_OBJECTS = $(am_libCommon_a_OBJECTS)
+@USING_CCI_TRUE@am__objects_1 = CBB_cci.lo
+@USING_CCI_FALSE@am__objects_2 = CBB_tcp.lo
+am_libCommon_la_OBJECTS = Server.lo Client.lo CBB_mutex_lock.lo \
+	CBB_rwlock.lo CBB_communication_thread.lo \
+	CBB_request_handler.lo CBB_serialization.lo CBB_remote_task.lo \
+	CBB_heart_beat.lo CBB_data_sync.lo CBB_profiling.lo \
+	Comm_basic.lo CBB_memory_pool.lo CBB_IO_task.lo \
+	CBB_basic_thread.lo $(am__objects_1) $(am__objects_2)
+libCommon_la_OBJECTS = $(am_libCommon_la_OBJECTS)
+AM_V_lt = $(am__v_lt_@AM_V@)
+am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
+am__v_lt_0 = --silent
+am__v_lt_1 = 
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -196,10 +191,6 @@ am__depfiles_maybe = depfiles
 am__mv = mv -f
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
-AM_V_lt = $(am__v_lt_@AM_V@)
-am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
-am__v_lt_0 = --silent
-am__v_lt_1 = 
 LTCXXCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) \
 	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
@@ -216,8 +207,8 @@ AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
 am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
 am__v_CXXLD_0 = @echo "  CXXLD   " $@;
 am__v_CXXLD_1 = 
-SOURCES = $(libCommon_a_SOURCES)
-DIST_SOURCES = $(am__libCommon_a_SOURCES_DIST)
+SOURCES = $(libCommon_la_SOURCES)
+DIST_SOURCES = $(am__libCommon_la_SOURCES_DIST)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -380,10 +371,10 @@ SWAP_ALGORITHM = -DLRU
 
 # this lists the binaries to produce, the (non-PHONY, binary) targets in
 # the previous manual Makefile
-noinst_LIBRARIES = libCommon.a
+noinst_LTLIBRARIES = libCommon.la
 SRC_DIR = src
 HEADER_DIR = include
-libCommon_a_SOURCES = Server.cpp Client.cpp CBB_mutex_lock.cpp \
+libCommon_la_SOURCES = Server.cpp Client.cpp CBB_mutex_lock.cpp \
 	CBB_rwlock.cpp CBB_communication_thread.cpp \
 	CBB_request_handler.cpp CBB_serialization.cpp \
 	CBB_remote_task.cpp CBB_heart_beat.cpp CBB_data_sync.cpp \
@@ -425,13 +416,19 @@ $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
 
-clean-noinstLIBRARIES:
-	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+clean-noinstLTLIBRARIES:
+	-test -z "$(noinst_LTLIBRARIES)" || rm -f $(noinst_LTLIBRARIES)
+	@list='$(noinst_LTLIBRARIES)'; \
+	locs=`for p in $$list; do echo $$p; done | \
+	      sed 's|^[^/]*$$|.|; s|/[^/]*$$||; s|$$|/so_locations|' | \
+	      sort -u`; \
+	test -z "$$locs" || { \
+	  echo rm -f $${locs}; \
+	  rm -f $${locs}; \
+	}
 
-libCommon.a: $(libCommon_a_OBJECTS) $(libCommon_a_DEPENDENCIES) $(EXTRA_libCommon_a_DEPENDENCIES) 
-	$(AM_V_at)-rm -f libCommon.a
-	$(AM_V_AR)$(libCommon_a_AR) libCommon.a $(libCommon_a_OBJECTS) $(libCommon_a_LIBADD)
-	$(AM_V_at)$(RANLIB) libCommon.a
+libCommon.la: $(libCommon_la_OBJECTS) $(libCommon_la_DEPENDENCIES) $(EXTRA_libCommon_la_DEPENDENCIES) 
+	$(AM_V_CXXLD)$(CXXLINK)  $(libCommon_la_OBJECTS) $(libCommon_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -439,23 +436,23 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_IO_task.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_basic_thread.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_cci.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_communication_thread.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_data_sync.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_heart_beat.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_memory_pool.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_mutex_lock.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_profiling.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_remote_task.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_request_handler.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_rwlock.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_serialization.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_tcp.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Client.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Comm_basic.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Server.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_IO_task.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_basic_thread.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_cci.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_communication_thread.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_data_sync.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_heart_beat.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_memory_pool.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_mutex_lock.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_profiling.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_remote_task.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_request_handler.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_rwlock.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_serialization.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CBB_tcp.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Client.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Comm_basic.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Server.Plo@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -568,7 +565,7 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LIBRARIES)
+all-am: Makefile $(LTLIBRARIES)
 installdirs:
 install: install-am
 install-exec: install-exec-am
@@ -602,7 +599,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libtool clean-noinstLIBRARIES \
+clean-am: clean-generic clean-libtool clean-noinstLTLIBRARIES \
 	mostlyclean-am
 
 distclean: distclean-am
@@ -674,7 +671,7 @@ uninstall-am:
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am check check-am clean clean-generic \
-	clean-libtool clean-noinstLIBRARIES cscopelist-am ctags \
+	clean-libtool clean-noinstLTLIBRARIES cscopelist-am ctags \
 	ctags-am distclean distclean-compile distclean-generic \
 	distclean-libtool distclean-tags distdir dvi dvi-am html \
 	html-am info info-am install install-am install-data \

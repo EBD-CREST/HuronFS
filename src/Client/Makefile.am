@@ -51,6 +51,6 @@ bin_PROGRAMS = hufs
 hufs_SOURCES = src/CBB_fuse.cpp 
 
 hufs_CPPFLAGS = $(AM_CPPFLAGS) -D_FILE_OFFSET_BITS=64
-hufs_LDADD = libHuFS.la ../Common/libCommon.a
+hufs_LDADD = libHuFS.la ../Common/libCommon.la
 hufs_LDFLAGS = $(AM_LDFLAGS) -ldl 
 SUBDIRS = ../Common
