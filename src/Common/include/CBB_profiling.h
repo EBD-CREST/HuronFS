@@ -25,7 +25,6 @@
 #ifndef CBB_PROFILING_H_
 #define CBB_PROFILING_H_
 
-#include <sys/time.h>
 #include "CBB_internal.h"
 
 namespace CBB
@@ -108,6 +107,7 @@ namespace CBB
 				size_t		total_read;
 				size_t		total_write;
 				int 		delay_count;
+				size_t		new_size;
 		};
 
 		inline void time_record::
@@ -137,7 +137,7 @@ namespace CBB
 		inline void CBB_profiling::
 			record_size(size_t size, int mode)
 		{
-			if(READ_FILE == mode)
+			if(READ_FILE == mode || RMA_READ == mode)
 			{
 				total_read += size;
 			}
@@ -145,6 +145,11 @@ namespace CBB
 			{
 				total_write += size;
 			}
+			if(size == 0)
+			{
+				_LOG("error mode %d\n", mode);
+			}
+			new_size += size;
 		}
 
 		inline void CBB_profiling::
@@ -168,7 +173,7 @@ namespace CBB
 		{
 			if(is_profiling())
 			{
-				_DEBUG("%ld.%ld\t%f\t0\t%s\t%s\t%lu\t%lu\n", et.get_sec(), et.get_usec(), 
+				_LOG("%ld.%ld\t%f\t0\t%s\t%s\t%lu\t%lu\n", et.get_sec(), et.get_usec(), 
 						last_duration, mode, io_path, offset, length);
 			}
 		}

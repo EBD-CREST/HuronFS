@@ -188,9 +188,9 @@ namespace CBB
 								SCBB* corresponding_SCBB);
 				int _close_local_opened_file(const char* path);
 				Common::comm_handle_t 
-					_get_master_handle_from_path(const std::string& path)const;
+					_get_master_handle_from_path(const std::string& path);
 				Common::comm_handle_t 
-					_get_master_handle_from_master_number(int master_number)const;
+					_get_master_handle_from_master_number(int master_number);
 				int _get_master_number_from_path(const std::string& path)const;
 				Common::comm_handle_t 
 					_get_master_handle_from_fd(int fd)const;
@@ -242,13 +242,13 @@ namespace CBB
 		}
 
 		inline Common::comm_handle_t CBB_client::
-			_get_master_handle_from_path(const std::string& path)const
+			_get_master_handle_from_path(const std::string& path)
 		{
 			return &master_handle_list.at(_get_master_number_from_path(path)).master_handle;
 		}
 
 		inline Common::comm_handle_t CBB_client::
-			_get_master_handle_from_master_number(int master_number)const
+			_get_master_handle_from_master_number(int master_number)
 		{
 			return &master_handle_list.at(master_number).master_handle;
 		}

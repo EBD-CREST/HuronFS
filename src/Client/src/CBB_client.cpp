@@ -1218,7 +1218,7 @@ throw(std::runtime_error)
 	//putting files in class to reduce the latency
 	string_buf files(MAX_DIR_FILE_SIZE);
 
-	for(master_list_t::const_iterator it=master_handle_list.begin();
+	for(master_list_t::iterator it=master_handle_list.begin();
 			it != master_handle_list.end(); ++it)
 	{
 		comm_handle_t master_handle=&it->master_handle;
@@ -2038,7 +2038,7 @@ _find_scbb_by_handle(comm_handle_t handle)
 	{
 		for(auto& IOnode:scbb.IOnode_list)
 		{
-			if(compare_handle(handle, &IOnode.second))
+			if(handle->compare_handle(&IOnode.second))
 			{
 				return &scbb;
 			}

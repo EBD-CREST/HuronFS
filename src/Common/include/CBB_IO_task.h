@@ -80,10 +80,9 @@ namespace CBB
 				size_t pop_string(char** var);
 				virtual void reset()override;
 				virtual void set_id(int id)override final;
-				comm_handle_t get_handle()const;
 				comm_handle_t get_handle();
 				void set_handle(comm_handle_t handle);
-				void set_handle(const comm_handle& handle);
+				void set_handle(comm_handle& handle);
 				unsigned char* get_message();
 				unsigned char* get_basic_message();
 				void set_message_size(size_t message_size);
@@ -290,12 +289,6 @@ namespace CBB
 		}
 
 		inline comm_handle_t basic_IO_task::
-			get_handle()const
-		{
-			return &(this->handle);
-		}
-
-		inline comm_handle_t basic_IO_task::
 			get_handle()
 		{
 			return &(this->handle);
@@ -374,7 +367,7 @@ namespace CBB
 		}
 
 		inline void basic_IO_task::
-			set_handle(const comm_handle& handle)
+			set_handle(comm_handle& handle)
 		{
 			return set_handle(&handle);
 		}

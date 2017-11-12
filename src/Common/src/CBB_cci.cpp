@@ -286,17 +286,19 @@ init_protocol()
 }
 
 CBB_error CBB_cci::
-init_server_handle(ref_comm_handle_t  server_handle,
+init_server_handle(basic_handle& server_handle,
 		   const std::string& my_uri,
 		   int		      port)
 throw(std::runtime_error)
 {
+	CCI_handle& server_cci_handle=dynamic_cast<CCI_handle&>(server_handle);
+	server_cci_handle.setup_uri(this->uri);
 	return start_uri_exchange_server(my_uri, port);
 }
 
 
 CBB_error CBB_cci::
-end_protocol(comm_handle_t server_handle)
+end_protocol(const basic_handle* server_handle)
 {
 
 	int ret;
@@ -313,13 +315,14 @@ end_protocol(comm_handle_t server_handle)
 	}
 }
 
-CBB_error CBB_cci::
-Close(comm_handle_t handle)
+CBB_error CCI_handle::
+Close()
 {
 
 	int ret;
+
 	if (CCI_SUCCESS != 
-		(ret = cci_disconnect(handle->cci_handle))) 
+		(ret = cci_disconnect(this->cci_handle))) 
 	{
 		_DEBUG("cci_disconnect() failed with %s\n",
 			cci_strerror(nullptr, (cci_status)ret));
@@ -329,9 +332,8 @@ Close(comm_handle_t handle)
 	return SUCCESS;
 }
 
-CBB_error CBB_cci::
-get_uri_from_handle(comm_handle_t       handle,
-		    const char **const	uri)
+CBB_error CCI_handle::
+get_uri_from_handle(const char **const	uri)
 {
 	*uri=this->uri;
 	return SUCCESS;
@@ -340,7 +342,7 @@ get_uri_from_handle(comm_handle_t       handle,
 CBB_error CBB_cci::
 Connect(const char* uri,
 	int	    port,
-	ref_comm_handle_t handle,
+	basic_handle& handle,
 	void* 	    buf,
 	size_t*	    size)
 	throw(std::runtime_error)
@@ -374,9 +376,8 @@ Connect(const char* uri,
 	return SUCCESS;
 }
 
-size_t CBB_cci:: 
-Recv_large(comm_handle_t handle, 
-	   const unsigned char*   completion,
+size_t CCI_handle:: 
+Recv_large(const unsigned char*   completion,
 	   size_t 	 comp_size,
 	   void*         buffer,
 	   size_t 	 count,
@@ -384,15 +385,13 @@ Recv_large(comm_handle_t handle,
 throw(std::runtime_error)
 {
 	int ret;
-	cci_connection_t* connection=const_cast<cci_connection_t*>(handle->cci_handle);
-	cci_rma_handle_t* local_rma_handle=const_cast<cci_rma_handle_t*>(handle->local_rma_handle);
-	cci_rma_handle_t* remote_rma_handle=const_cast<cci_rma_handle_t*>(&(handle->remote_rma_handle));
+	cci_connection_t* connection=cci_handle;
 	//first try with blocking IO
 	_DEBUG("rma read local handle=%p\n", local_rma_handle);
 	if(CCI_SUCCESS != 
 		(ret = cci_rma(connection, completion, comp_size,
 			       local_rma_handle, 0,
-			       remote_rma_handle, offset,
+			       &remote_rma_handle, offset,
 			       count, local_rma_handle, CCI_FLAG_READ)))
 	{
 		if(CCI_ERR_DISCONNECTED == ret)
@@ -407,9 +406,8 @@ throw(std::runtime_error)
 	return SUCCESS;
 }
 
-size_t CBB_cci:: 
-Send_large(comm_handle_t handle, 
-	   const unsigned char*   completion,
+size_t CCI_handle::
+Send_large(const unsigned char*   completion,
 	   size_t 	 comp_size,
 	   const void*   buffer,
 	   size_t 	 count,
@@ -417,15 +415,13 @@ Send_large(comm_handle_t handle,
 throw(std::runtime_error)
 {
 	int ret;
-	cci_connection_t* connection=const_cast<cci_connection_t*>(handle->cci_handle);
-	cci_rma_handle_t* local_rma_handle=const_cast<cci_rma_handle_t*>(handle->local_rma_handle);
-	cci_rma_handle_t* remote_rma_handle=const_cast<cci_rma_handle_t*>(&handle->remote_rma_handle);
+	cci_connection_t* connection=cci_handle;
 	//first try with blocking IO
 	_DEBUG("rma write local handle=%p\n", local_rma_handle);
 	if(CCI_SUCCESS != 
 		(ret = cci_rma(connection, completion, comp_size,
 			       local_rma_handle, 0,
-			       remote_rma_handle, offset,
+			       &remote_rma_handle, offset,
 			       count, local_rma_handle, CCI_FLAG_WRITE)))
 	{
 		if(CCI_ERR_DISCONNECTED == ret)
@@ -440,27 +436,25 @@ throw(std::runtime_error)
 	return SUCCESS;
 }
 
-size_t CBB_cci::
-Do_recv(comm_handle_t handle, 
-	void* 	      buffer,
+size_t CCI_handle::
+do_recv(void* 	      buffer,
 	size_t 	      count,
 	int 	      flag)
 throw(std::runtime_error)
 {
-	if(count > handle->size)
+	if(count > this->size)
 	{
-		count=handle->size;
+		count=this->size;
 	}
-	memcpy(buffer, handle->buf, count);
+	memcpy(buffer, this->buf, count);
 	//bad hack
-	const void**	buf_tmp=(const void**)(&handle->buf);
-	*buf_tmp=(const void*)(static_cast<const char*const>(handle->buf)+count);
+	const void**	buf_tmp=(const void**)(&this->buf);
+	*buf_tmp=(const void*)(static_cast<const char*const>(this->buf)+count);
 	return count;
 }
 
-size_t CBB_cci::
-Do_send(comm_handle_t 	handle,
-	const void* 	buffer, 
+size_t CCI_handle::
+do_send(const void* 	buffer, 
 	size_t 		count, 
 	int 		flag)
 throw(std::runtime_error)
@@ -471,7 +465,7 @@ throw(std::runtime_error)
 	while(0 != count)
 	{
 		if(CCI_SUCCESS != 
-			(ret=cci_send(handle->cci_handle,
+			(ret=cci_send(this->cci_handle,
 				      buffer, count,
 				      nullptr, CCI_FLAG_BLOCKING)))
 		{

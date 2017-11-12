@@ -38,8 +38,7 @@ HUFS_PROFILE_PATH="HUFS_PROFILING_PATH";
 double time_record::diff(time_record& et)
 {
 	struct timeval& et_time=et.time;
-	return (et_time.tv_sec-this->time.tv_sec)
-			+(et_time.tv_usec-this->time.tv_usec)*0.001*0.001;
+	return TIME(this->time, et_time);
 }
 
 void time_record::
@@ -63,8 +62,10 @@ void CBB_profiling::_print_time()
 		if( 0 == -- delay_count)
 		{
 			double total_size = (total_read + total_write)/(double)MB;
-			_RECORD(this->fp, "new time %f s total time %lf s, total read %f MB, total write %f MB, total_size %f MB, throughput %f MB/s\n",
-					last_duration, total_time, total_read/(double)MB, total_write/(double)MB, total_size, total_size/total_time);
+			_RECORD(this->fp, "added time %f s, added size %ld, total time %lf s, \
+					total read %f MB, total write %f MB, total_size %f MB, throughput %f MB/s\n",
+					last_duration, new_size, total_time, total_read/(double)MB, total_write/(double)MB, total_size, total_size/total_time);
+			new_size=0;
 			delay_count=PRINT_DELAY;
 			/*_RECORD(this->fp, "from %s %d to %s %d difference %ld us\n",
 			  st.function_name, st.line_number,
@@ -84,8 +85,11 @@ CBB_profiling::
 		{
 			double new_time=st.diff(et);
 			total_time += new_time;
-			_RECORD(this->fp, "new time %f s total time %f s, total read %ld, total write %ld, throughput %f MB/s\n",
-					new_time, total_time, total_read, total_write, (total_read+total_write)/total_time/1000000);
+			double total_size = (total_read + total_write)/(double)MB;
+
+			_RECORD(this->fp, "added time %f s, added size %ld, total time %lf s, \
+					total read %f MB, total write %f MB, total_size %f MB, throughput %f MB/s\n",
+					new_time, new_size, total_time, total_read/(double)MB, total_write/(double)MB, total_size, total_size/total_time);
 		}
 	}
 }

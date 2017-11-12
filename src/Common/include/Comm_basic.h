@@ -54,165 +54,140 @@ namespace CBB
 		//protocal name 
 		const int PROT_TCP=1;
 		const int PROT_CCI=2;
-		struct CBB_handle
+
+		class basic_handle
 		{
-#ifdef CCI
-			cci_connection_t*  	cci_handle; 
-			cci_rma_handle_t*  	local_rma_handle; 
-			cci_rma_handle  	remote_rma_handle; 
-			//use for the uri
-			const void*	 	buf;
-			size_t		 	size;
-			void dump_remote_key()const;
-			void dump_local_key() const;
-#else
-			int 		 	socket;
-#endif
-			CBB_handle()=default;
-			~CBB_handle()=default;
-			//define in each protocal
-			CBB_handle& operator = (const CBB_handle& src);
-		};
-
-		typedef CBB_handle comm_handle;
-		typedef const CBB_handle* comm_handle_t;
-		typedef CBB_handle* free_comm_handle_t;
-		typedef CBB_handle& ref_comm_handle_t;
-		typedef const CBB_handle& const_ref_comm_handle_t;
-
-		class Comm_basic
-		{
-
 		public:
-			Comm_basic()=default;
-			virtual ~Comm_basic()=default;
-			Comm_basic(const Comm_basic&)=delete;
-			Comm_basic& operator = (const Comm_basic&)=delete;
+			basic_handle()=default;
+			virtual ~basic_handle()=default;
+			//define in each protocal
+			basic_handle& operator = (const basic_handle& src);
 
 			//API declearation
 			template<class T> size_t 
-				Recv(comm_handle_t handle, 
-				     T& 	   buffer)
+				Recv(T& 	   buffer)
 				throw(std::runtime_error);
 
 			template<class T> size_t 
-				Send(comm_handle_t handle, 
-				     const T& 	   buffer)
+				Send(const T& 	   buffer)
 				throw(std::runtime_error);
 
 			template<class T> size_t 
-				Recvv(comm_handle_t handle, 
-				      T** buffer)
+				Recvv(T** buffer)
 				throw(std::runtime_error);
 
 			template<class T> size_t 
-				Recvv_pre_alloc(comm_handle_t 	handle, 
-						T* 		buffer, 
+				Recvv_pre_alloc(T* 		buffer, 
 						size_t 		length)
 				throw(std::runtime_error);
 
 			template<class T> size_t 
-				Sendv(comm_handle_t 	handle, 
-				      const T* 		buffer, 
+				Sendv(const T* 		buffer, 
 				      size_t 		count)
 				throw(std::runtime_error);
 
 			template<class T> size_t 
-				Sendv_pre_alloc(comm_handle_t 	handle, 
-						const T* 	buffer, 
+				Sendv_pre_alloc(const T* 	buffer, 
 						size_t 		count)
 				throw(std::runtime_error);
-			
-			virtual CBB_error init_protocol()
-				throw(std::runtime_error)=0;
 
-			virtual CBB_error 
-				init_server_handle(ref_comm_handle_t  server_handle,
-						   const std::string& my_uri,
-					           int		      port)
-				throw(std::runtime_error)=0;
-
-			virtual CBB_error end_protocol(comm_handle_t server_handle)=0;
-
-			virtual CBB_error Close(comm_handle_t handle)=0;
+			virtual CBB_error Close()=0;
 
 			virtual CBB_error
-				get_uri_from_handle(comm_handle_t handle,
-						    const char**  uri)=0;
+				get_uri_from_handle(const char**  uri)=0;
 
-			virtual bool compare_handle(comm_handle_t src,
-					comm_handle_t des)=0;
-
-			virtual CBB_error
-				Connect(const char* uri,
-					int	    port,
-					ref_comm_handle_t handle,
-					void* 	    buf,
-					size_t*	    size)
-				throw(std::runtime_error)=0;
+			virtual bool compare_handle(const basic_handle* des)=0;
 
 			virtual size_t 
-				Recv_large(comm_handle_t sockfd, 
-					   void*         buffer,
+				Recv_large(void*         buffer,
 					   size_t 	 count)
 				throw(std::runtime_error)=0;
 
 			virtual size_t 
-				Send_large(comm_handle_t sockfd, 
-					   const void*   buffer,
+				Send_large(const void*   buffer,
 					   size_t 	 count)
 				throw(std::runtime_error)=0;
 
-			void push_back_uri(const char* uri,
-					   void*   buf,
-					   size_t* size);
+			virtual void*
+				get_raw_handle()=0;
 
+			virtual const void*
+				get_raw_handle() const =0;
 
-		protected:
-
-			int create_socket(const struct sockaddr_in& addr)
-				throw(std::runtime_error);
-
-			void set_timer(struct timeval* timer);
+			virtual void
+				set_raw_handle(void*)=0;
 
 			virtual size_t
-				Do_recv(comm_handle_t sockfd, 
-					void* 	      buffer,
+				do_recv(void* 	      buffer,
 					size_t 	      count,
 					int 	      flag)
 				throw(std::runtime_error)=0;
 
 			virtual size_t 
-				Do_send(comm_handle_t 	sockfd,
-					const void* 	buffer, 
+				do_send(const void* 	buffer, 
 					size_t 		count, 
 					int 		flag)
 				throw(std::runtime_error)=0;
 		};
 
+		class Comm_basic
+		{
+			public:
+				Comm_basic()=default;
+				virtual ~Comm_basic()=default;
+
+				virtual CBB_error 
+					init_server_handle(basic_handle& server_handle,
+							const std::string& my_uri,
+							int		      port)
+					throw(std::runtime_error)=0;
+
+				virtual CBB_error
+					Connect(const char* uri,
+						int	    port,
+						basic_handle& handle,
+						void* 	    buf,
+						size_t*	    size)
+					throw(std::runtime_error)=0;
+
+				virtual CBB_error init_protocol()
+					throw(std::runtime_error)=0;
+
+				virtual CBB_error end_protocol(const basic_handle* server_handle)=0;
+
+				void push_back_uri(const char* uri,
+						void*   buf,
+						size_t* size);
+
+
+			protected:
+
+				int create_socket(const struct sockaddr_in& addr)
+					throw(std::runtime_error);
+
+				void set_timer(struct timeval* timer);
+
+		};
 		//implementation
 
-		template<class T> inline size_t Comm_basic::
-			Recv(comm_handle_t handle,
-			     T& 	   buffer)
+		template<class T> inline size_t basic_handle::
+			Recv(T& 	   buffer)
 			throw(std::runtime_error)
 
 			{
-				return Do_recv(handle, &buffer, sizeof(T), MSG_WAITALL);
+				return do_recv(&buffer, sizeof(T), MSG_WAITALL);
 			}
 
-		template<class T> inline size_t Comm_basic::
-			Send(comm_handle_t handle,
-			     const T& 	   buffer)
+		template<class T> inline size_t basic_handle::
+			Send(const T& 	   buffer)
 			throw(std::runtime_error)
 
 			{
-				return Do_send(handle, &buffer, sizeof(T), MSG_DONTWAIT|MSG_NOSIGNAL);
+				return do_send(&buffer, sizeof(T), MSG_DONTWAIT|MSG_NOSIGNAL);
 			}
 
-		template<class T> inline size_t Comm_basic::
-			Recvv(comm_handle_t handle,
-			      T** 	    buffer)
+		template<class T> inline size_t basic_handle::
+			Recvv(T** 	    buffer)
 			throw(std::runtime_error)
 
 			{
@@ -226,42 +201,37 @@ namespace CBB
 				else
 				{
 					(*buffer)[length]=0;
-					return Do_recv(handle, *buffer, length, MSG_WAITALL);
+					return do_recv(*buffer, length, MSG_WAITALL);
 				}
 			}
 
-		template<class T> inline size_t Comm_basic::
-			Sendv(comm_handle_t handle,
-			      const T* 	    buffer,
+		template<class T> inline size_t basic_handle::
+			Sendv(const T* 	    buffer,
 			      size_t 	    count)
 			throw(std::runtime_error)
 
 			{
 				//Send(sockfd, count);
-				return Do_send(handle, buffer,
-						  count*sizeof(T), MSG_DONTWAIT|MSG_NOSIGNAL);
+				return do_send(buffer, count*sizeof(T),
+						MSG_DONTWAIT|MSG_NOSIGNAL);
 			}
 
-		template<class T> inline size_t Comm_basic::
-			Recvv_pre_alloc(comm_handle_t handle,
-					T* 	      buffer,
+		template<class T> inline size_t basic_handle::
+			Recvv_pre_alloc(T* 	      buffer,
 					size_t 	      count)
 			throw(std::runtime_error)
 
 			{
-				return Do_recv(handle, buffer,
-						  count*sizeof(T), MSG_WAITALL);
+				return do_recv(buffer, count*sizeof(T), MSG_WAITALL);
 			}
 
-		template<class T> inline size_t Comm_basic::
-			Sendv_pre_alloc(comm_handle_t handle,
-					const T*      buffer,
+		template<class T> inline size_t basic_handle::
+			Sendv_pre_alloc(const T*      buffer,
 					size_t 	      count)
 			throw(std::runtime_error)
 
 			{
-				return Do_send(handle, buffer,
-						  count*sizeof(T), MSG_DONTWAIT|MSG_NOSIGNAL);
+				return do_send(buffer, count*sizeof(T), MSG_DONTWAIT|MSG_NOSIGNAL);
 			}
 
 		inline void Comm_basic::

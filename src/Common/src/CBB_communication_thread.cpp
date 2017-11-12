@@ -141,10 +141,11 @@ int CBB_communication_thread::_add_handle(comm_handle_t handle)
     struct epoll_event event;
     _DEBUG("add handle socket=%d\n", handle->socket);
     memset(&event, 0, sizeof(event));
-    event.data.fd = handle->socket;
+    int* socket=static_cast<int*>(handle->get_raw_handle());
+    event.data.fd = *socket;
     event.events = EPOLLIN;
     _handle_pool.insert(handle);
-    return epoll_ctl(receiver_epollfd, EPOLL_CTL_ADD, handle->socket, &event);
+    return epoll_ctl(receiver_epollfd, EPOLL_CTL_ADD, *socket, &event);
 #else
     return SUCCESS;
 #endif
@@ -156,10 +157,11 @@ int CBB_communication_thread::_add_handle(comm_handle_t handle, int op)
     struct epoll_event event;
     _DEBUG("add handle socket=%d\n", handle->socket);
     memset(&event, 0, sizeof(event));
-    event.data.fd = handle->socket;
+    int* socket=static_cast<int*>(handle->get_raw_handle());
+    event.data.fd = *socket;
     event.events = EPOLLIN | op;
     _handle_pool.insert(handle);
-    return epoll_ctl(receiver_epollfd, EPOLL_CTL_ADD, handle->socket, &event);
+    return epoll_ctl(receiver_epollfd, EPOLL_CTL_ADD, *socket, &event);
 #else
     return SUCCESS;
 #endif
@@ -169,10 +171,11 @@ int CBB_communication_thread::_delete_handle(comm_handle_t handle)
 {
 #ifdef TCP
     struct epoll_event event;
-    event.data.fd = handle->socket;
+    int* socket=static_cast<int*>(handle->get_raw_handle());
+    event.data.fd = *socket;
     event.events = EPOLLIN;
     _handle_pool.erase(handle);
-    return epoll_ctl(receiver_epollfd, EPOLL_CTL_DEL, handle->socket, &event);
+    return epoll_ctl(receiver_epollfd, EPOLL_CTL_DEL, *socket, &event);
 #else
     return SUCCESS;
 #endif
@@ -220,7 +223,7 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
         int nfds = epoll_wait(this_obj->receiver_epollfd, events, LENGTH_OF_LISTEN_QUEUE, -1);
         for (int i = 0; i < nfds; ++i)
         {
-            handle.socket = events[i].data.fd;
+            handle.set_raw_handle(&events[i].data.fd);
             _DEBUG("task from handle received\n");
             _DEBUG("socket %d\n", handle.socket);
             this_obj->input_from_network(&handle, this_obj->output_queue);
@@ -232,7 +235,7 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
     cci_endpoint_t *endpoint = this_obj->get_endpoint();
     bool		lock	= false;
     size_t 	   	auth_size = 0;
-    free_comm_handle_t  handle_ptr = nullptr;
+    comm_handle_t  	handle_ptr = nullptr;
     char       authorization[MAX_BASIC_MESSAGE_SIZE ];
 
     while (KEEP_ALIVE == this_obj->keepAlive)
@@ -303,7 +306,7 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
             break;
         case CCI_EVENT_CONNECT:
             _DEBUG("cci_event_connect finished\n");
-            handle_ptr = reinterpret_cast<free_comm_handle_t>(event->connect.context);
+            handle_ptr = reinterpret_cast<comm_handle_t>(event->connect.context);
             handle_ptr->cci_handle = event->connect.connection;
             break;
 
@@ -322,7 +325,6 @@ throw(std::runtime_error)
 {
     size_t ret = 0;
     comm_handle_t handle = new_task->get_handle();
-    start_recording(this);
     _DEBUG("send message size=%ld, element=%p\n", new_task->get_message_size(), new_task);
     _DEBUG("send message to id =%d from %d\n", new_task->get_receiver_id(), new_task->get_sender_id());
 
@@ -330,7 +332,7 @@ throw(std::runtime_error)
     {
 #ifdef TCP
         //tcp
-        ret += Sendv(handle,
+        ret += handle->Sendv(
                      new_task->get_message(),
                      new_task->get_message_size() +
                      MESSAGE_META_OFF);
@@ -339,7 +341,7 @@ throw(std::runtime_error)
         for (auto &buf : *send_buffer)
         {
             _DEBUG("send size=%ld\n", buf.size);
-            ret += Send_large(handle, buf.buffer, buf.size);
+            ret += handle->Send_large(buf.buffer, buf.size);
         }
 #else
         //cci
@@ -351,7 +353,7 @@ throw(std::runtime_error)
 
 	    new_task->push_back(*(handle->local_rma_handle));
         }
-        ret += Sendv(handle,
+        ret += handle->Sendv(
                      new_task->get_message(),
                      new_task->get_message_size() +
                      MESSAGE_META_OFF);
@@ -361,15 +363,11 @@ throw(std::runtime_error)
     }
     else
     {
-        ret += Sendv(handle,
+        ret += handle->Sendv(
                      new_task->get_message(),
                      new_task->get_message_size() +
                      MESSAGE_META_OFF);
     }
-
-    end_recording(this, 0, WRITE_FILE);
-
-    this->print_log_debug("w", "send data", 0, ret);
 
     return ret;
 }
@@ -391,30 +389,26 @@ throw(std::runtime_error)
     case RMA_READ:
 	_DEBUG("RMA READ\n");
         count = send_buffer->size();
+
         for (auto &buf : *send_buffer)
         {
             _DEBUG("register size=%ld\n", buf.size);
-	    start_recording(this);
 
             //DELETE debug
             register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE | CCI_FLAG_READ);
             if (0 != --count)
             {
-                Recv_large(handle, nullptr, buf.size, ret);
+                handle->Recv_large(nullptr, buf.size, ret);
             }
             else
             {
                 _DEBUG("send completion\n");
-                Recv_large(handle, new_task->get_message(),
+                handle->Recv_large(new_task->get_message(),
                            new_task->get_total_message_size(),
                            nullptr, buf.size, ret);
 
             }
             ret += buf.size;
-
-	    end_recording(this, 0, WRITE_FILE);
-
-	    this->print_log_debug("w", "send rdma", 0, ret);
         }
 
         break;
@@ -430,12 +424,12 @@ throw(std::runtime_error)
 
             if (0 != --count)
             {
-                Send_large(handle, nullptr, buf.size, ret);
+                handle->Send_large(nullptr, buf.size, ret);
             }
             else
             {
                 _DEBUG("send completion, size %ld\n", new_task->get_total_message_size());
-                Send_large(handle, new_task->get_message(),
+                handle->Send_large(new_task->get_message(),
                            new_task->get_total_message_size(),
                            nullptr, buf.size, ret);
             }
@@ -444,6 +438,8 @@ throw(std::runtime_error)
 
         break;
     }
+
+    end_recording(this, ret, new_task->get_mode());
 
     /*if(0 != new_task->get_message_size())
     {
@@ -462,11 +458,11 @@ throw(std::runtime_error)
 {
     size_t ret = 0;
 
-    ret = Recvv_pre_alloc(handle, new_task->get_message() + SENDER_ID_OFF, RECV_MESSAGE_OFF);
+    ret = handle->Recvv_pre_alloc(new_task->get_message() + SENDER_ID_OFF, RECV_MESSAGE_OFF);
     _DEBUG("receive basic message size=%ld from %d to %d element=%p extended_size=%ld\n", new_task->get_message_size(),
            new_task->get_sender_id(), new_task->get_receiver_id(), new_task, new_task->get_extended_data_size());
     new_task->swap_sender_receiver();//swap sender receiver id
-    ret += Recvv_pre_alloc(handle, new_task->get_basic_message(), new_task->get_message_size());
+    ret += handle->Recvv_pre_alloc(new_task->get_basic_message(), new_task->get_message_size());
 
     new_task->set_handle(handle);
 
@@ -475,7 +471,7 @@ throw(std::runtime_error)
 
     if (0 != new_task->get_extended_data_size())
     {
-        size_t tmp_size = Recv_large(handle,
+        size_t tmp_size = handle->Recv_large(
                                      new_task->get_receive_buffer(MAX_TRANSFER_SIZE),
                                      new_task->get_extended_data_size());
         _DEBUG("receive extended message size=%ld, ret=%ld\n",

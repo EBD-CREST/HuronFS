@@ -35,7 +35,7 @@ namespace CBB
 	namespace Common
 	{
 		typedef CBB_tcp CBB_communication;
-
+		typedef TCP_handle CBB_handle;
 	}
 }
 #else
@@ -47,9 +47,23 @@ namespace CBB
 	namespace Common
 	{
 		typedef CBB_cci CBB_communication;
+		typedef CCI_handle CBB_handle;
 	}
 }
 
 #endif
+
+namespace CBB
+{
+	namespace Common
+	{
+
+		typedef CBB_handle comm_handle;
+		typedef CBB_handle* comm_handle_t;
+		typedef const CBB_handle* const_comm_handle_t;
+		typedef CBB_handle& ref_comm_handle_t;
+		typedef const CBB_handle& const_ref_comm_handle_t;
+	}
+}
 
 #endif

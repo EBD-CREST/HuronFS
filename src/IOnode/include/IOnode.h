@@ -211,7 +211,7 @@ namespace CBB
 		inline bool IOnode::
 			need_writeback(block* data)
 		{
-			data->lock();
+			data->wrlock();
 			bool ret = (DIRTY == data->dirty_flag);
 			_DEBUG("need to write back %p, %s\n", data, ret?"true":"false");
 			data->unlock();
@@ -248,12 +248,28 @@ namespace CBB
 			_DEBUG("free memory of %s start point %ld\n",
 					data->file_stat->file_path.c_str(),
 					data->start_point);
-			data->lock();
+			data->wrlock();
 
+			bool writing_back=false;
+			struct timeval st, et;
 			//wait for ongoing write back to finish 
 			_DEBUG("testing block %p\n", data);
+			if(SET == data->writing_back)
+			{
+				_LOG("write back on going\n");
+				writing_back=true;
+				gettimeofday(&st, nullptr);
+			}
+
 			while(SET == data->writing_back);
 			_DEBUG("start to free block %p\n", data);
+
+			if(writing_back)
+			{
+				//tmp code here
+				gettimeofday(&et, nullptr);
+				_LOG("waiting write back time %f of %p\n", TIME(st, et), data);
+			}
 
 			size_t ret=data->free_memory();
 			data->swapout_flag=SWAPPED_OUT;

@@ -28,7 +28,7 @@
 #include <map>
 #include <list>
 
-#include "Comm_basic.h"
+#include "Comm_api.h"
 #include "CBB_swap.h"
 #include "CBB_memory_pool.h"
 
@@ -53,7 +53,8 @@ namespace CBB
 			bool need_allocation()const;
 			size_t free_memory();
 			void set_to_existing();
-			int lock();
+			int wrlock();
+			int rdlock();
 			int unlock();
 
 			size_t 			data_size;
@@ -67,7 +68,7 @@ namespace CBB
 			int 			exist_flag;
 			file*			file_stat;
 			//Common::remote_task* 	write_back_task;
-			pthread_mutex_t 	locker;
+			pthread_rwlock_t 	lock;
 			//remote handler will delete this struct if TO_BE_DELETED is setted
 			//this appends when user unlink file while remote handler is writing back
 			bool 			TO_BE_DELETED;
@@ -101,15 +102,21 @@ namespace CBB
 		};
 
 		inline int block::
-			lock()
+			wrlock()
 		{
-			return pthread_mutex_lock(&locker);
+			return pthread_rwlock_wrlock(&lock);
+		}
+
+		inline int block::
+			rdlock()
+		{
+			return pthread_rwlock_rdlock(&lock);
 		}
 
 		inline int block::
 			unlock()
 		{
-			return pthread_mutex_unlock(&locker);
+			return pthread_rwlock_unlock(&lock);
 		}
 
 		inline bool block::

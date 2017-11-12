@@ -40,6 +40,92 @@ namespace CBB
 			size_t uri_len;
 		};
 
+		class CBB_cci;
+
+		class CCI_handle:
+			public basic_handle
+		{
+		public:
+			CCI_handle()=default;
+			virtual ~CCI_handle()=default;
+			friend class CBB_cci;
+
+			virtual CBB_error Close()override final;
+
+			virtual bool compare_handle(const basic_handle* des)override final;
+
+			virtual CBB_error
+				get_uri_from_handle(const char**      uri)override final;
+
+			virtual size_t 
+				Recv_large(void*         buffer,
+					   size_t 	 count)
+				throw(std::runtime_error)override final;
+
+			virtual size_t 
+				Send_large(const void*   buffer,
+					   size_t 	 count)
+				throw(std::runtime_error)override final;
+
+			size_t Recv_large(void*         buffer,
+					  size_t 	count,
+					  off64_t	offset)
+				throw(std::runtime_error);
+
+			size_t Send_large(const void*   buffer,
+					  size_t 	count,
+					  off64_t	offset)
+				throw(std::runtime_error);
+
+			size_t Recv_large(const unsigned char*   completion,
+					  size_t	comp_size,
+					  void*         buffer,
+					  size_t 	count,
+					  off64_t	offset)
+				throw(std::runtime_error);
+
+			size_t Send_large(const unsigned char*   completion,
+					  size_t	comp_size,
+					  const void*   buffer,
+					  size_t 	count,
+					  off64_t	offset)
+				throw(std::runtime_error);
+			virtual size_t
+				do_recv(void* 	      buffer,
+					size_t 	      count,
+					int 	      flag)
+				throw(std::runtime_error)override final;
+
+			virtual size_t 
+				do_send(const void* 	buffer, 
+					size_t 		count, 
+					int 		flag)
+				throw(std::runtime_error)override final;
+
+			CCI_handle& operator = (const CCI_handle& src);
+			void dump_remote_key()const;
+			void dump_local_key() const;
+
+			virtual void*
+				get_raw_handle()override final;
+
+			virtual const void*
+				get_raw_handle() const override final;
+
+			virtual void
+				set_raw_handle(void*)override final;
+			void setup_uri(const char* uri);
+		public:
+			cci_connection_t*  	cci_handle; 
+			cci_rma_handle_t*  	local_rma_handle; 
+			cci_rma_handle  	remote_rma_handle; 
+			//use for the uri
+			const void*	 	buf;
+			size_t		 	size;
+			const char*		uri;
+
+		};
+
 		class CBB_cci:
 			public Comm_basic
 		{
@@ -51,81 +137,25 @@ namespace CBB
 			throw(std::runtime_error)override final;
 
 		virtual CBB_error 
-			init_server_handle(ref_comm_handle_t  server_handle,
+			init_server_handle(basic_handle&      server_handle,
 					   const std::string& my_uri,
 					   int		      port)
 			throw(std::runtime_error)override final;
 
-		virtual CBB_error end_protocol(comm_handle_t server_handle)override final;
+		virtual CBB_error end_protocol(const basic_handle*  server_handle)override final;
 
-		virtual CBB_error Close(comm_handle_t handle)override final;
-
-		virtual bool compare_handle(comm_handle_t src,
-				comm_handle_t des)override final;
-
-		virtual CBB_error
-			get_uri_from_handle(comm_handle_t     handle,
-					    const char**      uri)override final;
 		virtual CBB_error
 			Connect(const char* uri,
 				int	    port,
-				ref_comm_handle_t handle,
+				basic_handle& handle,
 				void* 	    buf,
 				size_t*	    size)
 			throw(std::runtime_error)override final;
-
-		virtual size_t 
-			Recv_large(comm_handle_t sockfd, 
-				   void*         buffer,
-				   size_t 	 count)
-			throw(std::runtime_error)override final;
-
-		virtual size_t 
-			Send_large(comm_handle_t sockfd, 
-				   const void*   buffer,
-				   size_t 	 count)
-			throw(std::runtime_error)override final;
-
-		size_t Recv_large(comm_handle_t sockfd, 
-				  void*         buffer,
-				  size_t 	count,
-				  off64_t	offset)
-			throw(std::runtime_error);
-
-		size_t Send_large(comm_handle_t handle, 
-				  const void*   buffer,
-				  size_t 	count,
-				  off64_t	offset)
-			throw(std::runtime_error);
-
-		size_t Recv_large(comm_handle_t sockfd, 
-				  const unsigned char*   completion,
-				  size_t	comp_size,
-				  void*         buffer,
-				  size_t 	count,
-				  off64_t	offset)
-			throw(std::runtime_error);
-
-		size_t Send_large(comm_handle_t handle, 
-				  const unsigned char*   completion,
-				  size_t	comp_size,
-				  const void*   buffer,
-				  size_t 	count,
-				  off64_t	offset)
-			throw(std::runtime_error);
 
 
 		CBB_error start_uri_exchange_server(const std::string& 	my_uri,
 						    int 		port)
 			throw(std::runtime_error);
-
-		CBB_error register_mem( void*		ptr,
-				 	size_t 		size,
-				 	comm_handle_t	handle,
-				 	int		flag);
-
-		CBB_error deregister_mem(comm_handle_t handle);
-		CBB_error deregister_mem(cci_rma_handle_t* handle);
 
 		static void*
 			socket_thread_fun(void *obj);
@@ -135,6 +165,16 @@ namespace CBB
 		virtual const char*
 			get_my_uri()const;
 		void dump_remote_key()const;
+
+		CBB_error register_mem(
+				void*		ptr,
+				size_t 		size,
+				CCI_handle*  	handle,
+				int		flag);
+
+		CBB_error deregister_mem(CCI_handle* handle);
+		CBB_error deregister_mem(cci_rma_handle_t* handle);
+
 
 		private:
 
@@ -147,20 +187,6 @@ namespace CBB
 			recv_by_tcp(int   	sockfd,
 				    char*  	buf,
 				    size_t  	len);
-
-		virtual size_t
-			Do_recv(comm_handle_t sockfd, 
-				void* 	      buffer,
-				size_t 	      count,
-				int 	      flag)
-			throw(std::runtime_error)override final;
-
-		virtual size_t 
-			Do_send(comm_handle_t 	sockfd,
-				const void* 	buffer, 
-				size_t 		count, 
-				int 		flag)
-			throw(std::runtime_error)override final;
 
 		CBB_error
 			get_uri_from_server(const char* server_addr,
@@ -182,7 +208,7 @@ namespace CBB
 		inline CBB_error CBB_cci::
 			register_mem(void*	    ptr,
 				     size_t 	    size,
-				     comm_handle_t  handle,
+				     CCI_handle*    handle,
 				     int	    flag)
 		{
 			int ret;
@@ -201,7 +227,7 @@ namespace CBB
 		}
 
 		inline CBB_error CBB_cci::
-			deregister_mem(comm_handle_t handle)
+			deregister_mem(CCI_handle* handle)
 		{
 			int ret;
 
@@ -216,52 +242,48 @@ namespace CBB
 			return SUCCESS;
 		}
 
-		inline bool CBB_cci::
-			compare_handle(comm_handle_t src,
-				comm_handle_t des)
+		inline bool CCI_handle::
+			compare_handle(const basic_handle* des)
 			{
-				return src->cci_handle == des->cci_handle;
+				auto des_handle=static_cast<const cci_connection_t*>(des->get_raw_handle());
+				return this->cci_handle == des_handle;
 			}
 
-		inline size_t CBB_cci:: 
-			Recv_large(comm_handle_t handle, 
-				   void*         buffer,
+		inline size_t CCI_handle:: 
+			Recv_large(void*         buffer,
 				   size_t 	 count)
 			throw(std::runtime_error)
 			{
 				//forwarding
-				return Recv_large(handle, buffer, count, 0);
+				return Recv_large(buffer, count, 0);
 			}
 
 
-		inline size_t CBB_cci:: 
-			Send_large(comm_handle_t handle, 
-				   const void*   buffer,
+		inline size_t CCI_handle::
+			Send_large(const void*   buffer,
 				   size_t 	 count)
 			throw(std::runtime_error)
 			{
 				//forwarding
-				return Send_large(handle, buffer, count, 0);
+				return Send_large(buffer, count, 0);
 			}
 
-		inline size_t CBB_cci:: 
-			Recv_large(comm_handle_t handle, 
-				   void*         buffer,
+		inline size_t CCI_handle:: 
+			Recv_large(void*         buffer,
 				   size_t 	 count,
 				   off64_t	 offset)
 			throw(std::runtime_error)
 			{
-				return Recv_large(handle, nullptr, 0, buffer, count, offset);
+				return Recv_large(nullptr, 0, buffer, count, offset);
 			}
 
-		inline size_t CBB_cci:: 
-			Send_large(comm_handle_t handle, 
-				   const void*   buffer,
+		inline size_t CCI_handle:: 
+			Send_large(const void*   buffer,
 				   size_t 	 count,
 				   off64_t	 offset)
 			throw(std::runtime_error)
 			{
-				return Send_large(handle, nullptr, 0, buffer, count, offset);
+				return Send_large(nullptr, 0, buffer, count, offset);
 			}
 
 		inline cci_endpoint_t* CBB_cci::
@@ -276,14 +298,14 @@ namespace CBB
 			return this->uri;
 		}
 
-		inline ref_comm_handle_t CBB_handle::
-			 operator = (const_ref_comm_handle_t src)
+		inline CCI_handle& CCI_handle::
+			 operator = (const CCI_handle& src)
 		{
 			memcpy(this, &src, sizeof(src));
 			return *this;
 		}
 
-		inline void CBB_handle::
+		inline void CCI_handle::
 			dump_remote_key()const
 		{
 			_DEBUG("remote key=%lu %lu %lu %lu\n", 
@@ -293,7 +315,7 @@ namespace CBB
 					remote_rma_handle.stuff[3]);
 		}
 
-		inline void CBB_handle::
+		inline void CCI_handle::
 			dump_local_key()const
 
 		{
@@ -302,6 +324,31 @@ namespace CBB
 					local_rma_handle->stuff[1],	
 					local_rma_handle->stuff[2],	
 					local_rma_handle->stuff[3]);
+		}
+
+		inline void* CCI_handle::
+			get_raw_handle()
+		{
+			const void* ret=cci_handle;
+			return const_cast<void*>(ret);
+		}
+
+		inline const void* CCI_handle::
+			get_raw_handle() const
+		{
+			return this->cci_handle;
+		}
+
+		inline void CCI_handle::
+			set_raw_handle(void* cci_handle)
+		{
+			this->cci_handle=static_cast<cci_connection_t*>(cci_handle);
+		}
+		
+		inline void CCI_handle::
+			setup_uri(const char* uri)
+		{
+			this->uri=uri;
 		}
 	}
 }

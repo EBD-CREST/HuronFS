@@ -78,8 +78,7 @@ void Server::_setup_server()
 	if(0 == my_uri.length())
 	{
 		const char *tmp_uri=nullptr;
-		get_uri_from_handle(&this->_server_handle,
-				&tmp_uri);
+		this->_server_handle.get_uri_from_handle(&tmp_uri);
 		my_uri=std::string(tmp_uri);
 	}
 }
@@ -87,10 +86,10 @@ void Server::_setup_server()
 int Server::start_server()
 {
 	init_protocol();
-	_setup_server();
 	init_server_handle(_server_handle, 
 			my_uri,
 			this->server_port);
+	_setup_server();
 	CBB_communication_thread::start_communication_server();
 	CBB_remote_task::start_listening();
 	CBB_communication_thread::_add_handle(&_server_handle);
@@ -102,7 +101,7 @@ void Server::stop_server()
 	CBB_communication_thread::stop_communication_server();
 	CBB_request_handler::stop_handler();
 	CBB_remote_task::stop_listening();
-	Close(&_server_handle);  
+	_server_handle.Close();  
 	return;
 }
 
@@ -132,21 +131,22 @@ input_from_network(comm_handle_t handle,
 {
 	//new handle
 #ifdef TCP
-	if( compare_handle(&_server_handle, handle))
+	if(_server_handle.compare_handle(handle))
 	{
 		struct sockaddr_in client_addr; 
 		socklen_t length=sizeof(client_addr);
-		int socket=accept(_server_handle.socket,
+		int* server_socket=static_cast<int*>(_server_handle.get_raw_handle());
+		int socket=accept(*server_socket,
 			reinterpret_cast<sockaddr *>(&client_addr),  &length);  
 		if( 0 > socket)
 		{
 			fprintf(stderr,  "Server Accept Failed\n");  
-			Close(handle); 
 			return FAILURE; 
 		}
 		_DEBUG("A New Client socket %d\n", socket); 
 		comm_handle new_handle;
-		new_handle.socket=socket;
+		int* new_socket=static_cast<int*>(new_handle.get_raw_handle());
+		*new_socket=socket;
 		Server::_add_handle(&new_handle);
 	}
 	else
@@ -157,7 +157,7 @@ input_from_network(comm_handle_t handle,
 		extended_IO_task* new_task=nullptr;
 		try
 		{
-			Recv(handle, to_id);
+			handle->Recv(to_id);
 			output_queue=&output_queue_array->at(to_id);
 			_DEBUG("to id=%d\n", to_id);
 			new_task=output_queue->allocate_tmp_node();

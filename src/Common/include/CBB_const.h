@@ -125,7 +125,7 @@ const int MEMORY = 10000;
 const int MAX_BLOCK_NUMBER = 1000; 
 //the size of block used by all the file
 //important
-const size_t BLOCK_SIZE = 5*MB;
+const size_t BLOCK_SIZE = 1*MiB;
 //the maximum file size supported;
 //the number = block size * max block number
 //not used

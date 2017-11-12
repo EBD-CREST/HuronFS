@@ -124,8 +124,8 @@ Master::~Master()
 			it!=_registered_IOnodes.end();++it)
 	{
 		
-		Send(&(it->second->handle), I_AM_SHUT_DOWN);
-		Close(&(it->second->handle));
+		it->second->handle.Send(I_AM_SHUT_DOWN);
+		it->second->handle.Close();
 		delete it->second;
 	}
 	for(File_t::iterator it=_buffered_files.begin();
@@ -875,7 +875,7 @@ CBB::CBB_error Master::_parse_close_client(extended_IO_task* new_task)
 	_LOG("close client\n");
 	comm_handle_t handle=new_task->get_handle();
 	Server::_delete_handle(handle);
-	Close(handle);
+	handle->Close();
 	return SUCCESS;
 }
 
@@ -1353,7 +1353,7 @@ ssize_t Master::_delete_IOnode(comm_handle_t handle)
 	ssize_t id=node->node_id;
 	_registered_IOnodes.erase(id);
 	Server::_delete_handle(handle); 
-	Close(handle); 
+	handle->Close(); 
 	_IOnode_handle.erase(&node->handle); 
 	_node_id_pool[id]=false;
 	delete node;
@@ -1542,7 +1542,10 @@ throw(std::invalid_argument)
 	file_status.st_uid=getuid();
 	file_status.st_gid=getgid();
 	file_status.st_mode=mode;
-	file_status.st_blksize=BLOCK_SIZE;
+	//file_status.st_blksize=BLOCK_SIZE;
+	//testing, tmp code
+	file_status.st_blksize=1*MiB;
+
 	_DEBUG("add new file states\n");
 	file_stat_pool_t::iterator it=_file_stat_pool.insert(std::make_pair(relative_path_string, Master_file_stat())).first;
 	Master_file_stat& new_file_stat=it->second;
@@ -2094,7 +2097,7 @@ _get_node_info_from_handle(comm_handle_t handle)
 {
 	for(auto IOnode:_IOnode_handle)
 	{
-		if(compare_handle(IOnode.first, handle))
+		if(handle->compare_handle(IOnode.first))
 		{
 			return IOnode.second;
 		}

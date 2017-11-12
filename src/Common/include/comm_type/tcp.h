@@ -36,6 +36,61 @@ namespace CBB
 {
 	namespace Common
 	{
+		class CBB_tcp;
+
+		class TCP_handle:
+			public basic_handle
+		{
+		public:
+			TCP_handle()=default;
+			virtual ~TCP_handle()=default;
+			friend CBB_tcp;
+
+			virtual size_t
+				do_recv(void* 		buffer,
+					size_t 		count,
+					int 		flag)
+				throw(std::runtime_error)override final;
+
+			virtual size_t 
+				do_send(const void* 	buffer, 
+					size_t 		count, 
+					int 		flag)
+				throw(std::runtime_error)override final;
+
+			virtual size_t 
+				Recv_large(void* 	 buffer,
+					   size_t 	 count)
+				throw(std::runtime_error)override final;
+
+			virtual size_t 
+				Send_large(const void* 	 buffer,
+					   size_t 	 count)
+				throw(std::runtime_error)override final;
+
+			virtual CBB_error
+				Close()override final;
+
+			virtual CBB_error
+				get_uri_from_handle(const char**  uri)override final;
+
+			virtual bool compare_handle(const basic_handle* des)override final;
+
+			virtual void*
+				get_raw_handle()override final;
+
+			virtual const void*
+				get_raw_handle()const override final;
+
+			virtual void
+				set_raw_handle(void*)override final;
+
+			TCP_handle& operator = (const TCP_handle& src);
+
+		private:
+			int 		 	socket;
+		};
+
 		class CBB_tcp:
 			public Comm_basic
 		{
@@ -43,39 +98,11 @@ namespace CBB
 			CBB_tcp()=default;
 		virtual	~CBB_tcp()=default;
 
-		virtual size_t
-			Do_recv(comm_handle_t 	handle, 
-				void* 		buffer,
-				size_t 		count,
-				int 		flag)
-			throw(std::runtime_error)override;
-	
-		virtual size_t 
-			Do_send(comm_handle_t 	handle,
-				const void* 	buffer, 
-				size_t 		count, 
-				int 		flag)
-			throw(std::runtime_error)override;
-
-		virtual size_t 
-			Recv_large(comm_handle_t handle, 
-				   void* 	 buffer,
-				   size_t 	 count)
-			throw(std::runtime_error)override;
-
-		virtual size_t 
-			Send_large(comm_handle_t handle, 
-				   const void* 	 buffer,
-				   size_t 	 count)
-			throw(std::runtime_error)override;
-
-		virtual CBB_error
-			Close(comm_handle_t handle)override;
 
 		virtual CBB_error
 			Connect(const char*	uri,
 				int		port,
-				ref_comm_handle_t handle,
+				basic_handle& handle,
 				void* 		buf,
 				size_t*		size)
 			throw(std::runtime_error)override; 
@@ -85,20 +112,14 @@ namespace CBB
 			throw(std::runtime_error)override;
 
 		virtual CBB_error 
-			init_server_handle(ref_comm_handle_t  server_handle,
+			init_server_handle(basic_handle& server_handle,
 					   const std::string& my_uri,
 				           int		      port)
 			throw(std::runtime_error)override;
 
 		virtual CBB_error
-			end_protocol(comm_handle_t server_handle)override;
+			end_protocol(const basic_handle* server_handle)override;
 		
-		virtual CBB_error
-			get_uri_from_handle(comm_handle_t handle,
-					    const char**  uri)override;
-
-		virtual bool compare_handle(comm_handle_t src,
-				comm_handle_t des)override;
 
 		virtual const char* 
 			get_my_uri()const;
@@ -112,43 +133,42 @@ namespace CBB
 				struct sockaddr_in client_addr;
 		};
 
-		inline size_t CBB_tcp::
-			Recv_large(comm_handle_t  handle, 
-				   void* 	  buffer,
+		inline size_t TCP_handle::
+			Recv_large(void* 	  buffer,
 				   size_t 	  count)
 			throw(std::runtime_error)
 			{
 				//simply forward
-				return Do_recv(handle, buffer, count, MSG_WAITALL);
+				return do_recv(buffer, count, MSG_WAITALL);
 			}
 
-		inline size_t CBB_tcp::
-			Send_large(comm_handle_t  handle, 
-				   const void* 	  buffer,
+		inline size_t TCP_handle::
+			Send_large(const void* 	  buffer,
 				   size_t 	  count)
 			throw(std::runtime_error)
 			{
 				//simply forward
-				return Do_send(handle, buffer, count, MSG_DONTWAIT);
+				return do_send(buffer, count, MSG_DONTWAIT);
 			}
 
-		inline int CBB_tcp::
-			Close(comm_handle_t handle)
+		inline int TCP_handle::
+			Close()
 		{
-			return close(handle->socket);
+			return close(this->socket);
+		}
+
+		inline bool TCP_handle::
+			compare_handle(const basic_handle* des)
+		{
+			const int* des_socket=static_cast<const int*>(des->get_raw_handle());
+			return this->socket == *des_socket;
 		}
 
 		inline int CBB_tcp::
-			end_protocol(comm_handle_t server_handle)
+			end_protocol(const basic_handle* server_handle)
 		{
-			return close(server_handle->socket);
-		}
-
-		inline bool CBB_tcp::
-			compare_handle(comm_handle_t src,
-				comm_handle_t des)
-		{
-			return src->socket == des->socket;
+			const int* server_socket=static_cast<const int*>(server_handle->get_raw_handle());
+			return close(*server_socket);
 		}
 
 		inline const char* CBB_tcp::
@@ -157,13 +177,31 @@ namespace CBB
 			return inet_ntoa(this->client_addr.sin_addr);
 		}
 
-		inline ref_comm_handle_t CBB_handle::
-			 operator = (const_ref_comm_handle_t src)
+		inline TCP_handle& TCP_handle::
+			 operator = (const TCP_handle& src)
 		{
 			memcpy(this, &src, sizeof(src));
 			return *this;
 		}
 
+		inline void* 
+			TCP_handle::get_raw_handle()
+		{
+			return &this->socket;
+		}
+
+		inline const void* 
+			TCP_handle::get_raw_handle() const
+		{
+			return &this->socket;
+		}
+
+		inline void
+			TCP_handle::set_raw_handle(void* handle)
+		{
+			int* socket=static_cast<int*>(handle);
+			this->socket=*socket;
+		}
 	}
 }
 #endif

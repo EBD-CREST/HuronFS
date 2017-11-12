@@ -40,7 +40,6 @@
 	#define _LOG(fmt, args... ) 
 #endif
 
-
 #ifdef CBB_PRELOAD
 	#ifndef __USE_GNU
 		#define __USE_GNU
@@ -90,8 +89,15 @@
 #include <stdio.h>
 #include <functional>
 #include <string.h>
+#include <sys/time.h>
 
 #include "CBB_const.h"
+
+inline double TIME(const struct timeval &st, const struct timeval& et)
+{
+	return (et.tv_sec-st.tv_sec)
+			+(et.tv_usec-st.tv_usec)*0.001*0.001;
+}
 
 inline int file_path_hash(const std::string& file_path, int number)
 {

@@ -64,7 +64,7 @@ int Client::input_from_network(comm_handle_t handle,
 	extended_IO_task* new_task=nullptr;
 	try
 	{
-		Recv(handle, to_id);
+		handle->Recv(to_id);
 		output_queue=&output_queue_array->at(to_id);
 		new_task=output_queue->allocate_tmp_node();
 		new_task->set_handle(handle);
@@ -230,7 +230,7 @@ throw(std::runtime_error)
 	{
 		ret=get_input_queue_from_query(query)->get_task();
 	}while(!query->is_new_connection() &&
-			(!compare_handle(query->get_handle(), ret->get_handle())) &&
+			(!query->get_handle()->compare_handle(ret->get_handle())) &&
 			(SUCCESS == print_handle_error(ret)) && 
 			(SUCCESS == dequeue(ret)));
 
@@ -260,11 +260,11 @@ connect_to_server(const char* 	   uri,
 	try
 	{
 		Connect(uri, port,
-				handle, 
-				new_task->get_message(),
-				reinterpret_cast<size_t*>(
-					new_task->get_message()
-					+MESSAGE_SIZE_OFF));
+			handle, 
+			new_task->get_message(),
+			reinterpret_cast<size_t*>(
+				new_task->get_message()
+				+MESSAGE_SIZE_OFF));
 		new_task->set_handle(&handle);
 		CBB_communication_thread::_add_handle(&handle);
 	}

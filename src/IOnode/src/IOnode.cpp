@@ -321,7 +321,7 @@ _remove_IOnode(extended_IO_task* new_task)
 
 	if(end(IOnode_handle_pool) != it)
 	{
-		Close(&(it->second));
+		it->second.Close();
 		IOnode_handle_pool.erase(it);
 	}
 	return SUCCESS;
@@ -353,6 +353,10 @@ _send_data(extended_IO_task* new_task)
 	size_t  size		=0;
 	ssize_t remaining_size	=0;
 	int 	ret		=SUCCESS;
+
+
+	//recording
+	start_recording(this);
 
 	new_task->pop(file_no);
 	new_task->pop(start_point);
@@ -441,6 +445,9 @@ _receive_data(extended_IO_task* new_task)
 	ssize_t remaining_size	=0;
 	int 	ret		=SUCCESS;
 
+
+	//recording
+	start_recording(this);
 	new_task->pop(file_no);
 	new_task->pop(start_point);
 	new_task->pop(offset);
@@ -466,7 +473,7 @@ _receive_data(extended_IO_task* new_task)
 
 		while(0 < remaining_size)
 		{
-			start_recording(this);
+			//start_recording(this);
 
 			_DEBUG("receive_data start point %ld, offset %ld, receive size %ld, remaining size %ld\n",
 					tmp_start_point, tmp_offset,
@@ -483,9 +490,9 @@ _receive_data(extended_IO_task* new_task)
 			tmp_start_point	+=IOsize+tmp_offset;
 			tmp_offset	=0;
 
-			end_recording(this, 0, WRITE_FILE);
+			//end_recording(this, 0, WRITE_FILE);
 
-			this->print_log_debug("w", "get receive data", tmp_start_point, size);
+			//this->print_log_debug("w", "get receive data", tmp_start_point, size);
 		}
 		_file.dirty_flag=DIRTY;
 
@@ -528,7 +535,8 @@ update_block_data(block_info_t&		blocks,
 				INVALID, &file))).first->second;
 	}
 
-	_block->lock();
+	//test not sure
+	_block->rdlock();
 	if(_block->need_allocation())
 	{
 		allocate_memory_for_block(_block);
@@ -565,6 +573,7 @@ update_block_data(block_info_t&		blocks,
 	_block->dirty_flag=DIRTY;
 
 	update_access_order(_block);
+	//test not sure
 	_block->unlock();
 
 	return ret;
@@ -649,7 +658,7 @@ _get_IOnode_info(extended_IO_task* new_task,
 
 	new_task->pop(node_id);
 	new_task->pop_string(&node_ip);
-	node_handle_pool_t::const_iterator it;
+	node_handle_pool_t::iterator it;
 
 	if(my_node_id != node_id)
 	{
@@ -838,7 +847,7 @@ throw(std::runtime_error)
 	if(-1  == lseek(fd, start_point, SEEK_SET))
 	{
 		perror("Seek"); 
-		_LOG("fd = %d\n", fd);
+		_LOG("path %s\n", real_path.c_str());
 		return 0;
 	}
 
@@ -869,8 +878,12 @@ size_t IOnode::
 _write_to_storage(block* block_data, const char* mode)
 throw(std::runtime_error)
 {
-	block_data->lock();
-	_LOG("start writing back %s\n", mode);
+	struct timeval st, et;
+
+	gettimeofday(&st, nullptr);
+
+	block_data->rdlock();
+	_LOG("start writing back %s of %p\n", mode, block_data);
 
 	block_data->dirty_flag=CLEAN;
 
@@ -887,14 +900,17 @@ throw(std::runtime_error)
 	ssize_t	    ret		=0;
 	int&	    fd		=block_data->file_stat->write_remote_fd;
 
+	block_data->writing_back=SET;;
 	block_data->unlock();
 
+	//start_recording(this);
 	if( -1 == fd)
 	{
 		fd = open64(real_path.c_str(),O_RDWR|O_CREAT, 0600);
 		if(-1 == fd)
 		{
 			perror("Open File");
+			_LOG("path %s\n", real_path.c_str());
 			throw std::runtime_error("Open File Error\n");
 		}
 	}
@@ -902,6 +918,7 @@ throw(std::runtime_error)
 	if(-1 == (pos=lseek64(fd, start_point, SEEK_SET)))
 	{
 		perror("Seek"); 
+		_LOG("path %s\n", real_path.c_str());
 		throw std::runtime_error("Seek File Error"); 
 	}
 	_DEBUG("write to %s, size=%ld, offset=%ld\n",
@@ -920,6 +937,14 @@ throw(std::runtime_error)
 		buf += ret;
 		len -= ret;
 	}
+
+	block_data->writing_back=UNSET;
+	gettimeofday(&et, nullptr);
+	_LOG("write time %f s\n", TIME(st, et));
+
+
+	//sync data to the remote
+	fdatasync(fd);
 
 	return size-len;
 }
@@ -986,7 +1011,7 @@ _close_client(extended_IO_task* new_task)
 	_LOG("close client\n");
 	comm_handle_t handle=new_task->get_handle();
 	Server::_delete_handle(handle);
-	Close(handle);
+	handle->Close();
 	return SUCCESS;
 }
 
@@ -1116,9 +1141,9 @@ _node_failure(extended_IO_task* new_task)
 {
 	comm_handle_t handle=new_task->get_handle();
 	_DEBUG("node failure, close handle %p\n", handle);
-	Close(handle);
+	handle->Close();
 
-	if(compare_handle(&master_handle, handle))
+	if(handle->compare_handle(&master_handle))
 	{
 		_DEBUG("Master failed !!!\n");
 	}
@@ -1127,7 +1152,7 @@ _node_failure(extended_IO_task* new_task)
 		//remove handle if failed node if IOnode
 		for(auto& node:IOnode_handle_pool)
 		{
-			if(compare_handle(handle, &node.second))
+			if(handle->compare_handle(&node.second))
 			{
 				IOnode_handle_pool.erase(node.first);
 				break;
@@ -1354,9 +1379,7 @@ writeback(block* requested_block, const char* mode)
 	{
 		size_t ret=0;
 		_DEBUG("writing back %p\n", requested_block);
-		requested_block->writing_back=SET;
 		ret=_write_to_storage(requested_block, mode);
-		requested_block->writing_back=UNSET;
 		_DEBUG("finishing writing %p\n", requested_block);
 		return ret;
 	}
@@ -1386,7 +1409,7 @@ add_write_back()
 			CBB_remote_task::add_remote_task(
 					CBB_REMOTE_WRITE_BACK, nullptr);
 			_DEBUG("add write back\n");
-			clear_dirty_page();
+			//clear_dirty_page();
 		}
 #endif
 	}
@@ -1436,7 +1459,7 @@ size_t IOnode::
 _set_memory_limit(const char* limit_string)
 throw(std::runtime_error)
 {
-	static std::regex regex_text("^(\\d+)( ?(KB|MB|GB))?$");
+	static std::regex regex_text("^(\\d+)( ?(KB|MB|GB|KiB|MiB|GiB))?$");
 	std::cmatch matches;
 	size_t total_memory=0;
 
@@ -1458,13 +1481,26 @@ throw(std::runtime_error)
 			{
 				total_memory*=GB;
 			}
+			else if(0 == strcmp(suffix, "KiB"))
+			{
+				total_memory*=KiB;
+			}
+			else if(0 == strcmp(suffix, "MiB"))
+			{
+				total_memory*=MiB;
+			}
+			else if(0 == strcmp(suffix, "GiB"))
+			{
+				total_memory*=GiB;
+			}
 		}
+		_LOG("total memory %ld\n", total_memory);
 		return total_memory;
 	}
 	else
 	{
 		throw runtime_error(
-			"please set HUFS_IONODE_MEMORY_LIMIT to x {KB, MB, GB}\n");
+			"please set HUFS_IONODE_MEMORY_LIMIT to x {KB, MB, GB, KiB, MiB, GiB}\n");
 	}
 }
 

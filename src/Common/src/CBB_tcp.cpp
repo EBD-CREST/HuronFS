@@ -43,7 +43,7 @@ throw(std::runtime_error)
 
 
 CBB_error CBB_tcp::
-init_server_handle(ref_comm_handle_t  server_handle,
+init_server_handle(basic_handle&      server_handle,
 		   const std::string& my_uri,
 	           int 		      port)
 throw(std::runtime_error)
@@ -65,9 +65,10 @@ throw(std::runtime_error)
 	}*/
 
 	//create socket, throw rumtime error
-	server_handle.socket=create_socket(server_addr);
+	int new_socket=create_socket(server_addr);
+	server_handle.set_raw_handle(&new_socket);
 
-	if(0 != listen(server_handle.socket,  MAX_QUEUE))
+	if(0 != listen(new_socket,  MAX_QUEUE))
 	{
 		perror("Server Listen PORT ERROR");  
 		throw std::runtime_error("Server Listen PORT ERROR");   
@@ -80,7 +81,7 @@ throw(std::runtime_error)
 CBB_error CBB_tcp::
 Connect(const char* uri,
 	int 	    port,
-	ref_comm_handle_t handle,
+	basic_handle& handle,
 	void*	    buf,
 	size_t*	    size)
 throw(std::runtime_error)
@@ -99,10 +100,11 @@ throw(std::runtime_error)
 	}
 
 	//create socket, throw rumtime error
-	handle.socket= create_socket(client_addr);
+	int new_socket = create_socket(client_addr);
+	handle.set_raw_handle(&new_socket);
 
 	while( MAX_CONNECT_TIME > ++count &&
-			0 !=  connect(handle.socket, 
+			0 !=  connect(new_socket,
 				reinterpret_cast<struct sockaddr*>(
 					const_cast<struct sockaddr_in*>(&addr)),
 				sizeof(addr)))
@@ -113,7 +115,7 @@ throw(std::runtime_error)
 
 	if (MAX_CONNECT_TIME == count)
 	{
-		close(handle.socket); 
+		close(new_socket); 
 		perror("Can not Connect to Server");  
 		throw std::runtime_error("Can not Connect to Server"); 
 	}
@@ -121,10 +123,10 @@ throw(std::runtime_error)
 
 	//bad hack
 	const char* my_uri=nullptr;
-	get_uri_from_handle(&handle, &my_uri);
+	handle.get_uri_from_handle(&my_uri);
 	push_back_uri(my_uri, buf, size);
 	//init_message
-	Do_send(&handle, buf, *size+MESSAGE_META_OFF,
+	handle.do_send(buf, *size+MESSAGE_META_OFF,
 			MSG_DONTWAIT);
 
 	return SUCCESS; 
@@ -179,14 +181,13 @@ throw(std::runtime_error)
 	return sockfd;
 }
 
-size_t CBB_tcp::
-Do_recv(comm_handle_t   handle, 
-	void* 		buffer,
+size_t TCP_handle::
+do_recv(void* 		buffer,
 	size_t 		size,
 	int 		flag)
 throw(std::runtime_error)
 {
-	int 	sockfd	  = handle->socket;
+	int 	sockfd	  = this->socket;
 	size_t 	length 	  = size;
 	ssize_t ret 	  = 0;
 	char*	buff_tmp  = reinterpret_cast<char *>(buffer);
@@ -221,14 +222,13 @@ throw(std::runtime_error)
 	return size-length;
 }
 
-size_t CBB_tcp::
-Do_send(comm_handle_t 	handle,
-	const void* 	buffer, 
+size_t TCP_handle::
+do_send(const void* 	buffer, 
 	size_t 		size, 
 	int 		flag)
 throw(std::runtime_error)
 {
-	int   	    sockfd   = handle->socket;
+	int   	    sockfd   = this->socket;
 	ssize_t     ret      = 0;
 	size_t	    length   = size; 
 	const char* buff_tmp = reinterpret_cast<const char *>(
@@ -262,13 +262,12 @@ throw(std::runtime_error)
 	return size - length;
 }
 
-CBB_error CBB_tcp::
-get_uri_from_handle(comm_handle_t handle,
-		    const char**  uri)
+CBB_error TCP_handle::
+get_uri_from_handle(const char**  uri)
 {
 	struct sockaddr_in addr;
 	socklen_t len=sizeof(addr);
-	getsockname(handle->socket, reinterpret_cast<struct sockaddr*>(&addr), &len);
+	getsockname(this->socket, reinterpret_cast<struct sockaddr*>(&addr), &len);
 	(*uri)=inet_ntoa(addr.sin_addr);
 	return SUCCESS;
 }
