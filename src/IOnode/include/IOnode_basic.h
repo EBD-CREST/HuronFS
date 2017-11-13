@@ -71,7 +71,7 @@ namespace CBB
 			pthread_rwlock_t 	lock;
 			//remote handler will delete this struct if TO_BE_DELETED is setted
 			//this appends when user unlink file while remote handler is writing back
-			bool 			TO_BE_DELETED;
+			int			postponed_operation;
 			Common::
 			access_page<block>*	writeback_page;
 			Common::allocator&	memory_allocator;
@@ -87,18 +87,25 @@ namespace CBB
 			     int exist_flag, 
 			     ssize_t file_no);
 			~file();
+			int lock();
+			int unlock();
+			int add_dirty_pages(int count);
+			int remove_dirty_pages(int count);
 
 			std::string 		file_path;
 			int 			exist_flag;
 			bool			close_flag;
 			bool 			dirty_flag;
-			bool			TO_BE_DELETED;
+			int			postponed_operation;
+			int			dirty_pages_count;
 			int 			main_flag; //main replica indicator
 			ssize_t 		file_no;
 			block_info_t  		blocks;
 			handle_ptr_pool_t 	IOnode_pool;
 			int			read_remote_fd;
 			int			write_remote_fd;
+		private:
+			pthread_mutex_t 	_lock;
 		};
 
 		inline int block::
@@ -135,8 +142,7 @@ namespace CBB
 			{
 				memory_allocator.free(_elem);
 				this->data=nullptr;
-				this->_elem=nullptr;
-				this->writeback_page=nullptr;
+				this->_elem=nullptr; this->writeback_page=nullptr;
 
 				return this->block_size;
 			}
@@ -151,6 +157,36 @@ namespace CBB
 		{
 			exist_flag=EXISTING;
 			file_stat->exist_flag=EXISTING;
+		}
+
+		inline int file::
+			lock()
+		{
+			return pthread_mutex_lock(&_lock);
+		}
+
+		inline int file::
+			add_dirty_pages(int count)
+		{
+			lock();
+			dirty_pages_count+=count;
+			unlock();
+			return count;
+		}
+
+		inline int file::
+			remove_dirty_pages(int count)
+		{
+			lock();
+			dirty_pages_count-=count;
+			unlock();
+			return count;
+		}
+
+		inline int file::
+			unlock()
+		{
+			return pthread_mutex_unlock(&_lock);
 		}
 	}
 }

@@ -166,6 +166,8 @@ const size_t MAX_TRANSFER_SIZE = STREAM_BUFFER_SIZE;
 
 //all the flags
 const bool CLEAN = false;
+const int  TO_BE_DELETED = 1;
+const int  TO_BE_CLOSED = 2;
 const bool DIRTY = true;
 const bool VALID = true;
 const bool INVALID = false;

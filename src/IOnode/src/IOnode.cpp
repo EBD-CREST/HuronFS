@@ -39,6 +39,7 @@
 #include <linux/limits.h>
 #include <sys/epoll.h>
 #include <regex>
+#include <fcntl.h>
 
 #include "IOnode.h"
 #include "CBB_const.h"
@@ -570,7 +571,12 @@ update_block_data(block_info_t&		blocks,
 			size);
 
 	_DEBUG("%p is dirty now\n", _block);
-	_block->dirty_flag=DIRTY;
+
+	if(DIRTY != _block->dirty_flag)
+	{
+		_block->dirty_flag=DIRTY;
+		file.add_dirty_pages(1);
+	}
 
 	update_access_order(_block);
 	//test not sure
@@ -714,15 +720,22 @@ _close_file(extended_IO_task* new_task)
 	new_task->pop(file_no);
 	file_t::iterator _file=_files.find(file_no);
 
-	if(end(_files) != _file &&
+	if(end(_files) != _file)
+	{
+		_file->second.lock();
+		if(TO_BE_DELETED != _file->second.postponed_operation &&
 		(-1 != _file->second.read_remote_fd ||
 		 -1 != _file->second.write_remote_fd))
-	{
+		{
 		//_LOG("write remote fd %d\n", _file->second.write_remote_fd);
 		//_LOG("read remote fd %d\n", _file->second.read_remote_fd);
-		CBB_remote_task::add_remote_task(
-			CBB_REMOTE_CLOSE, &(_file->second));
+		/*CBB_remote_task::add_remote_task(
+			CBB_REMOTE_CLOSE, &(_file->second));*/
+			_file->second.postponed_operation=TO_BE_CLOSED;
+		}
+		_file->second.unlock();
 	}
+
 	//block_info_t &blocks=_file.blocks;
 	//_DEBUG("close file, path=%s\n", _file.file_path.c_str());
 	/*for(block_info_t::iterator it=blocks.begin();
@@ -819,6 +832,75 @@ _append_new_block(extended_IO_task* new_task)
 	}
 }
 
+int IOnode::
+_open_remote_file(
+	file* 			file_stat,
+	const std::string&	real_path,
+	int			mode)
+{
+	int open_mode=0;
+	int* fd=nullptr;
+
+	file_stat->lock();
+
+	switch(mode)
+	{
+		case READ_FILE:
+			fd=&(file_stat->read_remote_fd);
+			open_mode=O_RDONLY;
+			break;	
+		case WRITE_FILE:
+			fd=&(file_stat->write_remote_fd);
+			open_mode=O_WRONLY|O_CREAT|O_DIRECT;
+			break;
+	}
+
+	//start_recording(this);
+	if( -1 == *fd)
+	{
+		*fd = open64(real_path.c_str(),open_mode, 0600);
+		if(-1 == *fd)
+		{
+			perror("Open File");
+			_DEBUG("path %s\n", real_path.c_str());
+			throw std::runtime_error("Open File Error\n");
+		}
+		_DEBUG("opening %d path %s\n", *fd, real_path.c_str());
+	}
+	file_stat->unlock();
+
+	return *fd;
+}
+
+int IOnode::
+_close_remote_file(file* file_stat,
+		   int   mode)
+{
+	file_stat->lock();
+	if(mode == WRITE_FILE)
+	{
+		file_stat->dirty_pages_count--;
+	}
+
+	if(TO_BE_CLOSED != file_stat->postponed_operation)
+	{
+		file_stat->unlock();
+		return SUCCESS;
+	}
+
+	if(0 == file_stat->dirty_pages_count)
+	{
+		_DEBUG("close file %s\n", file_stat->file_path.c_str());
+		close(file_stat->read_remote_fd);
+		close(file_stat->write_remote_fd);
+		file_stat->read_remote_fd=-1;
+		file_stat->write_remote_fd=-1;
+	}
+
+	file_stat->unlock();
+	return SUCCESS;
+}
+
 size_t IOnode::
 _read_from_storage(const string& 	path,
 		   file&		file_stat,
@@ -832,22 +914,15 @@ throw(std::runtime_error)
 	char 		*buffer		=reinterpret_cast<char*>(
 			block_data->data);
 	size_t 		size		=block_data->data_size;
-	int&		fd		=file_stat.read_remote_fd;
+	int 		fd		=_open_remote_file(&file_stat,
+					real_path, READ_FILE);
+
 	_DEBUG("%s\n", real_path.c_str());
 
-	if(-1 == fd)
-	{
-		fd=open64(real_path.c_str(), O_RDWR); 
-		if(-1 == fd)
-		{
-			perror("Open File Error");
-			return 0;
-		}
-	}
 	if(-1  == lseek(fd, start_point, SEEK_SET))
 	{
 		perror("Seek"); 
-		_LOG("path %s\n", real_path.c_str());
+		_DEBUG("path %s\n", real_path.c_str());
 		return 0;
 	}
 
@@ -868,8 +943,7 @@ throw(std::runtime_error)
 		size-=ret;
 		vec.iov_len=size;
 	}
-	/*close(fd);
-	fd=-1;*/
+	_close_remote_file(&file_stat, READ_FILE);
 
 	return block_data->data_size-size;
 }
@@ -887,38 +961,30 @@ throw(std::runtime_error)
 
 	block_data->dirty_flag=CLEAN;
 
-	if(block_data->TO_BE_DELETED)
-	{
-		block_data->unlock();
-		return block_data->data_size;
-	}
-
 	string real_path	=_get_real_path(block_data->file_stat->file_path);
 	off64_t     start_point	=block_data->start_point;
 	size_t	    size	=block_data->data_size, len=size;
 	const char* buf		=static_cast<const char*>(block_data->data);
 	ssize_t	    ret		=0;
-	int&	    fd		=block_data->file_stat->write_remote_fd;
+	file*	    file_stat	=block_data->file_stat;
+	int	    fd		=_open_remote_file(file_stat, real_path,
+					WRITE_FILE);
+
+	if(TO_BE_DELETED == block_data->postponed_operation)
+	{
+		block_data->unlock();
+		_close_remote_file(file_stat, WRITE_FILE);
+		return 0;
+	}
 
 	block_data->writing_back=SET;;
 	block_data->unlock();
 
-	//start_recording(this);
-	if( -1 == fd)
-	{
-		fd = open64(real_path.c_str(),O_RDWR|O_CREAT, 0600);
-		if(-1 == fd)
-		{
-			perror("Open File");
-			_LOG("path %s\n", real_path.c_str());
-			throw std::runtime_error("Open File Error\n");
-		}
-	}
 	off64_t pos;
 	if(-1 == (pos=lseek64(fd, start_point, SEEK_SET)))
 	{
 		perror("Seek"); 
-		_LOG("path %s\n", real_path.c_str());
+		_LOG("path %s offset %ld fd %d\n", real_path.c_str(), start_point, fd);
 		throw std::runtime_error("Seek File Error"); 
 	}
 	_DEBUG("write to %s, size=%ld, offset=%ld\n",
@@ -942,9 +1008,9 @@ throw(std::runtime_error)
 	gettimeofday(&et, nullptr);
 	_LOG("write time %f s\n", TIME(st, et));
 
-
 	//sync data to the remote
-	fdatasync(fd);
+	//fdatasync(fd);
+	_close_remote_file(file_stat, WRITE_FILE);
 
 	return size-len;
 }
@@ -1071,17 +1137,17 @@ _remove_file(ssize_t file_no)
 	file_t::iterator it=_files.find(file_no);
 	_LOG("delete file no %ld\n", file_no);
 	if(_files.end() != it &&
-		SET != it->second.TO_BE_DELETED)
+		TO_BE_DELETED != it->second.postponed_operation)
 	{
 		for(block_info_t::iterator block_it=it->second.blocks.begin();
 				block_it!=it->second.blocks.end();++block_it)
 		{
 			if(CLEAN == block_it->second->dirty_flag)
 			{
-				block_it->second->TO_BE_DELETED=SET;
+				block_it->second->postponed_operation=TO_BE_DELETED;
 			}
 		}
-		it->second.TO_BE_DELETED=SET;
+		it->second.postponed_operation=TO_BE_DELETED;
 		remove_file_list.push_back(it);
 	}
 	return SUCCESS;
@@ -1093,14 +1159,15 @@ remote_task_handler(remote_task* new_task)
 	_DEBUG("start writing back\n");
 	writeback_status=ON_GOING;
 	int task_id = new_task->get_task_id();
-	file* file_ptr=static_cast<file*>(new_task->get_task_data());
+	//file* file_ptr=static_cast<file*>(new_task->get_task_data());
 	switch(task_id)
 	{
-		case CBB_REMOTE_CLOSE:
+		/*case CBB_REMOTE_CLOSE:
 			//close read fd
+			if(TO_BE_DELETED != file_ptr->
 			if(-1 != file_ptr->read_remote_fd)
 			{
-				_DEBUG("Close read file %d\n",
+				_LOG("Close read file %d\n",
 					file_ptr->read_remote_fd);
 				close(file_ptr->read_remote_fd);
 				file_ptr->read_remote_fd=-1;
@@ -1108,12 +1175,12 @@ remote_task_handler(remote_task* new_task)
 			//close write fd
 			if(-1 != file_ptr->write_remote_fd)
 			{
-				_DEBUG("Close write file %d\n",
+				_LOG("Close write file %d\n",
 					file_ptr->write_remote_fd);
 				close(file_ptr->write_remote_fd);
 				file_ptr->write_remote_fd=-1;
 			}
-			break;
+			break;*/
 		case CBB_REMOTE_WRITE_BACK:
 			for(auto* block : writeback_queue)
 			{
@@ -1517,4 +1584,39 @@ remove_files()
 		remove_file_list.clear();
 	}
 	return SUCCESS;
+}
+
+size_t IOnode::
+free_data(block* data)
+{
+	_DEBUG("free memory of %s start point %ld\n",
+			data->file_stat->file_path.c_str(),
+			data->start_point);
+	data->wrlock();
+
+	bool writing_back=false;
+	struct timeval st, et;
+	//wait for ongoing write back to finish 
+	_DEBUG("testing block %p\n", data);
+	if(SET == data->writing_back)
+	{
+		_LOG("write back on going\n");
+		writing_back=true;
+		gettimeofday(&st, nullptr);
+	}
+
+	while(SET == data->writing_back);
+	_DEBUG("start to free block %p\n", data);
+
+	if(writing_back)
+	{
+		//tmp code here
+		gettimeofday(&et, nullptr);
+		_LOG("waiting write back time %f of %p\n", TIME(st, et), data);
+	}
+
+	size_t ret=data->free_memory();
+	data->swapout_flag=SWAPPED_OUT;
+	data->unlock();
+	return ret;
 }

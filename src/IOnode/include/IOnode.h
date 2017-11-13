@@ -183,6 +183,11 @@ namespace CBB
 						file* 	 file_stat);
 				size_t _set_memory_limit(const char* limit_string)throw(std::runtime_error);
 				int remove_files();//removes delated files during the interval
+				int _open_remote_file(file* 			file_stat,
+						      const std::string&	real_path,
+						      int			mode);
+				int _close_remote_file(file* file_stat,
+						       int   mode);
 
 				//private member
 			private:
@@ -242,40 +247,6 @@ namespace CBB
 			return this->memory_pool_for_blocks.has_memory_left(size);
 		}
 
-		inline size_t IOnode::
-			free_data(block* data)
-		{
-			_DEBUG("free memory of %s start point %ld\n",
-					data->file_stat->file_path.c_str(),
-					data->start_point);
-			data->wrlock();
-
-			bool writing_back=false;
-			struct timeval st, et;
-			//wait for ongoing write back to finish 
-			_DEBUG("testing block %p\n", data);
-			if(SET == data->writing_back)
-			{
-				_LOG("write back on going\n");
-				writing_back=true;
-				gettimeofday(&st, nullptr);
-			}
-
-			while(SET == data->writing_back);
-			_DEBUG("start to free block %p\n", data);
-
-			if(writing_back)
-			{
-				//tmp code here
-				gettimeofday(&et, nullptr);
-				_LOG("waiting write back time %f of %p\n", TIME(st, et), data);
-			}
-
-			size_t ret=data->free_memory();
-			data->swapout_flag=SWAPPED_OUT;
-			data->unlock();
-			return ret;
-		}
 	}
 }
 

@@ -47,7 +47,7 @@ throw(std::bad_alloc):
 	exist_flag(file_stat->exist_flag),
 	file_stat(file_stat),
 	lock(),
-	TO_BE_DELETED(CLEAN),
+	postponed_operation(CLEAN),
 	writeback_page(nullptr),
 	memory_allocator(memory_allocator),
 	_elem(nullptr)
@@ -86,7 +86,7 @@ block(	const block & src):
 	exist_flag(src.exist_flag),
 	file_stat(nullptr),
 	lock(),
-	TO_BE_DELETED(CLEAN),
+	postponed_operation(CLEAN),
 	writeback_page(src.writeback_page),
 	memory_allocator(src.memory_allocator),
 	_elem(src._elem)
@@ -100,13 +100,16 @@ file(const char	 *path,
 	exist_flag(exist_flag),
 	close_flag(OPEN),
 	dirty_flag(CLEAN),
-	TO_BE_DELETED(CLEAN),
+	postponed_operation(CLEAN),
+	dirty_pages_count(0),
 	main_flag(SUB_REPLICA),
 	file_no(file_no),
 	blocks(),
 	IOnode_pool(),
 	read_remote_fd(-1),
-	write_remote_fd(-1)
+	write_remote_fd(-1),
+	_lock()
+
 {
 	if(EXISTING == this->exist_flag)
 	{
