@@ -27,6 +27,7 @@
 #define CCI_H_
 
 #include "Comm_basic.h"
+#include "CBB_task_parallel.h"
 
 namespace CBB
 {
@@ -41,6 +42,20 @@ namespace CBB
 		};
 
 		class CBB_cci;
+
+		class handle_context:public basic_task
+		{
+		public:
+			handle_context();
+			handle_context(int id, handle_context* next);
+			virtual ~handle_context()=default;
+			virtual void reset()override final;
+
+			cci_rma_handle_t*  	local_rma_handle; 
+			void*			block_ptr;
+		};
+
+		typedef task_parallel_queue<handle_context> context_queue_t;
 
 		class CCI_handle:
 			public basic_handle
@@ -59,36 +74,42 @@ namespace CBB
 
 			virtual size_t 
 				Recv_large(void*         buffer,
-					   size_t 	 count)
+					   size_t 	 count,
+					   void*	 context)
 				throw(std::runtime_error)override final;
 
 			virtual size_t 
 				Send_large(const void*   buffer,
-					   size_t 	 count)
+					   size_t 	 count,
+					   void*	 context)
 				throw(std::runtime_error)override final;
 
 			size_t Recv_large(void*         buffer,
 					  size_t 	count,
-					  off64_t	offset)
+					  off64_t	offset,
+					  void*		context)
 				throw(std::runtime_error);
 
 			size_t Send_large(const void*   buffer,
 					  size_t 	count,
-					  off64_t	offset)
+					  off64_t	offset,
+					  void*		context)
 				throw(std::runtime_error);
 
 			size_t Recv_large(const unsigned char*   completion,
 					  size_t	comp_size,
 					  void*         buffer,
 					  size_t 	count,
-					  off64_t	offset)
+					  off64_t	offset,
+					  void*		context)
 				throw(std::runtime_error);
 
 			size_t Send_large(const unsigned char*   completion,
 					  size_t	comp_size,
 					  const void*   buffer,
 					  size_t 	count,
-					  off64_t	offset)
+					  off64_t	offset,
+					  void*		context)
 				throw(std::runtime_error);
 			virtual size_t
 				do_recv(void* 	      buffer,
@@ -175,6 +196,8 @@ namespace CBB
 		CBB_error deregister_mem(CCI_handle* handle);
 		CBB_error deregister_mem(cci_rma_handle_t* handle);
 
+		handle_context* allocate_communication_context(CCI_handle* handle, void* block);
+		void putback_communication_context();
 
 		private:
 
@@ -203,44 +226,9 @@ namespace CBB
 			pthread_t	  exchange_thread;
 			struct exchange_args args;
 
+			context_queue_t context_queue;
+
 		};
-
-		inline CBB_error CBB_cci::
-			register_mem(void*	    ptr,
-				     size_t 	    size,
-				     CCI_handle*    handle,
-				     int	    flag)
-		{
-			int ret;
-			_DEBUG("register mem %p size=%ld\n",
-					ptr, size);
-			if (CCI_SUCCESS != (ret=cci_rma_register(endpoint,
-					ptr, size, flag, 
-					const_cast<cci_rma_handle_t**>(&(handle->local_rma_handle)))))
-			{
-				_DEBUG("cci_register() failed with %s\n",
-						cci_strerror(endpoint, (cci_status)ret));
-				return FAILURE;
-			}
-			handle->dump_local_key();
-			return SUCCESS;
-		}
-
-		inline CBB_error CBB_cci::
-			deregister_mem(CCI_handle* handle)
-		{
-			int ret;
-
-			_DEBUG("deregister mem\n");
-			if (CCI_SUCCESS != (ret=cci_rma_deregister(endpoint,
-					    handle->local_rma_handle)))
-			{
-				_DEBUG("cci_deregister() failed with %s\n",
-						cci_strerror(endpoint, (cci_status)ret));
-				return FAILURE;
-			}
-			return SUCCESS;
-		}
 
 		inline bool CCI_handle::
 			compare_handle(const basic_handle* des)
@@ -251,7 +239,8 @@ namespace CBB
 
 		inline size_t CCI_handle:: 
 			Recv_large(void*         buffer,
-				   size_t 	 count)
+				   size_t 	 count,
+				   void*	 context)
 			throw(std::runtime_error)
 			{
 				//forwarding
@@ -261,29 +250,32 @@ namespace CBB
 
 		inline size_t CCI_handle::
 			Send_large(const void*   buffer,
-				   size_t 	 count)
+				   size_t 	 count,
+				   void*	 context)
 			throw(std::runtime_error)
 			{
 				//forwarding
-				return Send_large(buffer, count, 0);
+				return Send_large(buffer, count, 0, context);
 			}
 
 		inline size_t CCI_handle:: 
 			Recv_large(void*         buffer,
 				   size_t 	 count,
-				   off64_t	 offset)
+				   off64_t	 offset,
+				   void*	 context)
 			throw(std::runtime_error)
 			{
-				return Recv_large(nullptr, 0, buffer, count, offset);
+				return Recv_large(nullptr, 0, buffer, count, offset, context);
 			}
 
 		inline size_t CCI_handle:: 
 			Send_large(const void*   buffer,
 				   size_t 	 count,
-				   off64_t	 offset)
+				   off64_t	 offset,
+				   void*	 context)
 			throw(std::runtime_error)
 			{
-				return Send_large(nullptr, 0, buffer, count, offset);
+				return Send_large(nullptr, 0, buffer, count, offset, context);
 			}
 
 		inline cci_endpoint_t* CBB_cci::
@@ -301,7 +293,9 @@ namespace CBB
 		inline CCI_handle& CCI_handle::
 			 operator = (const CCI_handle& src)
 		{
-			memcpy(this, &src, sizeof(src));
+			this->cci_handle=src.cci_handle; 
+			this->local_rma_handle=src.local_rma_handle; 
+			memcpy(&this->remote_rma_handle, &src.remote_rma_handle, sizeof(src.remote_rma_handle)); 
 			return *this;
 		}
 
@@ -349,6 +343,14 @@ namespace CBB
 			setup_uri(const char* uri)
 		{
 			this->uri=uri;
+		}
+
+		inline void handle_context::
+			reset()
+		{
+			basic_task::reset();
+			this->local_rma_handle=nullptr;
+			this->block_ptr=nullptr;
 		}
 	}
 }

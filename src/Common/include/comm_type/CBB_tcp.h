@@ -60,12 +60,14 @@ namespace CBB
 
 			virtual size_t 
 				Recv_large(void* 	 buffer,
-					   size_t 	 count)
+					   size_t 	 count,
+					   void*	 context)
 				throw(std::runtime_error)override final;
 
 			virtual size_t 
 				Send_large(const void* 	 buffer,
-					   size_t 	 count)
+					   size_t 	 count,
+					   void*	 context)
 				throw(std::runtime_error)override final;
 
 			virtual CBB_error
@@ -135,7 +137,8 @@ namespace CBB
 
 		inline size_t TCP_handle::
 			Recv_large(void* 	  buffer,
-				   size_t 	  count)
+				   size_t 	  count,
+				   void*	  context)
 			throw(std::runtime_error)
 			{
 				//simply forward
@@ -144,7 +147,8 @@ namespace CBB
 
 		inline size_t TCP_handle::
 			Send_large(const void* 	  buffer,
-				   size_t 	  count)
+				   size_t 	  count,
+				   void*	  context)
 			throw(std::runtime_error)
 			{
 				//simply forward

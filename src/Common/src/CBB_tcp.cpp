@@ -23,7 +23,7 @@
  * Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include "comm_type/tcp.h"
+#include "comm_type/CBB_tcp.h"
 
 using namespace std;
 using namespace CBB;

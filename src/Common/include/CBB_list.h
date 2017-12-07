@@ -36,11 +36,11 @@ namespace CBB
 		{
 			public:
 				list();
-				~list();
-				list* get_next();
-				list* get_prev();
-				list* set_next(list* next);
-				list* set_prev(list* prev);
+				virtual ~list()=default;
+				virtual list* get_next();
+				virtual list* get_prev();
+				virtual list* set_next(list* next);
+				virtual list* set_prev(list* prev);
 
 			private:
 				list*	next;
@@ -51,10 +51,6 @@ namespace CBB
 			list():
 				next(nullptr),
 				prev(nullptr)
-		{}
-
-		inline list::
-			~list()
 		{}
 
 		inline list* list::

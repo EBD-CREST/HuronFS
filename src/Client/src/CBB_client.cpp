@@ -496,7 +496,7 @@ _read_from_IOnode(
 			query->push_back(offset);
 			query->push_back(IO_size);
 #ifdef CCI
-			query->push_send_buffer(buffer, IO_size);
+			query->push_send_buffer(buffer, IO_size, nullptr);
 #endif
 			send_query(query);
 
@@ -575,7 +575,7 @@ _write_to_IOnode(
 			query->push_back(start_point);
 			query->push_back(offset);
 			query->push_back(IO_size);
-			query->push_send_buffer((char*)buffer, IO_size);
+			query->push_send_buffer((char*)buffer, IO_size, nullptr);
 			send_query(query);
 
 			//tmp code
@@ -1226,7 +1226,7 @@ throw(std::runtime_error)
 		query->push_back(READ_DIR); 
 #ifdef CCI
 		query->push_send_buffer((char*)files.get_buffer(), 
-				MAX_DIR_FILE_SIZE);
+				MAX_DIR_FILE_SIZE, nullptr);
 		query->setup_large_transfer(RMA_DIR);
 #endif
 		query->push_back_string(path);

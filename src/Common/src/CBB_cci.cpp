@@ -29,8 +29,7 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 
-#include "comm_type/cci.h"
-#include "cci.h"
+#include "comm_type/CBB_cci.h"
 
 using namespace std;
 using namespace CBB;
@@ -90,6 +89,20 @@ throw(std::runtime_error)
 
 	return SUCCESS;
 }
+
+handle_context::
+handle_context(int id, handle_context* next):
+	basic_task(id, next),
+	local_rma_handle(nullptr),
+	block_ptr(nullptr)
+{}
+
+handle_context::
+handle_context():
+	basic_task(),
+	local_rma_handle(nullptr),
+	block_ptr(nullptr)
+{}
 
 size_t CBB_cci::
 send_by_tcp(int     	  sockfd,
@@ -328,7 +341,7 @@ Close()
 			cci_strerror(nullptr, (cci_status)ret));
 		return FAILURE;
 	}
-	_DEBUG("cci_handle failed %p\n", handle->cci_handle);
+	_DEBUG("cci_handle failed %p\n", cci_handle);
 	return SUCCESS;
 }
 
@@ -381,7 +394,8 @@ Recv_large(const unsigned char*   completion,
 	   size_t 	 comp_size,
 	   void*         buffer,
 	   size_t 	 count,
-	   off64_t	 offset)
+	   off64_t	 offset,
+	   void*	 context)
 throw(std::runtime_error)
 {
 	int ret;
@@ -392,7 +406,7 @@ throw(std::runtime_error)
 		(ret = cci_rma(connection, completion, comp_size,
 			       local_rma_handle, 0,
 			       &remote_rma_handle, offset,
-			       count, local_rma_handle, CCI_FLAG_READ)))
+			       count, context, CCI_FLAG_READ)))
 	{
 		if(CCI_ERR_DISCONNECTED == ret)
 		{
@@ -411,18 +425,20 @@ Send_large(const unsigned char*   completion,
 	   size_t 	 comp_size,
 	   const void*   buffer,
 	   size_t 	 count,
-	   off64_t	 offset)
+	   off64_t	 offset,
+	   void*	 context)
 throw(std::runtime_error)
 {
 	int ret;
 	cci_connection_t* connection=cci_handle;
+
 	//first try with blocking IO
 	_DEBUG("rma write local handle=%p\n", local_rma_handle);
 	if(CCI_SUCCESS != 
 		(ret = cci_rma(connection, completion, comp_size,
 			       local_rma_handle, 0,
 			       &remote_rma_handle, offset,
-			       count, local_rma_handle, CCI_FLAG_WRITE)))
+			       count, context, CCI_FLAG_WRITE)))
 	{
 		if(CCI_ERR_DISCONNECTED == ret)
 		{
@@ -461,7 +477,7 @@ throw(std::runtime_error)
 {
 	int ret;
 	size_t ans=count;
-	_DEBUG("send data to %p\n", handle->cci_handle);
+	_DEBUG("send data to %p\n", cci_handle);
 	while(0 != count)
 	{
 		if(CCI_SUCCESS != 
@@ -483,4 +499,59 @@ throw(std::runtime_error)
 		}
 	}
 	return ans;
+}
+
+CBB_error CBB_cci::
+register_mem(void*	    ptr,
+		size_t 	    size,
+		CCI_handle*    handle,
+		int	    flag)
+{
+	int ret;
+	_DEBUG("register mem %p size=%ld\n",
+			ptr, size);
+	if (CCI_SUCCESS != (ret=cci_rma_register(endpoint,
+					ptr, size, flag, 
+					const_cast<cci_rma_handle_t**>(&(handle->local_rma_handle)))))
+	{
+		_DEBUG("cci_register() failed with %s\n",
+				cci_strerror(endpoint, (cci_status)ret));
+		return FAILURE;
+	}
+	handle->dump_local_key();
+	return SUCCESS;
+}
+
+CBB_error CBB_cci::
+deregister_mem(CCI_handle* handle)
+{
+	int ret;
+
+	_DEBUG("deregister mem\n");
+	if (CCI_SUCCESS != (ret=cci_rma_deregister(endpoint,
+					handle->local_rma_handle)))
+	{
+		_DEBUG("cci_deregister() failed with %s\n",
+				cci_strerror(endpoint, (cci_status)ret));
+		return FAILURE;
+	}
+	return SUCCESS;
+}
+
+handle_context* CBB_cci::
+allocate_communication_context(CCI_handle* handle, void* context)
+{
+	handle_context* context_ptr=context_queue.allocate_tmp_node();
+	context_ptr->local_rma_handle=handle->local_rma_handle;
+	context_ptr->block_ptr=context;
+	context_queue.task_enqueue_no_notification();
+	
+	return context_ptr;
+}
+
+void CBB_cci::
+putback_communication_context()
+{
+	context_queue.task_dequeue();
+	return;
 }

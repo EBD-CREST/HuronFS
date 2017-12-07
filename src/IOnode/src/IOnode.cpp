@@ -355,7 +355,6 @@ _send_data(extended_IO_task* new_task)
 	ssize_t remaining_size	=0;
 	int 	ret		=SUCCESS;
 
-
 	//recording
 	start_recording(this);
 
@@ -417,7 +416,7 @@ _send_data(extended_IO_task* new_task)
 			output->push_send_buffer(
 				reinterpret_cast<char*>(
 					requested_block->data)+offset,
-				IO_size);
+				IO_size, requested_block);
 			remaining_size-=IO_size;
 			IO_size=MIN(remaining_size,
 				static_cast<ssize_t>(BLOCK_SIZE));
@@ -565,12 +564,16 @@ update_block_data(block_info_t&		blocks,
 		_block->data_size = offset+size;
 	}
 
-	_DEBUG("receive data at %p, size=%ld\n", _block->data, size);
+	_DEBUG("receive data at %p, offset %ld, size=%ld\n", _block->data, offset, size);
 	ret=new_task->get_received_data(
 			static_cast<unsigned char*>(_block->data)+offset,
-			size);
+			size, _block);
 
 	_DEBUG("%p is dirty now\n", _block);
+
+	//receiving block data
+	_block->set_to_receive_data();
+	_DEBUG("start receiving data %p\n", _block);
 
 	if(DIRTY != _block->dirty_flag)
 	{
@@ -847,7 +850,7 @@ _open_remote_file(
 	{
 		case READ_FILE:
 			fd=&(file_stat->read_remote_fd);
-			open_mode=O_RDONLY;
+			open_mode=O_RDONLY|O_DIRECT;
 			break;	
 		case WRITE_FILE:
 			fd=&(file_stat->write_remote_fd);
@@ -954,9 +957,15 @@ throw(std::runtime_error)
 {
 	struct timeval st, et;
 
-	gettimeofday(&st, nullptr);
-
 	block_data->rdlock();
+	_DEBUG("checking block %p\n", block_data);
+	if(block_data->is_receiving_data())
+	{
+		block_data->unlock();
+		return 0;/*let the operator to rechoose*/
+	}
+
+	gettimeofday(&st, nullptr);
 	_LOG("start writing back %s of %p\n", mode, block_data);
 
 	block_data->dirty_flag=CLEAN;
@@ -1345,7 +1354,7 @@ _send_sync_data(comm_handle_t 	handle,
 		block* requested_block=block_it->second;
 		output_task->push_send_buffer(
 			static_cast<char*>(requested_block->data),
-			requested_block->data_size);
+			requested_block->data_size, requested_block);
 		size-=requested_block->data_size;
 		ret_size+=requested_block->data_size;
 		block_it++;
@@ -1471,7 +1480,7 @@ add_write_back()
 		//have_dirty_page())
 	{
 #ifdef ASYNC
-		if(0 != prepare_writeback_page(&writeback_queue, WRITEBACK_SIZE))
+		if(0 != prepare_writeback_page(&writeback_queue, WRITEBACK_COUNTS))
 		{
 			CBB_remote_task::add_remote_task(
 					CBB_REMOTE_WRITE_BACK, nullptr);

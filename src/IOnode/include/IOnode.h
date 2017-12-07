@@ -102,6 +102,7 @@ namespace CBB
 				virtual bool need_writeback(block* data)override final;
 				virtual size_t writeback(block* data, const char* mode)override final;
 				virtual int interval_process()override final;
+				virtual int after_large_transfer(void* context)override final;
 
 				int _send_data(Common::extended_IO_task* new_task);
 				int _receive_data(Common::extended_IO_task* new_task);
@@ -247,6 +248,14 @@ namespace CBB
 			return this->memory_pool_for_blocks.has_memory_left(size);
 		}
 
+		inline int IOnode::
+			after_large_transfer(void* ptr)
+		{
+			block* block_ptr=reinterpret_cast<block*>(ptr);
+			block_ptr->finish_receiving();
+			_DEBUG("finish receiving %p\n", block_ptr);
+			return SUCCESS;
+		}
 	}
 }
 

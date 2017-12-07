@@ -26,9 +26,15 @@
 #ifndef COMM_API_H_
 #define COMM_API_H_
 
-#ifdef TCP
+/*define following types in each plugin:
+ * "CBB_communication", which is a class to handle the protocol
+ * "CBB_handle", which is a derived class from basic_handle, to handle detailed send/recive operations
+ */
 
-#include "comm_type/tcp.h"
+#ifdef TCP
+/*TCP*/
+
+#include "comm_type/CBB_tcp.h"
 
 namespace CBB
 {
@@ -38,9 +44,11 @@ namespace CBB
 		typedef TCP_handle CBB_handle;
 	}
 }
-#else
 
-#include "comm_type/cci.h"
+#else
+/*CCI*/
+
+#include "comm_type/CBB_cci.h"
 
 namespace CBB
 {

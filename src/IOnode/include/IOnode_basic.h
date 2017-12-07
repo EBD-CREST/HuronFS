@@ -53,29 +53,33 @@ namespace CBB
 			bool need_allocation()const;
 			size_t free_memory();
 			void set_to_existing();
+			bool is_receiving_data()const;
+			void set_to_receive_data();
+			void finish_receiving();
 			int wrlock();
 			int rdlock();
 			int unlock();
 
-			size_t 			data_size;
-			size_t			block_size;
-			void* 			data;
-			off64_t 		start_point;
-			bool 			dirty_flag;
-			bool 			valid;
-			bool			swapout_flag;
-			volatile bool		writing_back;
-			int 			exist_flag;
-			file*			file_stat;
+			size_t 			data_size;	/*the size of data in the block*/
+			size_t			block_size;	/*the size of the block*/
+			void* 			data;		/*the pointer to the data*/
+			off64_t 		start_point;	/*the start point of the data in the file*/
+			bool 			dirty_flag;	/*if it is dirty*/
+			bool 			valid;		/*if the memory is allocated*/
+			bool			swapout_flag;	/*if the block is swapped out*/
+			volatile bool		writing_back;	/*if the block is under writing back. no swap if this flag is set*/
+			volatile bool		receiving_data;	/*if the block is receiving data. no writing back if this flag is set*/
+			int 			exist_flag;	/*if the file exist on remote disk*/
+			file*			file_stat;	/*the pointer to the file status*/
 			//Common::remote_task* 	write_back_task;
-			pthread_rwlock_t 	lock;
+			pthread_rwlock_t 	lock;		/*lock*/
 			//remote handler will delete this struct if TO_BE_DELETED is setted
 			//this appends when user unlink file while remote handler is writing back
 			int			postponed_operation;
 			Common::
-			access_page<block>*	writeback_page;
-			Common::allocator&	memory_allocator;
-			Common::memory_elem*	_elem;
+			access_page<block>*	writeback_page;	/*the pointer to element in the swapping queue*/
+			Common::allocator&	memory_allocator;/*memory allocator*/
+			Common::memory_elem*	_elem;		/*the element in for the memory allocation*/
 		};
 
 		typedef std::map<off64_t, block*> block_info_t; //map: start_point : block*
@@ -187,6 +191,31 @@ namespace CBB
 			unlock()
 		{
 			return pthread_mutex_unlock(&_lock);
+		}
+
+		inline bool block::
+			is_receiving_data()const
+		{
+			return SET == this->receiving_data;
+		}
+
+		inline void block::
+			set_to_receive_data()
+		{
+			this->receiving_data=SET;
+		}
+
+		inline void block::
+			finish_receiving()
+		{
+			if(UNSET == this->receiving_data)
+			{
+				_DEBUG("error unsetting clear data %p\n", this);
+			}
+			else
+			{
+				this->receiving_data=UNSET;
+			}
 		}
 	}
 }

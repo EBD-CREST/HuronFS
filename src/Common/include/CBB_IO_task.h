@@ -112,10 +112,11 @@ namespace CBB
 
 		struct send_buffer_element
 		{
-			char* buffer;
-			size_t size;
+			char* 	buffer;
+			size_t 	size;
+			void*	context;
 
-			send_buffer_element(char* buffer, size_t size);
+			send_buffer_element(char* buffer, size_t size, void* context);
 		};
 
 		typedef std::vector<send_buffer_element> send_buffer_t;
@@ -133,7 +134,7 @@ namespace CBB
 
 				void setup_large_transfer(int mode);
 				void set_mode(int mode);
-				size_t get_received_data(void* buffer, size_t size);
+				size_t get_received_data(void* buffer, size_t size, void* context);
 				size_t get_received_data_all(void* buffer);
 				void set_extended_data_size(size_t size);
 				size_t get_extended_data_size()const;
@@ -142,8 +143,8 @@ namespace CBB
 				send_buffer_t* get_send_buffer();
 				void set_send_buffer(send_buffer_t* buffer);
 				unsigned char* get_receive_buffer(size_t size);
-				void push_send_buffer(char* buf, size_t size);
-				void push_recv_buffer(char* buf, size_t size);
+				void push_send_buffer(char* buf, size_t size, void* context);
+				void push_recv_buffer(char* buf, size_t size, void* context);
 				void clear_send_recv_buffer();
 				size_t push_string_prealloc(const std::string& string);//push string to prealloc area instead of a given buffer, used in readdir
 				size_t do_push_prealloc(const void* buf, size_t size);
@@ -435,7 +436,7 @@ namespace CBB
 		}
 
 		inline size_t extended_IO_task::
-			get_received_data(void* buffer, size_t size)
+			get_received_data(void* buffer, size_t size, void* context)
 		{
 			_DEBUG("get_receive data\n");
 			//bad hack, fix later
@@ -445,7 +446,7 @@ namespace CBB
 			*(this->extended_size) -= size;
 #else
 			push_recv_buffer(reinterpret_cast<char*>(
-						buffer), size);
+						buffer), size, context);
 #endif
 			return size;
 		}
@@ -515,9 +516,9 @@ namespace CBB
 		}
 		
 		inline void extended_IO_task::
-			push_send_buffer(char* buf, size_t size)
+			push_send_buffer(char* buf, size_t size, void* context)
 		{
-			send_buffer.push_back(send_buffer_element(buf, size));
+			send_buffer.push_back(send_buffer_element(buf, size, context));
 			*(this->extended_size)+=size;
 		}
 
@@ -528,9 +529,9 @@ namespace CBB
 		}
 
 		inline void extended_IO_task::
-			push_recv_buffer(char* buf, size_t size)
+			push_recv_buffer(char* buf, size_t size, void* context)
 		{
-			push_send_buffer(buf, size);
+			push_send_buffer(buf, size, context);
 		}
 
 		inline void extended_IO_task::
@@ -574,7 +575,7 @@ namespace CBB
 			setup_prealloc_buffer()
 		{
 			push_send_buffer(reinterpret_cast<char*>(this->extended_buffer),
-					*(this->extended_size));
+					*(this->extended_size), nullptr);
 			//bad hack fix later
 			*(this->extended_size)/=2;
 		}

@@ -291,7 +291,7 @@ const int IP_STRING_LEN=20;
 const int IDLE=0;
 const int ON_GOING=1;
 
-const int WRITEBACK_SIZE=10;
+const int WRITEBACK_COUNTS=2;
 
 const int PRINT_DELAY=100;
 

@@ -43,6 +43,7 @@ namespace CBB
 		//each thread set the handle which it is waiting on
 		typedef std::vector<comm_handle_t> threads_handle_map_t;
 
+
 		int Send_attr(extended_IO_task* output_task,
 			      const struct stat* file_stat);
 		int Recv_attr(extended_IO_task* new_task,
@@ -68,6 +69,7 @@ namespace CBB
 				virtual int input_from_producer(communication_queue_t* input_queue)=0;
 				virtual int output_task_enqueue(extended_IO_task* output_task)=0;
 				virtual communication_queue_t* get_communication_queue_from_handle(comm_handle_t handle)=0;
+				virtual int after_large_transfer(void* context);
 
 				size_t send(extended_IO_task* new_task)throw(std::runtime_error);
 				size_t send_rma(extended_IO_task* new_task) throw(std::runtime_error);
@@ -116,6 +118,12 @@ namespace CBB
 		{
 			set_queues(input_queues, output_queues);
 			//set_threads_socket_map(threads_socket_map);
+		}
+		inline int CBB_communication_thread::
+			after_large_transfer(void * context)
+		{
+			//ignore;
+			return SUCCESS;
 		}
 	}
 }

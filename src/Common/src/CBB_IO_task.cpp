@@ -65,9 +65,10 @@ basic_IO_task(int id, basic_IO_task* next):
 }
 
 send_buffer_element::
-send_buffer_element(char* buffer, size_t size):
+send_buffer_element(char* buffer, size_t size, void* context):
 	buffer(buffer),
-	size(size)
+	size(size),
+	context(context)
 {}
 
 extended_IO_task::

@@ -75,6 +75,7 @@ namespace CBB
 				void putback_tmp_node();
 				int task_enqueue_signal_notification();
 				int task_enqueue();
+				int task_enqueue_no_notification();
 				void task_dequeue();
 				task_type* get_task();
 				bool is_empty();
@@ -318,8 +319,17 @@ namespace CBB
 			this->queue_head.store(static_cast<task_type*>(
 						this->queue_head.load()->get_next()));
 #ifndef BUSY_WAIT
-			//pthread_cond_signal(&queue_empty);
+			pthread_cond_signal(&queue_empty);
 #endif
+			return SUCCESS;
+		}
+
+		template<class task_type> int task_parallel_queue<task_type>::
+			task_enqueue_no_notification()
+		{
+			_DEBUG("task enqueue of queue %p task %p\n", this, queue_head.load());
+			this->queue_head.store(static_cast<task_type*>(
+						this->queue_head.load()->get_next()));
 			return SUCCESS;
 		}
 

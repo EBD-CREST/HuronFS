@@ -100,12 +100,14 @@ namespace CBB
 
 			virtual size_t 
 				Recv_large(void*         buffer,
-					   size_t 	 count)
+					   size_t 	 count,
+					   void*	 context)
 				throw(std::runtime_error)=0;
 
 			virtual size_t 
 				Send_large(const void*   buffer,
-					   size_t 	 count)
+					   size_t 	 count,
+					   void*	 context)
 				throw(std::runtime_error)=0;
 
 			virtual void*
