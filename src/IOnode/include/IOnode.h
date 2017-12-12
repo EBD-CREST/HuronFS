@@ -169,7 +169,7 @@ namespace CBB
 
 				int _setup_queues();
 				int _get_sync_response();
-				int update_access_order(block* requested_file);
+				int update_access_order(block* requested_file, bool dirty);
 				int add_write_back();
 				bool have_dirty_page()const;
 				void new_dirty_page();

@@ -305,9 +305,10 @@ CBB::CBB_error Master::_parse_open_file(extended_IO_task* new_task)
 	ssize_t file_no		=0;
 	//int 	exist_flag	=EXISTING;
 	mode_t 	mode		=S_IFREG|0660;
-	_LOG("request for open file\n");
 
 	new_task->pop_string(&file_path); 
+	_LOG("request for open file path %s\n", file_path);
+
 	extended_IO_task* output=nullptr;
 	std::string str_file_path=std::string(file_path);
 	file_stat_pool_t::iterator it=_file_stat_pool.find(str_file_path);

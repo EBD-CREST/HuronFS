@@ -69,7 +69,7 @@ throw(std::runtime_error):
 	IOnode_handle_pool(),
 	writeback_queue(),
 	writeback_status(IDLE),
-	dirty_pages(false),
+	dirty_pages(CLEAN),
 	memory_pool_for_blocks(),
 	remove_file_list()
 {
@@ -410,7 +410,7 @@ _send_data(extended_IO_task* new_task)
 				}
 			}
 
-			update_access_order(requested_block);
+			update_access_order(requested_block, CLEAN);
 			
 			start_point+=BLOCK_SIZE;
 			output->push_send_buffer(
@@ -581,7 +581,7 @@ update_block_data(block_info_t&		blocks,
 		file.add_dirty_pages(1);
 	}
 
-	update_access_order(_block);
+	update_access_order(_block, DIRTY);
 	//test not sure
 	_block->unlock();
 
@@ -1433,15 +1433,15 @@ connection_failure_handler(extended_IO_task* input_task)
 }
 
 int IOnode::
-update_access_order(block* requested_block)
+update_access_order(block* requested_block, bool dirty)
 {
 	if(nullptr != requested_block->writeback_page)
 	{
-		access(requested_block->writeback_page);
+		access(requested_block->writeback_page, dirty);
 	}
 	else
 	{
-		requested_block->writeback_page=access(requested_block);
+		requested_block->writeback_page=access(requested_block, dirty);
 		_DEBUG("write back page %p\n", requested_block->writeback_page);
 	}
 	return SUCCESS;
@@ -1603,7 +1603,7 @@ free_data(block* data)
 			data->start_point);
 	data->wrlock();
 
-	bool writing_back=false;
+	bool writing_back=UNSET;
 	struct timeval st, et;
 	//wait for ongoing write back to finish 
 	_DEBUG("testing block %p\n", data);

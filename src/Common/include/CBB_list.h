@@ -41,6 +41,7 @@ namespace CBB
 				virtual list* get_prev();
 				virtual list* set_next(list* next);
 				virtual list* set_prev(list* prev);
+				void insert_after(list* insert);
 
 			private:
 				list*	next;
@@ -77,6 +78,16 @@ namespace CBB
 		{
 			this->prev=prev;
 			return next;
+		}
+
+		inline void list::
+			insert_after(list* elem)
+		{
+			elem->set_next(this->get_next());
+			elem->set_prev(this);
+			
+			this->get_next()->set_prev(elem);
+			this->set_next(elem);
 		}
 	}
 }

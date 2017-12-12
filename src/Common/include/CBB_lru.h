@@ -41,9 +41,9 @@ namespace CBB
 			virtual ~CBB_lru()=default;
 
 			virtual access_page<type>* 
-				access(access_page<type>* data)override final;
+				access(access_page<type>* data, bool dirty)override final;
 			virtual access_page<type>* 
-				access(type*data)override final;
+				access(type*data, bool dirty)override final;
 			virtual size_t free_data(type* data)=0;
 			virtual bool need_writeback(type* data)=0;
 			virtual size_t writeback(type* data, const char* mode)=0;
@@ -51,15 +51,15 @@ namespace CBB
 		};
 
 		template<typename type> access_page<type>* CBB_lru<type>::
-			access(access_page<type>* page)
+			access(access_page<type>* page, bool dirty)
 		{
-			return this->queue.touch(page);
+			return this->queue.touch(page, dirty);
 		}
 
 		template<typename type> access_page<type>* CBB_lru<type>::
-			access(type* data)
+			access(type* data, bool dirty)
 		{
-			return this->queue.push(data);
+			return this->queue.push(data, dirty);
 		}
 	}
 }

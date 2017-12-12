@@ -99,6 +99,8 @@ namespace CBB
 				int _truncate(const char*path, off64_t size)throw(std::runtime_error);
 				int _ftruncate(int fd, off64_t size)throw(std::runtime_error);
 				off64_t _tell(int fd);
+				void _delete_open_file(int fid, opened_file_info* file);
+				void _delete_file_meta(file_meta* file_meta_p);	
 
 			public:
 				file_meta* remote_open(const char* 	path,
@@ -303,6 +305,16 @@ namespace CBB
 			return _write_update_file_size(file.file_meta_p, file.current_point, size);
 		}
 
+		inline void CBB_client::
+			_delete_file_meta(file_meta* file_meta_p)
+		{
+			if(0 == -- file_meta_p->open_count)
+			{
+				_path_file_meta_map.erase(file_meta_p->it);
+				_DEBUG("delete %p\n", file_meta_p);
+				delete file_meta_p;
+			}
+		}
 
 		/*inline ssize_t CBB_client::
 		 * _get_IOnode_id(int master_number, ssize_t IOnode_id)const

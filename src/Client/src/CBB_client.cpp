@@ -1060,23 +1060,21 @@ throw(std::runtime_error)
 		response_dequeue(response);
 		if(SUCCESS == ret)
 		{
-			_opened_file[fid]=false;
-			/*if(1 == file.file_meta_p->open_count)
-			{
-				_path_file_meta_map.erase(file.file_meta_p->it);
-			}*/
-			_file_list.erase(fid);
+			_DEBUG("close SUCCESS\n");
+			_delete_open_file(fid, &file);
 
 			return 0;
 		}
 		else
 		{
+			_DEBUG("close failed\n");
 			errno=-ret;
 			return -1;
 		}
 	}
 	catch(std::out_of_range &e)
 	{
+		_DEBUG("no such file\n");
 		errno=EBADFD;
 		return -1;
 	}
@@ -1330,18 +1328,14 @@ _close_local_opened_file(const char* path)
 	{
 		std::string string_path(path);
 		file_meta* file_meta_p=_path_file_meta_map.at(string_path);
-		int count=file_meta_p->open_count;
+		int& count=file_meta_p->open_count;
 		for(_opened_fd_t::iterator it=file_meta_p->opened_fd.begin();
 				it!=file_meta_p->opened_fd.end();++it)
 		{
 			_close(*it);
 			--count;
 		}
-		if(count)
-		{
-			delete file_meta_p;
-		}
-		_path_file_meta_map.erase(string_path);
+		_delete_file_meta(file_meta_p);
 		return 0;
 	}
 	catch(std::out_of_range &e)
@@ -2066,4 +2060,18 @@ find_start_point(const _block_list_t& 	blocks,
 		}
 	}
 	return ret;
+}
+
+void CBB_client::
+_delete_open_file(int fid, opened_file_info* file)
+{
+	_opened_file[fid]=false;
+	file_meta* file_meta_p=file->file_meta_p;
+	_file_list.erase(fid);
+
+	if(nullptr != file_meta_p)
+	{
+		_DEBUG("erase meta of %s\n", file_meta_p->it->first.c_str());
+		_delete_file_meta(file_meta_p);
+	}
 }
