@@ -71,7 +71,8 @@ throw(std::runtime_error):
 	writeback_status(IDLE),
 	dirty_pages(CLEAN),
 	memory_pool_for_blocks(),
-	remove_file_list()
+	remove_file_list(),
+	open_file_count(0)
 {
 	const char *IOnode_mount_point=getenv(IONODE_MOUNT_POINT);
 	const char *IOnode_memory_limit=getenv(IONODE_MEMORY_LIMIT);
@@ -861,14 +862,23 @@ _open_remote_file(
 	//start_recording(this);
 	if( -1 == *fd)
 	{
-		*fd = open64(real_path.c_str(),open_mode, 0600);
-		if(-1 == *fd)
+		if(!this->open_too_many_files())
 		{
-			perror("Open File");
-			_DEBUG("path %s\n", real_path.c_str());
-			throw std::runtime_error("Open File Error\n");
+			this->open_file_count += 1;
+			*fd = open64(real_path.c_str(),open_mode, 0600);
+			if(-1 == *fd)
+			{
+				perror("Open File");
+				_DEBUG("path %s\n", real_path.c_str());
+				throw std::runtime_error("Open File Error\n");
+			}
+			_DEBUG("opening %d path %s\n", *fd, real_path.c_str());
 		}
-		_DEBUG("opening %d path %s\n", *fd, real_path.c_str());
+		else
+		{
+			throw std::runtime_error("Open too many files\n");
+		}
+
 	}
 	file_stat->unlock();
 
@@ -879,24 +889,38 @@ int IOnode::
 _close_remote_file(file* file_stat,
 		   int   mode)
 {
-	file_stat->lock();
 	if(mode == WRITE_FILE)
 	{
-		file_stat->dirty_pages_count--;
+		file_stat->remove_dirty_pages(1);
 	}
 
-	if(TO_BE_CLOSED != file_stat->postponed_operation)
+	file_stat->lock();
+
+	if(!open_too_many_files() &&
+		TO_BE_CLOSED != file_stat->postponed_operation &&
+		TO_BE_DELETED != file_stat->postponed_operation)
 	{
 		file_stat->unlock();
 		return SUCCESS;
 	}
 
-	if(0 == file_stat->dirty_pages_count)
+	if(open_too_many_files())
 	{
-		_DEBUG("close file %s\n", file_stat->file_path.c_str());
+		_LOG("reach open limit\n");
+	}
+
+	_LOG("close remote file %s\n", file_stat->file_path.c_str());
+	if(-1 != file_stat->read_remote_fd)
+	{
 		close(file_stat->read_remote_fd);
-		close(file_stat->write_remote_fd);
+		this->open_file_count -= 1;
 		file_stat->read_remote_fd=-1;
+	}
+
+	if(-1 != file_stat->write_remote_fd)
+	{
+		close(file_stat->write_remote_fd);
+		this->open_file_count -= 1;
 		file_stat->write_remote_fd=-1;
 	}
 
@@ -982,7 +1006,7 @@ throw(std::runtime_error)
 	if(TO_BE_DELETED == block_data->postponed_operation)
 	{
 		block_data->unlock();
-		_close_remote_file(file_stat, WRITE_FILE);
+		_close_remote_file(file_stat, DELETE_FILE);
 		return 0;
 	}
 
@@ -1151,10 +1175,7 @@ _remove_file(ssize_t file_no)
 		for(block_info_t::iterator block_it=it->second.blocks.begin();
 				block_it!=it->second.blocks.end();++block_it)
 		{
-			if(CLEAN == block_it->second->dirty_flag)
-			{
-				block_it->second->postponed_operation=TO_BE_DELETED;
-			}
+			block_it->second->postponed_operation=TO_BE_DELETED;
 		}
 		it->second.postponed_operation=TO_BE_DELETED;
 		remove_file_list.push_back(it);
@@ -1588,6 +1609,7 @@ remove_files()
 	{
 		for(auto file:remove_file_list)
 		{
+			_close_remote_file(&file->second, DELETE_FILE);
 			_files.erase(file);
 		}
 		remove_file_list.clear();

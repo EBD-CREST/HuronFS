@@ -214,6 +214,7 @@ const int REPLACE_REPLICA = 30;
 const int REMOVE_IONODE = 31;
 const int IONODE_FAILURE = 32;
 const int UPDATE_META = 33;
+const int DELETE_FILE = 34;
 
 const int SERVER_SHUT_DOWN = 40; 
 const int I_AM_SHUT_DOWN = 41;
@@ -302,4 +303,5 @@ const bool SWAPPED_OUT = false;
 const bool INBUFFER = true;
 const bool OPEN = true;
 const bool CLOSED = false;
+const int MAX_OPEN_FILE_COUNT=4096;
 #endif

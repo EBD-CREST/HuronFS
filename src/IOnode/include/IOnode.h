@@ -75,7 +75,7 @@ namespace CBB
 				//map: file_no: struct file
 				typedef std::map<ssize_t, file> file_t; 
 
-				typedef std::vector<file_t::const_iterator> remove_file_list_t;
+				typedef std::vector<file_t::iterator> remove_file_list_t;
 
 				static const char * IONODE_MOUNT_POINT;
 				static const char * IONODE_MEMORY_LIMIT;
@@ -189,6 +189,7 @@ namespace CBB
 						      int			mode);
 				int _close_remote_file(file* file_stat,
 						       int   mode);
+				bool open_too_many_files()const;
 
 				//private member
 			private:
@@ -211,6 +212,7 @@ namespace CBB
 				bool			dirty_pages;
 				Common::memory_pool	memory_pool_for_blocks;
 				remove_file_list_t	remove_file_list;
+				int			open_file_count;
 		};
 
 
@@ -255,6 +257,12 @@ namespace CBB
 			block_ptr->finish_receiving();
 			_DEBUG("finish receiving %p\n", block_ptr);
 			return SUCCESS;
+		}
+
+		inline bool IOnode::
+			open_too_many_files()const
+		{
+			return MAX_OPEN_FILE_COUNT <= this->open_file_count;
 		}
 	}
 }
