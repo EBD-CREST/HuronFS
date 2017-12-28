@@ -896,20 +896,15 @@ _close_remote_file(file* file_stat,
 
 	file_stat->lock();
 
-	if(!open_too_many_files() &&
+	/*if(!open_too_many_files() &&
 		TO_BE_CLOSED != file_stat->postponed_operation &&
 		TO_BE_DELETED != file_stat->postponed_operation)
 	{
 		file_stat->unlock();
 		return SUCCESS;
-	}
+	}*/
 
-	if(open_too_many_files())
-	{
-		_LOG("reach open limit\n");
-	}
-
-	_LOG("close remote file %s\n", file_stat->file_path.c_str());
+	_DEBUG("close remote file %s\n", file_stat->file_path.c_str());
 	if(-1 != file_stat->read_remote_fd)
 	{
 		close(file_stat->read_remote_fd);

@@ -349,7 +349,7 @@ throw(std::runtime_error)
         for (auto &buf : *send_buffer)
         {
             _DEBUG("send size=%ld\n", buf.size);
-            ret += handle->Send_large(buf.buffer, buf.size);
+            ret += handle->Send_large(buf.buffer, buf.size, nullptr);
         }
 #else
         //cci
@@ -484,7 +484,8 @@ throw(std::runtime_error)
     {
         size_t tmp_size = handle->Recv_large(
                                      new_task->get_receive_buffer(MAX_TRANSFER_SIZE),
-                                     new_task->get_extended_data_size());
+                                     new_task->get_extended_data_size(),
+				     nullptr);
         _DEBUG("receive extended message size=%ld, ret=%ld\n",
                new_task->get_extended_data_size(), tmp_size);
         ret += tmp_size;
