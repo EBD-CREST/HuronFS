@@ -27,7 +27,7 @@
 
 Introduction
 --------------------------------------------------------------------------------------------------------------
-This is HuronFS (Hierarchical, User-level and ON-demand FileSystem)
+This is the repository of HuronFS (Hierarchical, User-level and ON-demand FileSystem)
 
 OVERVIEW:
 --------------------------------------------------------------------------------------------------------------
@@ -53,7 +53,7 @@ An "IOnode" application is running on each I/O node.
 Client nodes run user applications.
 User mounts HuronFS via FUSE or uses a pre-load library to interact with HuronFS.
 
-### Structure of the Cloud-based burst buffer
+### Structure of the HuronFS
 * Master node:
     * Master: located in bin, is a binary executable file of Master application.
 * IOnode:
@@ -97,7 +97,7 @@ HOW TO USE:
 --------------------------------------------------------------------------------------------------------------
 ### 1. build:
 just like other standard UNIX systems, using TCP/IP by default.
---enable-cci=yes --with-cci=CCI_DIR in configure to enable CCI
+--with-cci=CCI_DIR in configure to enable CCI
 
         ./bootstrap.sh
         ./configure
@@ -110,6 +110,12 @@ just like other standard UNIX systems, using TCP/IP by default.
 
     * ####HUFS_HOME
 HuronFS directory path
+
+    * ####HUFS_PROFILE_PATH
+The directory path to store the profile results from the Master, IOnode and Client. (see HUFS_PROFILING)
+
+    * ####HUFS_PROFILING
+If set to true, a performance profiling would be preformed during the execution, and the results would be recorded under HUFS_PROFILE_PATH with a name of "profile-${pid}". (default false)
 
 * On master node:
 
@@ -133,6 +139,11 @@ The absolute directory path where IOnode mounts shared storage.
     * ####HUFS_MASTER_IP
 The IP address of master node that IOnode belongs to.
 In case of Infiniband, please use the IPoIB address
+
+    * ####HUFS_IONODE_MEMORY_LIMIT
+The size of the memory used on IOnode, **IMPORTANT.**
+The size would be round to the closest multiple of the block size used in IOnode. 
+{GB, MB, KB, GiB, MiB, KiB} can be used to specify the size.
 
 * On Client node:
 
