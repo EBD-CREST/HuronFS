@@ -485,9 +485,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/../../common.mk $(am__co
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/Client/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/Client/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu src/Client/Makefile
+	  $(AUTOMAKE) --foreign src/Client/Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
 	  *config.status*) \

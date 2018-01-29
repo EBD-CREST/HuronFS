@@ -169,9 +169,9 @@ AC_ARG_ENABLE([debug],
 AM_CONDITIONAL([DEBUG], [test "x$debuging" = xtrue])
 
 #check gcc version, must use version larger than 4.9, for the 4.8 has incomplete support for re
-#AM_CONDITIONAL(GCC_VER_49, [test `g++ -dumpversion | gawk '{print $1>=4.9?"1":"0"}'` = 1])
-#AM_COND_IF(GCC_VER_49, [AC_MSG_RESULT([Have g++ version larger than 4.9])],
-#		[AC_MSG_FAILURE([Need g++ version larger than 4.9], 1)])
+AM_CONDITIONAL(GCC_VER_49, [test `g++ -dumpversion | gawk '{print $1>=4.9?"1":"0"}'` = 1])
+AM_COND_IF(GCC_VER_49, [AC_MSG_RESULT([Have g++ version larger than 4.9])],
+		[AC_MSG_FAILURE([Need g++ version larger than 4.9], 1)])
 
 AC_CONFIG_FILES([Makefile
                  src/Client/Makefile
