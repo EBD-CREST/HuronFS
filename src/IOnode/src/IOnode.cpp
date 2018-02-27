@@ -1496,6 +1496,7 @@ add_write_back()
 		//have_dirty_page())
 	{
 #ifdef ASYNC
+		Common::CBB_swap<block>::check_writeback_page(writeback_queue);
 		if(0 != prepare_writeback_page(&writeback_queue, WRITEBACK_COUNTS))
 		{
 			CBB_remote_task::add_remote_task(

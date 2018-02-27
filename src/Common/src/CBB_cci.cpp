@@ -402,7 +402,7 @@ throw(std::runtime_error)
 	cci_connection_t* connection=cci_handle;
 	//first try with blocking IO
 	_DEBUG("rma read local handle=%p\n", local_rma_handle);
-	if(CCI_SUCCESS != 
+	while(CCI_SUCCESS != 
 		(ret = cci_rma(connection, completion, comp_size,
 			       local_rma_handle, 0,
 			       &remote_rma_handle, offset,
@@ -413,9 +413,15 @@ throw(std::runtime_error)
 			_DEBUG("connection close\n");
 			throw std::runtime_error("connection closed");
 		}
-		_DEBUG("cci_rma() failed with %s\n",
-			cci_strerror(nullptr, (cci_status)ret));
-		return FAILURE;
+		else
+		{
+			if(CCI_EAGAIN != ret)
+			{
+				_DEBUG("cci_rma() failed with %s\n",
+					cci_strerror(nullptr, (cci_status)ret));
+				return FAILURE;
+			}
+		}
 	}
 	return SUCCESS;
 }
@@ -434,7 +440,7 @@ throw(std::runtime_error)
 
 	//first try with blocking IO
 	_DEBUG("rma write local handle=%p\n", local_rma_handle);
-	if(CCI_SUCCESS != 
+	while(CCI_SUCCESS != 
 		(ret = cci_rma(connection, completion, comp_size,
 			       local_rma_handle, 0,
 			       &remote_rma_handle, offset,
@@ -445,10 +451,17 @@ throw(std::runtime_error)
 			_DEBUG("connection close\n");
 			throw std::runtime_error("connection closed");
 		}
-		_DEBUG("cci_rma() failed with %s\n",
-			cci_strerror(nullptr, (cci_status)ret));
-		return FAILURE;
+		else
+		{
+			if(CCI_EAGAIN != ret)
+			{
+				_DEBUG("cci_rma() failed with %s\n",
+					cci_strerror(nullptr, (cci_status)ret));
+				return FAILURE;
+			}
+		}
 	}
+
 	return SUCCESS;
 }
 
@@ -478,24 +491,25 @@ throw(std::runtime_error)
 	int ret;
 	size_t ans=count;
 	_DEBUG("send data to %p\n", cci_handle);
-	while(0 != count)
-	{
-		if(CCI_SUCCESS != 
+	while(CCI_SUCCESS != 
 			(ret=cci_send(this->cci_handle,
 				      buffer, count,
 				      nullptr, CCI_FLAG_BLOCKING)))
+	{
+		if(CCI_ERR_DISCONNECTED == ret)
 		{
-			if(CCI_ERR_DISCONNECTED == ret)
-			{
-				_DEBUG("connection close\n");
-				throw std::runtime_error("connection closed");
-			}
-			_DEBUG("cci_send error %s\n",
-					cci_strerror(nullptr, (cci_status)ret));
+			_DEBUG("connection close\n");
+			throw std::runtime_error("connection closed");
 		}
 		else
 		{
-			count-=count;
+			if(CCI_EAGAIN != ret)
+			{
+
+				_DEBUG("cci_send error %s\n",
+						cci_strerror(nullptr, (cci_status)ret));
+				return 0;
+			}
 		}
 	}
 	return ans;

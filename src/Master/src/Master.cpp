@@ -1778,6 +1778,7 @@ throw(CBB_configure_error)
 		throw CBB_configure_error("open remote storage");
 	}
 	strcpy(file_path, mount_point);
+	file_path[strlen(mount_point)]=0;
 
 	_LOG("start to buffer file status from remote\n");
 	struct stat file_status;

@@ -127,7 +127,7 @@ namespace CBB
 					int count);
 
 			int check_writeback_page(
-					std::vector<type*>* writeback_queue);
+					std::vector<type*>& writeback_queue);
 		protected:
 			access_queue<type> queue;
 		};
@@ -461,16 +461,17 @@ namespace CBB
 		/* use count == -1 to say infinite */
 		template<typename type> int CBB_basic_swap<type>::
 			check_writeback_page(
-				std::vector<type*>* writeback_queue)
+				std::vector<type*>& writeback_queue)
 		{
 			int count=0;
 			/*need to improve the performance here*/
 			//access_page<type>* tmp=queue.tail->get_next();
-			for(auto item : *writeback_queue)
+			for(auto item : writeback_queue)
 			{
-				if(!need_writeback(item->get_data()))
+				auto page=item->writeback_page;
+				if(!need_writeback(page->get_data()))
 				{
-					del_dirty_page(item);
+					queue.del_dirty_page(page);
 					count++;
 				}
 			}
@@ -493,6 +494,7 @@ namespace CBB
 				{
 					_LOG("need write back\n");
 					writeback(tmp->get_data(), "on demand");
+					queue.del_dirty_page(tmp);
 				}
 
 				size -= free_data(tmp->get_data());
