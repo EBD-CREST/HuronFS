@@ -79,7 +79,7 @@ namespace CBB
 				extended_IO_task* allocate_data_sync_task();
 				int data_sync_task_enqueue(extended_IO_task* output_task);
 				extended_IO_task* get_data_sync_response();
-				void data_sync_response_dequeue(extended_IO_task* response);
+				extended_IO_task* data_sync_response_dequeue(extended_IO_task* response);
 
 			private:
 				int 			thread_started;
@@ -106,7 +106,7 @@ namespace CBB
 			return communication_input_queue_ptr->get_task();
 		}
 
-		inline void CBB_data_sync::data_sync_response_dequeue(extended_IO_task* response)
+		inline extended_IO_task* CBB_data_sync::data_sync_response_dequeue(extended_IO_task* response)
 		{
 			return communication_input_queue_ptr->task_dequeue();
 		}

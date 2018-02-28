@@ -76,7 +76,7 @@ namespace CBB
 				int task_enqueue_signal_notification();
 				int task_enqueue();
 				int task_enqueue_no_notification();
-				void task_dequeue();
+				task_type* task_dequeue();
 				task_type* get_task();
 				bool is_empty();
 				bool task_wait();
@@ -92,7 +92,7 @@ namespace CBB
 				std::atomic<task_type*> queue_head; 
 				std::atomic<task_type*> queue_tail;
 				//reserved nodes which are still under I/O
-				std::atomic<task_type*> queue_tmp_tail;
+				//std::atomic<task_type*> queue_tmp_tail;
 				//used to allocate temp
 				//and make item available later
 				std::atomic<task_type*> queue_tmp_head;
@@ -151,7 +151,7 @@ namespace CBB
 			task_parallel_queue():
 			queue_head(nullptr),
 			queue_tail(new task_type()),
-			queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
+			//queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
 			queue_tmp_head(nullptr),
 			length_of_queue(2),
 			lock(),
@@ -172,7 +172,7 @@ namespace CBB
 			task_parallel_queue(int id):
 			queue_head(nullptr),
 			queue_tail(new task_type()),
-			queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
+			//queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
 			queue_tmp_head(nullptr),
 			length_of_queue(2),
 			lock(),
@@ -193,7 +193,7 @@ namespace CBB
 			task_parallel_queue(int id, int event_fd):
 			queue_head(nullptr),
 			queue_tail(new task_type()),
-			queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
+			//queue_tmp_tail(queue_tail.load(std::memory_order_relaxed)),
 			queue_tmp_head(nullptr),
 			length_of_queue(2),
 			lock(),
@@ -234,11 +234,22 @@ namespace CBB
 			return this->queue_tail.load()->get_next() == this->queue_head.load();
 		}
 
-		template<class task_type> inline void task_parallel_queue<task_type>::
+		template<class task_type> inline task_type* task_parallel_queue<task_type>::
 			task_dequeue()
 		{
-			task_type* current_tmp_tail=this->queue_tmp_tail.load();
-			this->queue_tmp_tail.store(static_cast<task_type*>(current_tmp_tail->get_next()));
+			task_type* current_tail=this->queue_tail.load();
+			/*task_type* current_tmp_tail=this->queue_tmp_tail.load();
+			if(this->queue_tmp_tail.load() == this->queue_tail.load())
+			{
+				this->queue_tmp_tail.store(static_cast<task_type*>(current_tmp_tail->get_next()));
+				this->queue_tail.store(this->queue_tmp_tail.load());
+			}
+			else
+			{
+				this->queue_tmp_tail.store(static_cast<task_type*>(current_tmp_tail->get_next()));
+			}*/
+
+			return current_tail;
 		}
 
 		template<class task_type> bool task_parallel_queue<task_type>::
@@ -290,7 +301,8 @@ namespace CBB
 			allocate_tmp_node()
 		{
 			task_type* ret=nullptr;
-			if(queue_tmp_tail.load() == queue_tmp_head.load()->get_next())
+			//if(queue_tmp_tail.load() == queue_tmp_head.load()->get_next())
+			if(queue_tail.load() == queue_tmp_head.load()->get_next())
 			{
 				_DEBUG("new queue item allocated length of the queue=%ld\n", length_of_queue);
 				ret=new task_type(queue_id,

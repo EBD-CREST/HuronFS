@@ -392,6 +392,9 @@ _send_data(extended_IO_task* new_task)
 				_DEBUG("out of range\n");
 				break;
 			}
+			requested_block->datalock();
+			requested_block->metalock();
+
 			requested_block->file_stat=&_file;
 			if(requested_block->need_allocation())
 			{
@@ -422,6 +425,7 @@ _send_data(extended_IO_task* new_task)
 			IO_size=MIN(remaining_size,
 				static_cast<ssize_t>(BLOCK_SIZE));
 			offset=0;
+			requested_block->metaunlock();
 		}
 		ret=SUCCESS;
 	}
@@ -536,8 +540,11 @@ update_block_data(block_info_t&		blocks,
 				INVALID, &file))).first->second;
 	}
 
-	//test not sure
-	_block->rdlock();
+	//unlock after finished receiving
+	_block->datalock();
+	_block->metalock();
+	_block->set_to_receive_data();
+
 	if(_block->need_allocation())
 	{
 		allocate_memory_for_block(_block);
@@ -573,7 +580,6 @@ update_block_data(block_info_t&		blocks,
 	_DEBUG("%p is dirty now\n", _block);
 
 	//receiving block data
-	_block->set_to_receive_data();
 	_DEBUG("start receiving data %p\n", _block);
 
 	if(DIRTY != _block->dirty_flag)
@@ -583,8 +589,7 @@ update_block_data(block_info_t&		blocks,
 	}
 
 	update_access_order(_block, DIRTY);
-	//test not sure
-	_block->unlock();
+	_block->metaunlock();
 
 	return ret;
 }
@@ -851,11 +856,11 @@ _open_remote_file(
 	{
 		case READ_FILE:
 			fd=&(file_stat->read_remote_fd);
-			open_mode=O_RDONLY|O_DIRECT;
+			open_mode=O_RDONLY;
 			break;	
 		case WRITE_FILE:
 			fd=&(file_stat->write_remote_fd);
-			open_mode=O_WRONLY|O_CREAT|O_DIRECT;
+			open_mode=O_WRONLY|O_CREAT;
 			break;
 	}
 
@@ -976,11 +981,11 @@ throw(std::runtime_error)
 {
 	struct timeval st, et;
 
-	block_data->rdlock();
+	block_data->metalock();
 	_DEBUG("checking block %p\n", block_data);
 	if(block_data->is_receiving_data())
 	{
-		block_data->unlock();
+		block_data->metaunlock();
 		return 0;/*let the operator to rechoose*/
 	}
 
@@ -1000,13 +1005,13 @@ throw(std::runtime_error)
 
 	if(TO_BE_DELETED == block_data->postponed_operation)
 	{
-		block_data->unlock();
+		block_data->metaunlock();
 		_close_remote_file(file_stat, DELETE_FILE);
 		return 0;
 	}
 
 	block_data->writing_back=SET;;
-	block_data->unlock();
+	block_data->metaunlock();
 
 	off64_t pos;
 	if(-1 == (pos=lseek64(fd, start_point, SEEK_SET)))
@@ -1619,7 +1624,7 @@ free_data(block* data)
 	_DEBUG("free memory of %s start point %ld\n",
 			data->file_stat->file_path.c_str(),
 			data->start_point);
-	data->wrlock();
+	data->metalock();
 
 	bool writing_back=UNSET;
 	struct timeval st, et;
@@ -1642,8 +1647,10 @@ free_data(block* data)
 		_LOG("waiting write back time %f of %p\n", TIME(st, et), data);
 	}
 
+	data->datalock();
 	size_t ret=data->free_memory();
+	data->dataunlock();
 	data->swapout_flag=SWAPPED_OUT;
-	data->unlock();
+	data->metaunlock();
 	return ret;
 }

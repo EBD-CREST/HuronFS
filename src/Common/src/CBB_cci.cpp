@@ -522,8 +522,6 @@ register_mem(void*	    ptr,
 		int	    flag)
 {
 	int ret;
-	_DEBUG("register mem %p size=%ld\n",
-			ptr, size);
 	if (CCI_SUCCESS != (ret=cci_rma_register(endpoint,
 					ptr, size, flag, 
 					const_cast<cci_rma_handle_t**>(&(handle->local_rma_handle)))))
@@ -532,7 +530,10 @@ register_mem(void*	    ptr,
 				cci_strerror(endpoint, (cci_status)ret));
 		return FAILURE;
 	}
-	handle->dump_local_key();
+
+	_DEBUG("register mem %p size=%ld handle %p\n",
+			ptr, size, handle->local_rma_handle);
+	//handle->dump_local_key();
 	return SUCCESS;
 }
 
@@ -541,7 +542,7 @@ deregister_mem(CCI_handle* handle)
 {
 	int ret;
 
-	_DEBUG("deregister mem\n");
+	_DEBUG("deregister mem %p\n", handle->local_rma_handle);
 	if (CCI_SUCCESS != (ret=cci_rma_deregister(endpoint,
 					handle->local_rma_handle)))
 	{
@@ -559,13 +560,13 @@ allocate_communication_context(CCI_handle* handle, void* context)
 	context_ptr->local_rma_handle=handle->local_rma_handle;
 	context_ptr->block_ptr=context;
 	context_queue.task_enqueue_no_notification();
+	_DEBUG("allocate context %p\n", context_ptr);
 	
 	return context_ptr;
 }
 
-void CBB_cci::
+handle_context* CBB_cci::
 putback_communication_context()
 {
-	context_queue.task_dequeue();
-	return;
+	return context_queue.task_dequeue();
 }

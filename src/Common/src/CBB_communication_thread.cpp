@@ -290,7 +290,7 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
                    event->recv.connection);
             break;
         case CCI_EVENT_SEND:
-            _DEBUG("cci_send finished\n");
+            _DEBUG("cci_send finished, context %p\n", event->send.context);
 
 	    if (nullptr != (context = reinterpret_cast<handle_context*>(event->send.context)))
 	    {
@@ -301,7 +301,7 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
 			    this_obj->after_large_transfer(context->block_ptr);
 		    }
 
-		    this_obj->putback_communication_context();
+		    _DEBUG("context=%p, dequeue%p\n", context, (this_obj->putback_communication_context()));
             }
             break;
         case CCI_EVENT_RECV:

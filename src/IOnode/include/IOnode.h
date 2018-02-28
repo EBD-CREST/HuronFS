@@ -219,10 +219,10 @@ namespace CBB
 		inline bool IOnode::
 			need_writeback(block* data)
 		{
-			data->wrlock();
+			data->metalock();
 			bool ret = (DIRTY == data->dirty_flag);
 			_DEBUG("need to write back %p, %s\n", data, ret?"true":"false");
-			data->unlock();
+			data->metaunlock();
 			return ret;
 		}
 
@@ -254,7 +254,8 @@ namespace CBB
 			after_large_transfer(void* ptr)
 		{
 			block* block_ptr=reinterpret_cast<block*>(ptr);
-			block_ptr->finish_receiving();
+			block_ptr->finish_transfer();
+			block_ptr->dataunlock();
 			_DEBUG("finish receiving %p\n", block_ptr);
 			return SUCCESS;
 		}

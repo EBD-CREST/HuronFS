@@ -197,7 +197,7 @@ namespace CBB
 		CBB_error deregister_mem(cci_rma_handle_t* handle);
 
 		handle_context* allocate_communication_context(CCI_handle* handle, void* block);
-		void putback_communication_context();
+		handle_context* putback_communication_context();
 
 		private:
 

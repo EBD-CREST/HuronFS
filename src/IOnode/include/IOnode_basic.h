@@ -53,12 +53,14 @@ namespace CBB
 			bool need_allocation()const;
 			size_t free_memory();
 			void set_to_existing();
-			bool is_receiving_data()const;
+			bool is_receiving_data();
 			void set_to_receive_data();
-			void finish_receiving();
-			int wrlock();
-			int rdlock();
-			int unlock();
+			void finish_transfer();
+			int datalock();
+			int dataunlock();
+
+			int metalock();
+			int metaunlock();
 
 			size_t 			data_size;	/*the size of data in the block*/
 			size_t			block_size;	/*the size of the block*/
@@ -67,12 +69,14 @@ namespace CBB
 			bool 			dirty_flag;	/*if it is dirty*/
 			bool 			valid;		/*if the memory is allocated*/
 			bool			swapout_flag;	/*if the block is swapped out*/
-			volatile bool		writing_back;	/*if the block is under writing back. no swap if this flag is set*/
-			volatile bool		receiving_data;	/*if the block is receiving data. no writing back if this flag is set*/
+			volatile bool		writing_back;	/*if the block is under writing back. no swap if this flag is not 0*/
+			volatile bool		receiving_data;	/*if the block is under receiving. no swap if this flag is set*/
+			volatile int		registered;	/*if the block is registered. register if this flag is not 0*/
 			int 			exist_flag;	/*if the file exist on remote disk*/
 			file*			file_stat;	/*the pointer to the file status*/
 			//Common::remote_task* 	write_back_task;
-			pthread_rwlock_t 	lock;		/*lock*/
+			pthread_mutex_t 	data_lock;		/*lock for data*/
+			pthread_mutex_t		meta_lock;		/*lock for metadata*/
 			//remote handler will delete this struct if TO_BE_DELETED is setted
 			//this appends when user unlink file while remote handler is writing back
 			int			postponed_operation;
@@ -113,21 +117,27 @@ namespace CBB
 		};
 
 		inline int block::
-			wrlock()
+			datalock()
 		{
-			return pthread_rwlock_wrlock(&lock);
+			return pthread_mutex_lock(&data_lock);
 		}
 
 		inline int block::
-			rdlock()
+			dataunlock()
 		{
-			return pthread_rwlock_rdlock(&lock);
+			return pthread_mutex_unlock(&data_lock);
 		}
 
 		inline int block::
-			unlock()
+			metalock()
 		{
-			return pthread_rwlock_unlock(&lock);
+			return pthread_mutex_lock(&meta_lock);
+		}
+
+		inline int block::
+			metaunlock()
+		{
+			return pthread_mutex_unlock(&meta_lock);
 		}
 
 		inline bool block::
@@ -194,7 +204,7 @@ namespace CBB
 		}
 
 		inline bool block::
-			is_receiving_data()const
+			is_receiving_data()
 		{
 			return SET == this->receiving_data;
 		}
@@ -206,16 +216,13 @@ namespace CBB
 		}
 
 		inline void block::
-			finish_receiving()
+			finish_transfer()
 		{
-			if(UNSET == this->receiving_data)
-			{
-				_DEBUG("error unsetting clear data %p\n", this);
-			}
-			else
-			{
-				this->receiving_data=UNSET;
-			}
+			this->metalock();
+			this->receiving_data=UNSET;
+			this->dataunlock();
+
+			this->metaunlock();
 		}
 	}
 }

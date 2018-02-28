@@ -89,7 +89,10 @@ handle_routine(void* args)
 		extended_IO_task* new_task=input_queue.get_task();
 		_DEBUG("new task element %p\n", new_task);
 		this_obj->_parse_request(new_task);
-		input_queue.task_dequeue();
+		if(new_task != input_queue.task_dequeue())
+		{
+			_LOG("DEQUEUE ERROR\n");
+		}
 
 		_DEBUG("task ends\n");
 	}
