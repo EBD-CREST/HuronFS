@@ -53,6 +53,7 @@ namespace CBB
 
 			cci_rma_handle_t*  	local_rma_handle; 
 			void*			block_ptr;
+			int			mode;
 		};
 
 		typedef task_parallel_queue<handle_context> context_queue_t;
@@ -196,7 +197,7 @@ namespace CBB
 		CBB_error deregister_mem(CCI_handle* handle);
 		CBB_error deregister_mem(cci_rma_handle_t* handle);
 
-		handle_context* allocate_communication_context(CCI_handle* handle, void* block);
+		handle_context* allocate_communication_context(CCI_handle* handle, void* block, int mode);
 		handle_context* putback_communication_context();
 
 		private:

@@ -298,9 +298,8 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
 		    this_obj->deregister_mem(&handle);
 		    if(nullptr != context->block_ptr)
 		    {
-			    this_obj->after_large_transfer(context->block_ptr);
+			    this_obj->after_large_transfer(context->block_ptr, context->mode);
 		    }
-
 		    _DEBUG("context=%p, dequeue%p\n", context, (this_obj->putback_communication_context()));
             }
             break;
@@ -404,7 +403,7 @@ throw(std::runtime_error)
             _DEBUG("register size=%ld\n", buf.size);
 
             register_mem(buf.buffer, buf.size, handle, CCI_FLAG_WRITE | CCI_FLAG_READ);
-	    context_ptr=allocate_communication_context(handle, buf.context);
+	    context_ptr=allocate_communication_context(handle, buf.context, READ_FILE);
 
             if (0 != --count)
             {
@@ -420,7 +419,6 @@ throw(std::runtime_error)
             }
             ret += buf.size;
         }
-
         break;
     case RMA_WRITE:
 	_DEBUG("RMA WRITE\n");
@@ -431,7 +429,7 @@ throw(std::runtime_error)
             _DEBUG("register memory\n");
             //DELETE debug
             register_mem(buf.buffer, buf.size, handle, CCI_FLAG_READ | CCI_FLAG_WRITE);
-	    context_ptr=allocate_communication_context(handle, buf.context);
+	    context_ptr=allocate_communication_context(handle, buf.context, WRITE_FILE);
 
             if (0 != --count)
             {
@@ -446,11 +444,8 @@ throw(std::runtime_error)
             }
             ret += buf.size;
         }
-
         break;
     }
-
-    end_recording(this, ret, new_task->get_mode());
 
     /*if(0 != new_task->get_message_size())
     {

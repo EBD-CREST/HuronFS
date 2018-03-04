@@ -94,14 +94,16 @@ handle_context::
 handle_context(int id, handle_context* next):
 	basic_task(id, next),
 	local_rma_handle(nullptr),
-	block_ptr(nullptr)
+	block_ptr(nullptr),
+	mode(READ_FILE)
 {}
 
 handle_context::
 handle_context():
 	basic_task(),
 	local_rma_handle(nullptr),
-	block_ptr(nullptr)
+	block_ptr(nullptr),
+	mode(READ_FILE)
 {}
 
 size_t CBB_cci::
@@ -554,11 +556,12 @@ deregister_mem(CCI_handle* handle)
 }
 
 handle_context* CBB_cci::
-allocate_communication_context(CCI_handle* handle, void* context)
+allocate_communication_context(CCI_handle* handle, void* context, int mode)
 {
 	handle_context* context_ptr=context_queue.allocate_tmp_node();
 	context_ptr->local_rma_handle=handle->local_rma_handle;
 	context_ptr->block_ptr=context;
+	context_ptr->mode=mode;
 	context_queue.task_enqueue_no_notification();
 	_DEBUG("allocate context %p\n", context_ptr);
 	

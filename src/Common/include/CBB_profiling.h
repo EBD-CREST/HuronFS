@@ -42,8 +42,8 @@ namespace CBB
 		do{				\
 			(obj)->et.record();	\
 			(obj)->record_size(size, mode);\
-			(obj)->_print_time();	\
 		}while(0)
+			//(obj)->_print_time();	
 	
 #define record_raws(obj)			\
 		do{				\
@@ -160,8 +160,8 @@ namespace CBB
 		{
 			if(is_profiling())
 			{
-				fprintf(fp, "%ld.%ld\t%f\t0\t%s\t%s\t%lu\t%lu\n", et.get_sec(), et.get_usec(), 
-						last_duration, mode, io_path, offset, length);
+				_RECORD(fp, "%ld.%ld\t%f\t0\t%s\t%s\t%lu\t%lu\n", et.get_sec(), et.get_usec(), 
+						st.diff(et), mode, io_path, offset, length);
 			}
 		}
 
@@ -174,7 +174,7 @@ namespace CBB
 			if(is_profiling())
 			{
 				_LOG("%ld.%ld\t%f\t0\t%s\t%s\t%lu\t%lu\n", et.get_sec(), et.get_usec(), 
-						last_duration, mode, io_path, offset, length);
+						st.diff(et), mode, io_path, offset, length);
 			}
 		}
 	}

@@ -56,7 +56,8 @@ namespace CBB
 			bool is_receiving_data();
 			void set_to_receive_data();
 			void finish_transfer();
-			int datalock();
+			int dataRdlock();
+			int dataWrlock();
 			int dataunlock();
 
 			int metalock();
@@ -75,7 +76,7 @@ namespace CBB
 			int 			exist_flag;	/*if the file exist on remote disk*/
 			file*			file_stat;	/*the pointer to the file status*/
 			//Common::remote_task* 	write_back_task;
-			pthread_mutex_t 	data_lock;		/*lock for data*/
+			pthread_rwlock_t	data_rwlock;		/*lock for data*/
 			pthread_mutex_t		meta_lock;		/*lock for metadata*/
 			//remote handler will delete this struct if TO_BE_DELETED is setted
 			//this appends when user unlink file while remote handler is writing back
@@ -117,15 +118,21 @@ namespace CBB
 		};
 
 		inline int block::
-			datalock()
+			dataRdlock()
 		{
-			return pthread_mutex_lock(&data_lock);
+			return pthread_rwlock_rdlock(&data_rwlock);
+		}
+
+		inline int block::
+			dataWrlock()
+		{
+			return pthread_rwlock_wrlock(&data_rwlock);
 		}
 
 		inline int block::
 			dataunlock()
 		{
-			return pthread_mutex_unlock(&data_lock);
+			return pthread_rwlock_unlock(&data_rwlock);
 		}
 
 		inline int block::

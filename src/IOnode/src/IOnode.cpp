@@ -392,8 +392,8 @@ _send_data(extended_IO_task* new_task)
 				_DEBUG("out of range\n");
 				break;
 			}
-			requested_block->datalock();
 			requested_block->metalock();
+			requested_block->dataRdlock();
 
 			requested_block->file_stat=&_file;
 			if(requested_block->need_allocation())
@@ -436,6 +436,11 @@ _send_data(extended_IO_task* new_task)
 		ret=FAILURE;
 	}
 	output_task_enqueue(output);
+
+	/*end_recording(this, 0, READ_FILE);
+	this->print_log_debug("r", "send data", start_point, size);
+	this->print_log("r", "send data", start_point, size);*/
+
 	return ret;
 
 }
@@ -495,9 +500,6 @@ _receive_data(extended_IO_task* new_task)
 			tmp_start_point	+=IOsize+tmp_offset;
 			tmp_offset	=0;
 
-			//end_recording(this, 0, WRITE_FILE);
-
-			//this->print_log_debug("w", "get receive data", tmp_start_point, size);
 		}
 		_file.dirty_flag=DIRTY;
 
@@ -514,6 +516,10 @@ _receive_data(extended_IO_task* new_task)
 		output_task_enqueue(response);
 		ret=FAILURE;
 	}
+
+	/*end_recording(this, 0, WRITE_FILE);
+	this->print_log_debug("w", "get receive data", start_point, size);
+	this->print_log("w", "get receive data", start_point, size);*/
 
 	return ret;
 }
@@ -541,7 +547,7 @@ update_block_data(block_info_t&		blocks,
 	}
 
 	//unlock after finished receiving
-	_block->datalock();
+	_block->dataWrlock();
 	_block->metalock();
 	_block->set_to_receive_data();
 
@@ -979,8 +985,6 @@ size_t IOnode::
 _write_to_storage(block* block_data, const char* mode)
 throw(std::runtime_error)
 {
-	struct timeval st, et;
-
 	block_data->metalock();
 	_DEBUG("checking block %p\n", block_data);
 	if(block_data->is_receiving_data())
@@ -989,7 +993,6 @@ throw(std::runtime_error)
 		return 0;/*let the operator to rechoose*/
 	}
 
-	gettimeofday(&st, nullptr);
 	_LOG("start writing back %s of %p\n", mode, block_data);
 
 	block_data->dirty_flag=CLEAN;
@@ -1011,6 +1014,7 @@ throw(std::runtime_error)
 	}
 
 	block_data->writing_back=SET;;
+	block_data->dataRdlock();
 	block_data->metaunlock();
 
 	off64_t pos;
@@ -1038,8 +1042,7 @@ throw(std::runtime_error)
 	}
 
 	block_data->writing_back=UNSET;
-	gettimeofday(&et, nullptr);
-	_LOG("write time %f s\n", TIME(st, et));
+	block_data->dataunlock();
 
 	//sync data to the remote
 	//fdatasync(fd);
@@ -1647,7 +1650,7 @@ free_data(block* data)
 		_LOG("waiting write back time %f of %p\n", TIME(st, et), data);
 	}
 
-	data->datalock();
+	data->dataWrlock();
 	size_t ret=data->free_memory();
 	data->dataunlock();
 	data->swapout_flag=SWAPPED_OUT;

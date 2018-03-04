@@ -294,7 +294,7 @@ const int ON_GOING=1;
 
 const int WRITEBACK_COUNTS=2;
 
-const int PRINT_DELAY=100;
+const int PRINT_DELAY=1;
 
 const int NO_NEED_UPDATE = 4;
 const int UPDATE_META_ONLY= 5;
