@@ -1287,7 +1287,7 @@ _send_open_request_to_IOnodes(struct open_file_info  &file,
 	output->push_back(file.file_status->exist_flag);
 
 	output->push_back_string(file.get_path().c_str(), file.get_path().length());
-	_DEBUG("%s\n", file.get_path().c_str());
+	_LOG("%s %ld\n", file.get_path().c_str(), file.file_no);
 
 	output->push_back(static_cast<int>(block_info.size()));
 	for(auto& block:block_info)
@@ -1441,7 +1441,8 @@ ssize_t Master::_get_file_no()
 		if(!_file_no_pool[_current_file_no])
 		{
 			_file_no_pool[_current_file_no]=true; 
-			return _current_file_no; 
+			_file_number++;
+			return _current_file_no++;
 		}
 	}
 	for(_current_file_no=0;  _current_file_no<MAX_FILE_NUMBER; ++_current_file_no)
@@ -1449,7 +1450,8 @@ ssize_t Master::_get_file_no()
 		if(!_file_no_pool[_current_file_no])
 		{
 			_file_no_pool[_current_file_no]=true; 
-			return _current_file_no;
+			_file_number++;
+			return _current_file_no++;
 		}
 	}
 	return -1;
