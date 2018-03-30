@@ -139,7 +139,6 @@ int CBB_communication_thread::_add_handle(comm_handle_t handle)
 {
 #ifdef TCP
     struct epoll_event event;
-    _DEBUG("add handle socket=%d\n", handle->socket);
     memset(&event, 0, sizeof(event));
     int* socket=static_cast<int*>(handle->get_raw_handle());
     event.data.fd = *socket;
@@ -155,7 +154,6 @@ int CBB_communication_thread::_add_handle(comm_handle_t handle, int op)
 {
 #ifdef TCP
     struct epoll_event event;
-    _DEBUG("add handle socket=%d\n", handle->socket);
     memset(&event, 0, sizeof(event));
     int* socket=static_cast<int*>(handle->get_raw_handle());
     event.data.fd = *socket;
@@ -225,7 +223,6 @@ void *CBB_communication_thread::receiver_thread_function(void *args)
         {
             handle.set_raw_handle(&events[i].data.fd);
             _DEBUG("task from handle received\n");
-            _DEBUG("socket %d\n", handle.socket);
             this_obj->input_from_network(&handle, this_obj->output_queue);
         }
     }
@@ -365,8 +362,8 @@ throw(std::runtime_error)
                      new_task->get_message_size() +
                      MESSAGE_META_OFF);
         _DEBUG("send extended message size=%ld\n", new_task->get_extended_data_size());
-#endif
 
+#endif
     }
     else
     {

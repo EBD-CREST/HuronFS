@@ -119,7 +119,6 @@ throw(std::runtime_error)
 		perror("Can not Connect to Server");  
 		throw std::runtime_error("Can not Connect to Server"); 
 	}
-	_DEBUG("Connection established %d\n", handle.socket);
 
 	//bad hack
 	const char* my_uri=nullptr;

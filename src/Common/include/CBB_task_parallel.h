@@ -89,6 +89,7 @@ namespace CBB
 				void flush_queue()const;
 
 			private:
+				// the order in the queue is queue_tail -> ... ->  queue_head -> ... -> queue_tmp_head
 				std::atomic<task_type*> queue_head; 
 				std::atomic<task_type*> queue_tail;
 				//reserved nodes which are still under I/O
@@ -237,7 +238,9 @@ namespace CBB
 		template<class task_type> inline task_type* task_parallel_queue<task_type>::
 			task_dequeue()
 		{
-			task_type* current_tail=this->queue_tail.load();
+			//this->queue_tail.store(static_cast<task_type*>(this->queue_tail.load()->get_next()));
+			_DEBUG("task dequeue on queue %p task %p\n", this, this->queue_tail.load());
+			//_DEBUG("current_tail %p current_head %p\n", this->queue_tail.load(), this->queue_head.load());
 			/*task_type* current_tmp_tail=this->queue_tmp_tail.load();
 			if(this->queue_tmp_tail.load() == this->queue_tail.load())
 			{
@@ -249,7 +252,7 @@ namespace CBB
 				this->queue_tmp_tail.store(static_cast<task_type*>(current_tmp_tail->get_next()));
 			}*/
 
-			return current_tail;
+			return this->queue_tail.load();
 		}
 
 		template<class task_type> bool task_parallel_queue<task_type>::
@@ -270,9 +273,8 @@ namespace CBB
 #else
 				while(is_empty())
 				{
-					yield();
+					pthread_cond_wait(&queue_empty, &lock);
 				}
-				//pthread_cond_wait(&queue_empty, &lock);
 #endif
 				previous_head=current_head;
 			}
@@ -287,40 +289,39 @@ namespace CBB
 #ifdef BUSY_WAIT
 				yield();
 #else
-				yield();
-				//pthread_cond_wait(&queue_empty, &lock);
+				pthread_cond_wait(&queue_empty, &lock);
 #endif
 			}
 			task_type* new_task=static_cast<task_type*>(queue_tail.load()->get_next());
 			this->queue_tail.store(new_task);
-			_DEBUG("get task %p\n", new_task);
+			_DEBUG("get task %p from queue %p\n", new_task, this);
 			return new_task;
 		}
 
 		template<class task_type> task_type* task_parallel_queue<task_type>::
 			allocate_tmp_node()
 		{
-			task_type* ret=nullptr;
+			task_type* ret=queue_tmp_head.load();
 			//if(queue_tmp_tail.load() == queue_tmp_head.load()->get_next())
 			if(queue_tail.load() == queue_tmp_head.load()->get_next())
 			{
 				_DEBUG("new queue item allocated length of the queue=%ld\n", length_of_queue);
-				ret=new task_type(queue_id,
+				task_type* new_node=new task_type(queue_id,
 						static_cast<task_type*>(
-							queue_head.load(
+							queue_tmp_head.load(
 								std::memory_order_relaxed)->get_next()));
-				queue_head.load(std::memory_order_relaxed)->set_next(ret);
-				queue_tmp_head.store(ret);
-				ret=queue_head.load(std::memory_order_relaxed);
+				queue_tmp_head.load(std::memory_order_relaxed)->set_next(new_node);
+				queue_tmp_head.store(new_node);
 				length_of_queue++;
 			}
 			else
 			{
 				_DEBUG("queue item reused length of the queue=%ld\n", length_of_queue);
-				ret=queue_head.load();
 				queue_tmp_head.store(static_cast<task_type*>(ret->get_next()));
 			}
+
 			ret->reset();
+			_DEBUG("allocated node is %p\n", ret);
 			return ret;
 		}
 
@@ -359,6 +360,7 @@ namespace CBB
 				_DEBUG("queue fd %d\n", this->queue_event_fd);
 				return FAILURE;
 			}
+			
 			return SUCCESS;
 		}
 

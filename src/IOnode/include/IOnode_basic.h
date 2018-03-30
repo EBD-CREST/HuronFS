@@ -154,25 +154,6 @@ namespace CBB
 				nullptr == data;
 		}
 
-		inline size_t block::
-			free_memory()
-		{
-			if(DIRTY != this->dirty_flag  && 
-				VALID == this->valid  &&
-				nullptr != this->data)
-			{
-				memory_allocator.free(_elem);
-				this->data=nullptr;
-				this->_elem=nullptr; this->writeback_page=nullptr;
-
-				return this->block_size;
-			}
-			else
-			{
-				return 0;
-			}
-		}
-
 		inline	void block::
 			set_to_existing()
 		{

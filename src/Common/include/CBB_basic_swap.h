@@ -446,7 +446,7 @@ namespace CBB
 			{
 				if(need_writeback(tmp->get_data()))
 				{
-					_LOG("write back page\n");
+					_LOG("write back page %p\n", tmp);
 					_LOG("iteration counts %d to find the %d\n", iteration, total-count+1);
 					writeback_queue->push_back(tmp->get_data());
 					--count;
@@ -466,12 +466,15 @@ namespace CBB
 			int count=0;
 			/*need to improve the performance here*/
 			//access_page<type>* tmp=queue.tail->get_next();
-			for(auto item : writeback_queue)
+			for(type* item : writeback_queue)
 			{
-				auto page=item->writeback_page;
-				if(!need_writeback(page->get_data()))
+				_DEBUG("check %p\n", item);
+				if(!need_writeback(item) )
 				{
-					queue.del_dirty_page(page);
+					if(nullptr != item->writeback_page)
+					{
+						queue.del_dirty_page(item->writeback_page);
+					}
 					count++;
 				}
 			}

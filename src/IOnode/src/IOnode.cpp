@@ -426,6 +426,10 @@ _send_data(extended_IO_task* new_task)
 				static_cast<ssize_t>(BLOCK_SIZE));
 			offset=0;
 			requested_block->metaunlock();
+			//may have problems
+#ifdef TCP
+			requested_block->dataunlock();
+#endif
 		}
 		ret=SUCCESS;
 	}
@@ -547,9 +551,7 @@ update_block_data(block_info_t&		blocks,
 	}
 
 	//unlock after finished receiving
-	_block->dataWrlock();
 	_block->metalock();
-	_block->set_to_receive_data();
 
 	if(_block->need_allocation())
 	{
@@ -579,6 +581,9 @@ update_block_data(block_info_t&		blocks,
 	}
 
 	_DEBUG("receive data at %p, offset %ld, size=%ld\n", _block->data, offset, size);
+	_block->dataWrlock();
+	_block->set_to_receive_data();
+
 	ret=new_task->get_received_data(
 			static_cast<unsigned char*>(_block->data)+offset,
 			size, _block);
@@ -595,7 +600,12 @@ update_block_data(block_info_t&		blocks,
 	}
 
 	update_access_order(_block, DIRTY);
+
 	_block->metaunlock();
+
+#ifdef TCP
+	after_large_transfer(_block, WRITE_FILE);
+#endif
 
 	return ret;
 }
@@ -862,11 +872,11 @@ _open_remote_file(
 	{
 		case READ_FILE:
 			fd=&(file_stat->read_remote_fd);
-			open_mode=O_RDONLY;
+			open_mode=O_RDONLY|O_DIRECT;
 			break;	
 		case WRITE_FILE:
 			fd=&(file_stat->write_remote_fd);
-			open_mode=O_WRONLY|O_CREAT;
+			open_mode=O_WRONLY|O_CREAT|O_DIRECT;
 			break;
 	}
 
@@ -1013,7 +1023,7 @@ throw(std::runtime_error)
 		return 0;
 	}
 
-	block_data->writing_back=SET;;
+	block_data->writing_back=SET;
 	block_data->dataRdlock();
 	block_data->metaunlock();
 
@@ -1655,5 +1665,6 @@ free_data(block* data)
 	data->dataunlock();
 	data->swapout_flag=SWAPPED_OUT;
 	data->metaunlock();
+	_DEBUG("freed size %ld\n", ret);
 	return ret;
 }

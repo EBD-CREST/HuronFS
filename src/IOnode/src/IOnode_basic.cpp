@@ -148,3 +148,32 @@ throw(std::bad_alloc)
 	return block_size;
 }
 
+size_t block::
+free_memory()
+{
+	if(DIRTY == this->dirty_flag)
+	{
+		_DEBUG("try to free a dirty block\n");
+		return 0;
+	}
+	else if(VALID != this->valid)
+	{
+		_DEBUG("try to free a invalid block\n");
+		return 0;
+	}
+	else if(nullptr == this->data)
+	{
+		_DEBUG("data is empty");
+		return 0;
+	}
+	else
+	{
+		_DEBUG("free %p\n", this->data);
+		memory_allocator.free(_elem);
+		this->data=nullptr;
+		this->_elem=nullptr;
+		this->writeback_page=nullptr;
+
+		return this->block_size;
+	}
+}

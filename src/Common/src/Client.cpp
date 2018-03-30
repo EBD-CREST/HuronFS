@@ -94,10 +94,15 @@ int Client::input_from_network(comm_handle_t handle,
 
 int Client::input_from_producer(communication_queue_t* input_queue)
 {
+	end_recording(this, 0, READ_FILE);
+	print_log("communcation thread got task", "", 0, 0);
 	while(!input_queue->is_empty())
 	{
 		extended_IO_task* new_task=input_queue->get_task();
 		_DEBUG("send request from producer\n");
+
+		end_recording(this, 0, READ_FILE);
+		print_log("after get_task", "", 0, 0);
 		if(new_task->is_new_connection())
 		{
 			try
@@ -118,7 +123,13 @@ int Client::input_from_producer(communication_queue_t* input_queue)
 		{
 			try
 			{
+				end_recording(this, 0, READ_FILE);
+				print_log("start send", "", 0, 0);
+
 				send(new_task);
+
+				end_recording(this, 0, READ_FILE);
+				print_log("end send", "", 0, 0);
 			}
 			catch(std::runtime_error& e)
 			{
@@ -129,6 +140,7 @@ int Client::input_from_producer(communication_queue_t* input_queue)
 		}
 		input_queue->task_dequeue();
 	}
+
 	return SUCCESS;
 }
 

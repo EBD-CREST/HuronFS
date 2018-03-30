@@ -48,7 +48,9 @@ file_meta(ssize_t remote_file_no,
 	block_list(),
 	need_update(CLEAN),
 	it(nullptr)
-{}
+{
+	_DEBUG("create file_meta %p\n", this);
+}
 
 opened_file_info::
 opened_file_info(int 		fd,
@@ -60,6 +62,8 @@ opened_file_info(int 		fd,
 	file_meta_p(file_meta_p)
 {
 	++file_meta_p->open_count;
+	_DEBUG("create open file info %p\n", this);
+	_DEBUG("create file meta pointer %p, open count %d\n", file_meta_p, file_meta_p->open_count);
 }
 
 opened_file_info::opened_file_info():
@@ -67,7 +71,9 @@ opened_file_info::opened_file_info():
 	fd(0),
 	flag(-1),
 	file_meta_p(nullptr)
-{}
+{
+	_DEBUG("create file meta pointer %p\n", file_meta_p);
+}
 
 opened_file_info::~opened_file_info()
 {
@@ -76,6 +82,7 @@ opened_file_info::~opened_file_info()
 		delete file_meta_p;
 	}*/
 	file_meta_p->opened_fd.erase(fd);
+	_DEBUG("create file meta pointer %p\n", file_meta_p);
 }
 
 opened_file_info::opened_file_info(const opened_file_info& src):

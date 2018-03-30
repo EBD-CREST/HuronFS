@@ -145,10 +145,6 @@ namespace CBB
 			{
 				total_write += size;
 			}
-			if(size == 0)
-			{
-				_LOG("error mode %d\n", mode);
-			}
 			new_size += size;
 		}
 

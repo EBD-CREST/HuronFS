@@ -326,7 +326,7 @@ CBB::CBB_error Master::_parse_open_file(extended_IO_task* new_task)
 		Master_file_stat& file_stat=it->second;
 		if(file_stat.is_external())
 		{
-			extended_IO_task* output=init_response_task(new_task);
+			output=init_response_task(new_task);
 			output->push_back(file_stat.external_master);
 			output_task_enqueue(output);
 			return SUCCESS;
@@ -338,6 +338,7 @@ CBB::CBB_error Master::_parse_open_file(extended_IO_task* new_task)
 		open_file_info *opened_file=_buffered_files.at(file_no);
 		size_t block_size=opened_file->block_size;
 		_DEBUG("file path= %s, file no=%ld\n", file_path, file_no);
+
 		output=init_response_task(new_task);
 		output->push_back(SUCCESS);
 		output->push_back(file_no);
@@ -396,7 +397,6 @@ CBB::CBB_error Master::_parse_read_file(extended_IO_task* new_task)
 		_DEBUG("start_point=%ld, size %lu\n", start_point, size);
 		//_get_blocks_for_IO(start_point, size, *file, IO_blocks);
 		_select_node_block_set(*file, start_point, size, node_pool, block_list);
-		output=init_response_task(new_task);
 		_send_block_info(output, file->get_stat().st_size, node_pool, block_list);
 		ret=SUCCESS;
 	}
@@ -432,7 +432,7 @@ CBB::CBB_error Master::_parse_write_file(extended_IO_task* new_task)
 
 	new_task->pop(file_no);
 	_DEBUG("file no=%ld\n", file_no);
-	extended_IO_task* output=nullptr;
+	extended_IO_task* output=init_response_task(new_task);
 	try
 	{
 		open_file_info &file=*_buffered_files.at(file_no);
@@ -455,7 +455,6 @@ CBB::CBB_error Master::_parse_write_file(extended_IO_task* new_task)
 
 		_allocate_new_blocks_for_writing(file, start_point, size);
 		_select_node_block_set(file, start_point, size, node_pool, block_list);
-		output=init_response_task(new_task);
 		_send_block_info(output, file_status.st_size, node_pool, block_list);
 
 		//tmp code
@@ -466,7 +465,6 @@ CBB::CBB_error Master::_parse_write_file(extended_IO_task* new_task)
 	}
 	catch(std::out_of_range &e)
 	{
-		output=init_response_task(new_task);
 		output->push_back(OUT_OF_RANGE);
 		ret=FAILURE;
 	}
@@ -520,11 +518,11 @@ CBB::CBB_error Master::_parse_flush_file(extended_IO_task* new_task)
 	}
 	catch(std::out_of_range &e)
 	{
-		extended_IO_task* output=init_response_task(new_task);
 		output->push_back(FAILURE);
-		output_task_enqueue(output);
 		ret=FAILURE;
 	}
+
+	output_task_enqueue(output);
 	return ret;
 }
 
@@ -558,6 +556,7 @@ _parse_close_file(extended_IO_task* new_task)
 	IOnode_output->push_back(CLOSE_FILE);
 	IOnode_output->push_back(file_no);
 	output_task_enqueue(IOnode_output);
+
 	return SUCCESS;
 }
 
@@ -644,19 +643,17 @@ CBB::CBB_error Master::_parse_unlink(extended_IO_task* new_task)
 	int 	    		ret;
 	std::string 		relative_path;
 	std::string 		real_path;
-	extended_IO_task 	*output=nullptr;
+	extended_IO_task 	*output=init_response_task(new_task);
 
 	Server::_recv_real_relative_path(new_task, real_path, relative_path);
 	_LOG("path=%s\n", real_path.c_str());
 	if(SUCCESS == _remove_file(relative_path))
 	{
-		output=init_response_task(new_task);
 		output->push_back(SUCCESS);
 		ret=SUCCESS;
 	}
 	else
 	{
-		output=init_response_task(new_task);
 		output->push_back(-ENOENT);
 		ret=FAILURE;
 	}
@@ -887,7 +884,7 @@ CBB::CBB_error Master::_parse_truncate_file(extended_IO_task* new_task)
 {
 	int 			ret	=0;
 	ssize_t 		size	=0;
-	extended_IO_task	*output	=nullptr;
+	extended_IO_task	*output	=init_response_task(new_task);
 	std::string 		real_path;
 	std::string 		relative_path;
 
@@ -901,7 +898,6 @@ CBB::CBB_error Master::_parse_truncate_file(extended_IO_task* new_task)
 		Master_file_stat& file_stat=_file_stat_pool.at(relative_path);
 		if(file_stat.is_external())
 		{
-			output=init_response_task(new_task);
 			output->push_back(file_stat.external_master);
 			ret=SUCCESS;
 		}
@@ -929,7 +925,6 @@ CBB::CBB_error Master::_parse_truncate_file(extended_IO_task* new_task)
 			}
 			file->get_stat().st_size=size;
 			//_update_backup_file_size(relative_path, size);
-			output=init_response_task(new_task);
 			output->push_back(master_number);
 			output->push_back(SUCCESS);
 			ret=SUCCESS;
@@ -937,7 +932,6 @@ CBB::CBB_error Master::_parse_truncate_file(extended_IO_task* new_task)
 	}
 	catch(std::out_of_range &e)
 	{
-		output=init_response_task(new_task);
 		output->push_back(master_number);
 		output->push_back(-ENOENT);
 		ret=FAILURE;

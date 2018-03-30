@@ -129,6 +129,10 @@ namespace CBB
 
 		inline int Client::send_query(extended_IO_task* query)
 		{
+			end_recording(this, 0, READ_FILE);
+			print_log("send query enqueue", "", 0, 0);
+			_DEBUG("send query %p\n", query);
+
 			return get_output_queue_from_query(query)->task_enqueue();
 		}
 

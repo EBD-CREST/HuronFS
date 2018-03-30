@@ -308,11 +308,15 @@ namespace CBB
 		inline void CBB_client::
 			_delete_file_meta(file_meta* file_meta_p)
 		{
-			if(0 == -- file_meta_p->open_count)
+			if(0 >= -- file_meta_p->open_count)
 			{
 				_path_file_meta_map.erase(file_meta_p->it);
-				_DEBUG("delete %p\n", file_meta_p);
+				_DEBUG("delete file meta %p\n", file_meta_p);
 				delete file_meta_p;
+			}
+			else
+			{
+				_DEBUG("open count remains %d\n", file_meta_p->open_count);
 			}
 		}
 

@@ -1155,6 +1155,7 @@ remote_getattr(	const char* 	path,
 	int ret=master_number;
 	extended_IO_task* response=nullptr;
 	_DEBUG("connect to master\n");
+	start_recording(this);
 
 	do{
 		//problem
@@ -1165,11 +1166,15 @@ remote_getattr(	const char* 	path,
 
 		send_query(query);
 
+		end_recording(this, 0, READ_FILE);
+		print_log("send query", "", 0, 0);
+
 		response=get_query_response(query);
 		response->pop(ret);
 		master_handle = _get_master_handle_from_master_number(ret);
 	}while(master_number != ret && response_dequeue(response));
-	//end_recording();
+	end_recording(this, 0, READ_FILE);
+	print_log("getattr communicaion time", "", 0, 0);
 	response->pop(ret);
 	if(SUCCESS == ret)
 	{
@@ -1191,7 +1196,6 @@ throw(std::runtime_error)
 {
 	CHECK_INIT();
 
-	//start_recording();
 	if(SUCCESS == _get_local_attr(path, fstat))
 	{
 		_DEBUG("use local stat\n");
