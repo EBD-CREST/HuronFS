@@ -884,7 +884,7 @@ CBB::CBB_error Master::_parse_truncate_file(extended_IO_task* new_task)
 {
 	int 			ret	=0;
 	ssize_t 		size	=0;
-	extended_IO_task	*output	=init_response_task(new_task);
+	extended_IO_task	*output	=nullptr;
 	std::string 		real_path;
 	std::string 		relative_path;
 
@@ -898,6 +898,8 @@ CBB::CBB_error Master::_parse_truncate_file(extended_IO_task* new_task)
 		Master_file_stat& file_stat=_file_stat_pool.at(relative_path);
 		if(file_stat.is_external())
 		{
+			//bad hack, NEED TO FIX
+			output=init_response_task(new_task);
 			output->push_back(file_stat.external_master);
 			ret=SUCCESS;
 		}
@@ -925,6 +927,7 @@ CBB::CBB_error Master::_parse_truncate_file(extended_IO_task* new_task)
 			}
 			file->get_stat().st_size=size;
 			//_update_backup_file_size(relative_path, size);
+			output=init_response_task(new_task);
 			output->push_back(master_number);
 			output->push_back(SUCCESS);
 			ret=SUCCESS;
@@ -932,6 +935,7 @@ CBB::CBB_error Master::_parse_truncate_file(extended_IO_task* new_task)
 	}
 	catch(std::out_of_range &e)
 	{
+		output=init_response_task(new_task);
 		output->push_back(master_number);
 		output->push_back(-ENOENT);
 		ret=FAILURE;

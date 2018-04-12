@@ -329,6 +329,8 @@ namespace CBB
 			task_enqueue_signal_notification()
 		{
 			_DEBUG("task enqueue of queue %p task %p\n", this, queue_head.load());
+			_DEBUG("queue %p head %p tail %p tmp head %p\n", this, queue_head.load(), queue_tail.load(), queue_tmp_head.load());
+			
 			this->queue_head.store(static_cast<task_type*>(
 						this->queue_head.load()->get_next()));
 #ifndef BUSY_WAIT
@@ -341,6 +343,7 @@ namespace CBB
 			task_enqueue_no_notification()
 		{
 			_DEBUG("task enqueue of queue %p task %p\n", this, queue_head.load());
+			_DEBUG("queue %p head %p tail %p tmp head %p\n", this, queue_head.load(), queue_tail.load(), queue_tmp_head.load());
 			this->queue_head.store(static_cast<task_type*>(
 						this->queue_head.load()->get_next()));
 			return SUCCESS;
@@ -350,6 +353,7 @@ namespace CBB
 			task_enqueue()
 		{
 			_DEBUG("task enqueue of queue %p task %p\n", this, queue_head.load());
+			_DEBUG("queue %p head %p tail %p tmp head %p\n", this, queue_head.load(), queue_tail.load(), queue_tmp_head.load());
 			this->queue_head.store(static_cast<task_type*>(
 						this->queue_head.load()->get_next()));
 			static uint64_t notification=1;

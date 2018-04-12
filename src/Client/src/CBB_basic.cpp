@@ -82,7 +82,6 @@ opened_file_info::~opened_file_info()
 		delete file_meta_p;
 	}*/
 	file_meta_p->opened_fd.erase(fd);
-	_DEBUG("create file meta pointer %p\n", file_meta_p);
 }
 
 opened_file_info::opened_file_info(const opened_file_info& src):
