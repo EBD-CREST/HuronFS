@@ -120,13 +120,29 @@ namespace CBB
 		inline int block::
 			dataRdlock()
 		{
-			return pthread_rwlock_rdlock(&data_rwlock);
+			struct timeval st, et;
+			if(0 != pthread_rwlock_tryrdlock(&data_rwlock))
+			{
+				gettimeofday(&st, nullptr);
+				while(0 != pthread_rwlock_tryrdlock(&data_rwlock));
+				gettimeofday(&et, nullptr);
+				_LOG("read lock %p for time %f\n", this, TIME(st, et));
+			}
+			return SUCCESS;
 		}
 
 		inline int block::
 			dataWrlock()
 		{
-			return pthread_rwlock_wrlock(&data_rwlock);
+			struct timeval st, et;
+			if(0 != pthread_rwlock_trywrlock(&data_rwlock))
+			{
+				gettimeofday(&st, nullptr);
+				while(0 != pthread_rwlock_trywrlock(&data_rwlock));
+				gettimeofday(&et, nullptr);
+				_LOG("write lock %p for time %f\n", this, TIME(st, et));
+			}
+			return SUCCESS;
 		}
 
 		inline int block::
@@ -138,7 +154,15 @@ namespace CBB
 		inline int block::
 			metalock()
 		{
-			return pthread_mutex_lock(&meta_lock);
+			struct timeval st, et;
+			if(0 != pthread_mutex_trylock(&meta_lock))
+			{
+				gettimeofday(&st, nullptr);
+				while(0 != pthread_mutex_trylock(&meta_lock));
+				gettimeofday(&et, nullptr);
+				_LOG("meta lock %p for time %f\n", this, TIME(st, et));
+			}
+			return SUCCESS;
 		}
 
 		inline int block::

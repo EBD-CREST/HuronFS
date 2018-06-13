@@ -88,6 +88,9 @@ const int DATA_SYNC_THREAD_NUM = 1;
 //the number of queue used to send heart beat in Master= 1
 const int CONNECTION_THREAD_NUM=1;
 
+//the number of queue used to send message to IOnode
+const int IONODE_COMMUNICATE_THREAD_NUM = 1;
+
 const int IONODE_PRE_ALLOCATE_MEMORY_COUNT=100;
 
 #ifdef SINGLE_THREAD
@@ -98,9 +101,13 @@ const int CLIENT_PRE_ALLOCATE_MEMORY_COUNT=0;
 
 //the number of communication queues used in master
 //the number = # of handler threads in server + # of queue used to send heart beat
-const int MASTER_QUEUE_NUM=SERVER_THREAD_NUM+HEART_BEAT_THREAD_NUM+CONNECTION_THREAD_NUM;
+const int MASTER_QUEUE_NUM=SERVER_THREAD_NUM+IONODE_COMMUNICATE_THREAD_NUM+HEART_BEAT_THREAD_NUM+CONNECTION_THREAD_NUM;
+//const int MASTER_QUEUE_NUM=SERVER_THREAD_NUM+HEART_BEAT_THREAD_NUM+CONNECTION_THREAD_NUM;
+//the index of IOnode communcation queue
+const int IONODE_COMMUNICATE_QUEUE_NUM=SERVER_THREAD_NUM;
 //the index of connection queue 
-const int CONNECTION_QUEUE_NUM=SERVER_THREAD_NUM;
+const int CONNECTION_QUEUE_NUM=IONODE_COMMUNICATE_QUEUE_NUM;
+//const int CONNECTION_QUEUE_NUM=SERVER_THREAD_NUM;
 //the index of heart beat queue in Master
 const int MASTER_HEART_BEAT_QUEUE_NUM=CONNECTION_QUEUE_NUM+CONNECTION_THREAD_NUM;
 //the number of communication queues used in IOnode 
@@ -126,6 +133,7 @@ const int MAX_BLOCK_NUMBER = 1000;
 //the size of block used by all the file
 //important
 const size_t BLOCK_SIZE = 1*MiB;
+//const size_t BLOCK_SIZE = 16*KiB;
 //the maximum file size supported;
 //the number = block size * max block number
 //not used

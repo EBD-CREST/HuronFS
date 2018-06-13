@@ -35,8 +35,9 @@ remote_task::remote_task():
 	basic_task(),
 	//fields
 	task_id(0),
-	task_data(nullptr),
-	extended_task_data(nullptr)
+	task_file_name(),
+	extended_file_name(),
+	mode()
 {}
 
 remote_task::remote_task(int id, remote_task* next):
@@ -44,8 +45,9 @@ remote_task::remote_task(int id, remote_task* next):
 	basic_task(id, next),
 	//fields
 	task_id(0),
-	task_data(nullptr),
-	extended_task_data(nullptr)
+	task_file_name(),
+	extended_file_name(),
+	mode()
 {}
 
 CBB_remote_task::CBB_remote_task():
@@ -90,18 +92,21 @@ void* CBB_remote_task::thread_fun(void* args)
 	return nullptr;
 }
 
-remote_task* CBB_remote_task::add_remote_task(int task_code, void* task_data)
+remote_task* CBB_remote_task::add_remote_task(int task_code, const std::string& task_file_name, mode_t mode)
 {
 	remote_task* new_task = remote_task_queue.allocate_tmp_node();
 	new_task->set_task_id(task_code);
-	new_task->set_task_data(task_data);
+	new_task->set_task_file_name(task_file_name);
+	new_task->set_mode(mode);
 	remote_task_queue.task_enqueue_signal_notification();
 	return new_task;
 }
 
-remote_task* CBB_remote_task::add_remote_task(int task_code, void* task_data, void* extended_task_data)
+remote_task* CBB_remote_task::add_remote_task(int task_code, 
+		const std::string& task_file_name, 
+		const std::string& extended_file_name, mode_t mode)
 {
-	remote_task* new_task=add_remote_task(task_code, task_data);
-	new_task->set_extended_task_data(extended_task_data);
+	remote_task* new_task=add_remote_task(task_code, task_file_name, mode);
+	new_task->set_extended_file_name(extended_file_name);
 	return new_task;
 }

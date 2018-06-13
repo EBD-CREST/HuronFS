@@ -111,7 +111,7 @@ throw(std::bad_alloc)
 	head=head->next;
 	available_memory-=block_size;
 	_DEBUG("allocate memory %p\n", ret->memory);
-	_LOG("available_memory %ld\n", available_memory);
+	_LOG("available_memory %ld, allocated_size %ld\n", available_memory, allocated_size);
 
 	return ret;
 }
@@ -137,7 +137,7 @@ allocate_more_memory()throw(std::bad_alloc)
 		allocation_size=MIN(total_size-allocated_size, step_size);
 		size_t tmp=allocation_size;
 
-		_DEBUG("allocate memory of %ld bytes\n", allocation_size);
+		_LOG("allocate memory of %ld bytes\n", allocation_size);
 		while(block_size <= tmp)
 		{
 			memory_elem* new_elem=new memory_elem(block_size);

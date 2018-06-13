@@ -357,6 +357,9 @@ throw(std::runtime_error)
 
 	    new_task->push_back(*(handle->local_rma_handle));
         }
+	end_recording(this, 0, READ_FILE);
+	print_log("end register", "", 0, 0);
+
         ret += handle->Sendv(
                      new_task->get_message(),
                      new_task->get_message_size() +

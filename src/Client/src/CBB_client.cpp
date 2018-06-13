@@ -381,6 +381,7 @@ throw(std::runtime_error)
 	file_meta* 	  file_meta_p	=nullptr;
 	string 	  	  string_path	=string(path);
 	int 		  fid		=0;
+	_path_file_meta_map_t::iterator file_it=_path_file_meta_map.find(string_path);
 
 	if(-1 == (fid=_get_fid()))
 	{
@@ -388,11 +389,13 @@ throw(std::runtime_error)
 		_DEBUG("error!");
 		return -1; 
 	}
-	try
+
+	if(file_it != end(_path_file_meta_map))
 	{
 		file_meta_p=_path_file_meta_map.at(string_path);
+		_LOG("read from local %p\n", file_meta_p);
 	}
-	catch(std::out_of_range& e)
+	else
 	{
 		//forwarding to remote open
 		file_meta_p=remote_open(path, flag, mode);
@@ -402,6 +405,7 @@ throw(std::runtime_error)
 				file_meta_p)).first;
 		file_meta_p->it=it;
 	}
+
 	int fd=_fid_to_fd(fid);
 
 	opened_file_info& file=
@@ -1166,15 +1170,16 @@ remote_getattr(	const char* 	path,
 
 		send_query(query);
 
-		end_recording(this, 0, READ_FILE);
-		print_log("send query", "", 0, 0);
+		//end_recording(this, 0, READ_FILE);
+		//print_log("send query", "", 0, 0);
 
 		response=get_query_response(query);
 		response->pop(ret);
 		master_handle = _get_master_handle_from_master_number(ret);
 	}while(master_number != ret && response_dequeue(response));
-	end_recording(this, 0, READ_FILE);
-	print_log("getattr communicaion time", "", 0, 0);
+	//end_recording(this, 0, READ_FILE);
+	//print_log("getattr communicaion time", "", 0, 0);
+
 	response->pop(ret);
 	if(SUCCESS == ret)
 	{
@@ -1614,14 +1619,15 @@ _get_local_attr(const char*  path,
 		struct stat* file_stat)
 {
 	std::string string_path(path);
+	_path_file_meta_map_t::iterator it=_path_file_meta_map.find(string_path);
 
-	try
+	if(it != end(_path_file_meta_map))
 	{
-		file_meta* file_meta_p=_path_file_meta_map.at(string_path);
+		file_meta* file_meta_p=it->second;
 		memcpy(file_stat, &file_meta_p->file_stat, sizeof(struct stat));
 		return SUCCESS;
 	}
-	catch(std::out_of_range& e)
+	else
 	{
 		return FAILURE;
 	}

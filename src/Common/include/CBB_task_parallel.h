@@ -265,17 +265,17 @@ namespace CBB
 			
 			if(previous_head == current_head || is_empty())
 			{
-#ifdef BUSY_WAIT
+//#ifdef BUSY_WAIT
 				while(is_empty())
 				{
 					yield();
 				}
-#else
-				while(is_empty())
-				{
-					pthread_cond_wait(&queue_empty, &lock);
-				}
-#endif
+//#else
+//				while(is_empty())
+//				{
+//					pthread_cond_wait(&queue_empty, &lock);
+//				}
+//#endif
 				previous_head=current_head;
 			}
 			return true;
@@ -286,11 +286,12 @@ namespace CBB
 		{
 			while(is_empty())
 			{
-#ifdef BUSY_WAIT
+//#ifdef BUSY_WAIT
+//				yield();
+//#else
+//				pthread_cond_wait(&queue_empty, &lock);
+//#endif
 				yield();
-#else
-				pthread_cond_wait(&queue_empty, &lock);
-#endif
 			}
 			task_type* new_task=static_cast<task_type*>(queue_tail.load()->get_next());
 			this->queue_tail.store(new_task);
@@ -333,9 +334,9 @@ namespace CBB
 			
 			this->queue_head.store(static_cast<task_type*>(
 						this->queue_head.load()->get_next()));
-#ifndef BUSY_WAIT
-			pthread_cond_signal(&queue_empty);
-#endif
+//#ifndef BUSY_WAIT
+//			pthread_cond_signal(&queue_empty);
+//#endif
 			return SUCCESS;
 		}
 

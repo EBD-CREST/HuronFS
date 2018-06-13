@@ -441,9 +441,9 @@ _send_data(extended_IO_task* new_task)
 	}
 	output_task_enqueue(output);
 
-	/*end_recording(this, 0, READ_FILE);
-	this->print_log_debug("r", "send data", start_point, size);
-	this->print_log("r", "send data", start_point, size);*/
+	end_recording(this, 0, READ_FILE);
+	//this->print_log_debug("r", "send data", start_point, size);
+	this->print_log("r", "send data", start_point, size);
 
 	return ret;
 
@@ -521,9 +521,9 @@ _receive_data(extended_IO_task* new_task)
 		ret=FAILURE;
 	}
 
-	/*end_recording(this, 0, WRITE_FILE);
-	this->print_log_debug("w", "get receive data", start_point, size);
-	this->print_log("w", "get receive data", start_point, size);*/
+	end_recording(this, 0, WRITE_FILE);
+	//this->print_log_debug("w", "get receive data", start_point, size);
+	this->print_log("w", "get receive data", start_point, size);
 
 	return ret;
 }
@@ -744,6 +744,7 @@ _close_file(extended_IO_task* new_task)
 	ssize_t file_no=0;
 	new_task->pop(file_no);
 	file_t::iterator _file=_files.find(file_no);
+	_LOG("close file %ld\n", file_no);
 
 	if(end(_files) != _file)
 	{
@@ -1069,7 +1070,7 @@ _flush_file(extended_IO_task* new_task)
 	try
 	{
 		file& _file=_files.at(file_no);
-		_DEBUG("flush file file_no=%ld, path=%s\n",
+		_LOG("flush file file_no=%ld, path=%s\n",
 				file_no, _file.file_path.c_str());
 		//block_info_t &blocks=_file.blocks;
 		if(CLEAN == _file.dirty_flag)
@@ -1518,7 +1519,7 @@ add_write_back()
 		if(0 != prepare_writeback_page(&writeback_queue, WRITEBACK_COUNTS))
 		{
 			CBB_remote_task::add_remote_task(
-					CBB_REMOTE_WRITE_BACK, nullptr);
+					CBB_REMOTE_WRITE_BACK, "", 0);
 			_DEBUG("add write back\n");
 			//clear_dirty_page();
 		}

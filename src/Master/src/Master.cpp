@@ -508,7 +508,7 @@ CBB::CBB_error Master::_parse_flush_file(extended_IO_task* new_task)
 		output->push_back(SUCCESS);
 		output_task_enqueue(output);
 		_DEBUG("write back request to IOnode %ld, file_no %ld\n", file.primary_replica_node->node_id, file_no);
-		extended_IO_task* IOnode_output=allocate_output_task(_get_my_thread_id());
+		extended_IO_task* IOnode_output=allocate_IOnode_comm_task();
 		IOnode_output->set_handle(file.primary_replica_node->handle);
 		IOnode_output->push_back(FLUSH_FILE);
 		IOnode_output->push_back(file_no);
@@ -551,7 +551,7 @@ _parse_close_file(extended_IO_task* new_task)
 		return FAILURE;
 	}
 	_DEBUG("write back request to IOnode %ld\n", file->primary_replica_node->node_id);
-	extended_IO_task* IOnode_output=allocate_output_task(_get_my_thread_id());
+	extended_IO_task* IOnode_output=allocate_IOnode_comm_task();
 	IOnode_output->set_handle(file->primary_replica_node->handle);
 	IOnode_output->push_back(CLOSE_FILE);
 	IOnode_output->push_back(file_no);
@@ -640,7 +640,7 @@ CBB::CBB_error Master::_parse_readdir(extended_IO_task* new_task)
 CBB::CBB_error Master::_parse_unlink(extended_IO_task* new_task)
 {
 	_LOG("request for unlink\n"); 
-	int 	    		ret;
+	int 	    		ret=SUCCESS;
 	std::string 		relative_path;
 	std::string 		real_path;
 	extended_IO_task 	*output=init_response_task(new_task);
@@ -658,6 +658,7 @@ CBB::CBB_error Master::_parse_unlink(extended_IO_task* new_task)
 		ret=FAILURE;
 	}
 
+	(void*) add_remote_task(UNLINK, real_path, 0);
 	output_task_enqueue(output);
 	return ret;
 }
@@ -667,13 +668,13 @@ CBB::CBB_error Master::_parse_unlink(extended_IO_task* new_task)
 int Master::_parse_rmdir(extended_IO_task* new_task)
 {
 	_LOG("request for rmdir\n");
-	string 			file_path;
+	string 			real_path;
 	string 			relative_path_string;
 	int 	    		ret;
 	extended_IO_task 	*output=init_response_task(new_task);
 
-	Server::_recv_real_relative_path(new_task, file_path, relative_path_string);
-	_LOG("path=%s\n", file_path.c_str());
+	Server::_recv_real_relative_path(new_task, real_path, relative_path_string);
+	_LOG("path=%s\n", real_path.c_str());
 
 	if(SUCCESS == _remove_file(relative_path_string))
 	{
@@ -696,6 +697,7 @@ int Master::_parse_rmdir(extended_IO_task* new_task)
 		output->push_back(-errno);
 		ret=FAILURE;
 	}*/
+	(void*) add_remote_task(RM_DIR, real_path, 0);
 	output_task_enqueue(output);
 	return ret;
 }
@@ -760,6 +762,9 @@ CBB::CBB_error Master::_parse_mkdir(extended_IO_task* new_task)
 	//make internal dir
 	mode|=S_IFDIR;
 	_create_new_file_stat(relative_path_string.c_str(), NOT_EXIST, mode);
+	
+	(void) add_remote_task(MKDIR, real_path, mode);
+
 	output_task_enqueue(output);
 	return SUCCESS;
 }
@@ -859,7 +864,7 @@ void Master::_send_rename_request(node_info	*node,
 				  ssize_t 	file_no,
 				  const string 	&new_relative_path)
 {
-	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
+	extended_IO_task* output=allocate_IOnode_comm_task();
 	output->set_handle(node->handle);
 	output->push_back(RENAME);
 	output->push_back(file_no);
@@ -951,7 +956,7 @@ void Master::_send_truncate_request(node_info 	*node,
 {
 	extended_IO_task* output=nullptr;
 
-	output=allocate_output_task(_get_my_thread_id());
+	output=allocate_IOnode_comm_task();
 	output->set_handle(node->handle);
 	output->push_back(TRUNCATE);
 	output->push_back(fd);
@@ -1076,7 +1081,7 @@ Master::_resend_replica_nodes_info_to_new_node(open_file_info	*file_info,
 {
 	_LOG("send replica info to new main node\n");
 
-	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
+	extended_IO_task* output=allocate_IOnode_comm_task();
 	output->set_handle(primary_replica_node->handle);
 	output->push_back(PROMOTED_TO_PRIMARY_REPLICA);
 	output->push_back(file_info->file_no);
@@ -1094,7 +1099,7 @@ Master::_replace_replica_nodes_info(open_file_info	*file_info,
 {
 	_LOG("send replica info to new main node\n");
 
-	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
+	extended_IO_task* output=allocate_IOnode_comm_task();
 	output->set_handle(file_info->primary_replica_node->handle);
 	output->push_back(REPLACE_REPLICA);
 	output->push_back(file_info->file_no);
@@ -1115,7 +1120,7 @@ CBB::CBB_error Master::_send_remove_IOnode_request(node_info* removed_IOnode)
 		if(removed_IOnode != IOnode.second)
 		{
 			//send the remove request to all other IOnodes
-			extended_IO_task* output=allocate_output_task(_get_my_thread_id());
+			extended_IO_task* output=allocate_IOnode_comm_task();
 			output->set_handle(IOnode.second->handle);
 			output->push_back(REMOVE_IONODE);
 			output->push_back(removed_IOnode->node_id);
@@ -1243,7 +1248,7 @@ void Master::_send_append_request(ssize_t file_no,
 	for(node_block_map_t::const_iterator nodes_it=append_blocks.begin();
 			nodes_it != append_blocks.end();++nodes_it)
 	{
-		extended_IO_task* output=allocate_output_task(0);
+		extended_IO_task* output=allocate_IOnode_comm_task();
 		output->set_handle(_registered_IOnodes.at(nodes_it->first)->handle);
 		output->push_back(APPEND_BLOCK);
 		output->push_back(file_no);
@@ -1276,7 +1281,7 @@ _send_open_request_to_IOnodes(struct open_file_info  &file,
 	//send read request to each IOnode
 	//buffer requset, file_no, open_flag, exist_flag, file_path, start_point, block_size
 	comm_handle_t 	 handle=&current_node_info->handle;
-	extended_IO_task *output=allocate_output_task(_get_my_thread_id());
+	extended_IO_task *output=allocate_IOnode_comm_task();
 
 	output->set_handle(handle);
 	output->push_back(OPEN_FILE);
@@ -1720,7 +1725,7 @@ void Master::
 _send_remove_request(node_info 	*IOnode,
 		     ssize_t 	file_no)
 {
-	extended_IO_task* output=allocate_output_task(_get_my_thread_id());
+	extended_IO_task* output=allocate_IOnode_comm_task();
 	output->set_handle(IOnode->handle);
 	output->push_back(UNLINK);
 	_DEBUG("unlink file no=%ld\n", file_no);
@@ -1869,28 +1874,25 @@ node_failure_handler(comm_handle_t handle)
 CBB::CBB_error Master::
 _remote_rename(Common::remote_task* new_task)
 {
-	string 	*old_name	=static_cast<string*>(new_task->get_task_data());
-	string	*new_name	=static_cast<string*>(new_task->get_extended_task_data());
-	string 	old_real_path	=_get_real_path(*old_name);
-	string	new_real_path	=_get_real_path(*new_name);
+	const string& old_real_path=new_task->get_task_file_name();
+	const string& new_real_path=new_task->get_extended_file_name();
 	int 	ret		=SUCCESS;
 
-	_LOG("rename %s to %s\n", old_real_path.c_str(), new_real_path.c_str());
+	_LOG("remote rename %s to %s\n", old_real_path.c_str(), new_real_path.c_str());
 	if(0 != (ret=rename(old_real_path.c_str(), new_real_path.c_str())))
 	{
 		perror("rename");
 	}
-	delete old_name;
 	return ret;
 }
 
 CBB::CBB_error Master::_remote_rmdir(Common::remote_task* new_task)
 {
 	int 	ret		=SUCCESS;
-	string 	*dir_name	=static_cast<string*>(new_task->get_task_data());
-	string 	real_dir_name	=_get_real_path(*dir_name);
+	const std::string& real_dir_name=
+		new_task->get_task_file_name();
 
-	_LOG("rmdir %s\n", real_dir_name.c_str());
+	_LOG("remote rmdir %s\n", real_dir_name.c_str());
 	if(0 != (ret=rmdir(real_dir_name.c_str())))
 	{
 		perror("rmdir");
@@ -1902,10 +1904,10 @@ CBB::CBB_error Master::_remote_rmdir(Common::remote_task* new_task)
 CBB::CBB_error Master::_remote_unlink(Common::remote_task* new_task)
 {
 	int 	ret		=SUCCESS;
-	string 	*file_name	=static_cast<string*>(new_task->get_task_data());
-	string 	real_file_name	=_get_real_path(*file_name);
+	const std::string& real_file_name=
+		new_task->get_task_file_name();
 
-	_LOG("unlink file %s\n", real_file_name.c_str());
+	_LOG("remote unlink file %s\n", real_file_name.c_str());
 	if(0 != (ret=unlink(real_file_name.c_str())))
 	{
 		perror("unlink");
@@ -1917,12 +1919,12 @@ CBB::CBB_error Master::_remote_unlink(Common::remote_task* new_task)
 CBB::CBB_error Master::_remote_mkdir(Common::remote_task* new_task)
 {
 	int 	ret		=SUCCESS;
-	string 	*dir_name	=static_cast<string*>(new_task->get_task_data());
-	mode_t 	*mode		=static_cast<mode_t*>(new_task->get_extended_task_data());
-	string 	real_dir_name	=_get_real_path(*dir_name);
+	const std::string& real_dir_name=
+		new_task->get_task_file_name();
+	mode_t 	mode		=new_task->get_mode();
 
-	_LOG("mkdir %s\n", real_dir_name.c_str());
-	if(0 != (ret=mkdir(real_dir_name.c_str(), *mode)))
+	_LOG("remote mkdir %s\n", real_dir_name.c_str());
+	if(0 != (ret=mkdir(real_dir_name.c_str(), mode)))
 	{
 		perror("mkdir");
 	}

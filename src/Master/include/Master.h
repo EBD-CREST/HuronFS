@@ -241,6 +241,7 @@ namespace CBB
 				std::string _get_backup_path(const std::string& path)const;
 				CBB_error _create_new_backup_file(const std::string& path, mode_t mode);
 				CBB_error _update_backup_file_size(const std::string& path, size_t size);
+				CBB::Common::extended_IO_task* allocate_IOnode_comm_task();
 
 				void flush_file_stat();
 				void dump_info();
@@ -282,6 +283,13 @@ namespace CBB
 		inline int Master::_get_my_thread_id()const
 		{
 			return 0;
+		}
+
+		inline CBB::Common::extended_IO_task* 
+			Master::allocate_IOnode_comm_task()
+		{
+			CBB::Common::extended_IO_task* output_task=allocate_output_task(IONODE_COMMUNICATE_QUEUE_NUM);
+			return output_task;
 		}
 	}
 }

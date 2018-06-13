@@ -41,14 +41,17 @@ namespace CBB
 				virtual ~remote_task()=default;
 				void set_task_id(int id);
 				int get_task_id()const;
-				void set_task_data(void* task_data);
-				void* get_task_data();
-				void set_extended_task_data(void* task_data);
-				void* get_extended_task_data();
+				void set_task_file_name(const std::string& task_file_name);
+				const std::string& get_task_file_name()const;
+				void set_extended_file_name(const std::string& task_file_name);
+				const std::string& get_extended_file_name()const;
+				void set_mode(mode_t mode);
+				mode_t get_mode();
 			private:
-				int 	task_id;
-				void*	task_data;
-				void*	extended_task_data;
+				int 		task_id;
+				std::string	task_file_name;
+				std::string	extended_file_name;
+				mode_t		mode;
 		};
 
 		class CBB_remote_task:
@@ -60,8 +63,10 @@ namespace CBB
 				virtual int remote_task_handler(remote_task* new_task)=0;
 				int start_listening();
 				void stop_listening();
-				remote_task* add_remote_task(int task_code, void* task_data);
-				remote_task* add_remote_task(int task_code, void* task_data, void* extended_task_data);
+				remote_task* add_remote_task(int task_code, const std::string& task_file_name, mode_t mode);
+				remote_task* add_remote_task(int task_code, 
+						const std::string& task_file_name, 
+						const std::string& extended_file_name, mode_t mode);
 				int remote_task_enqueue(remote_task* new_task);
 				void remote_task_dequeue(remote_task* new_task);
 				static void* thread_fun(void* args);
@@ -81,24 +86,34 @@ namespace CBB
 			return this->task_id;
 		}
 
-		inline void remote_task::set_task_data(void* task_data)
+		inline void remote_task::set_task_file_name(const std::string& task_file_name)
 		{
-			this->task_data=task_data;
+			this->task_file_name=task_file_name;
 		}
 
-		inline void* remote_task::get_task_data()
+		inline const std::string& remote_task::get_task_file_name()const
 		{
-			return this->task_data;
+			return this->task_file_name;
 		}
 
-		inline void remote_task::set_extended_task_data(void* task_data)
+		inline void remote_task::set_extended_file_name(const std::string& file_name)
 		{
-			this->extended_task_data=task_data;
+			this->extended_file_name=file_name;
 		}
 
-		inline void* remote_task::get_extended_task_data()
+		inline const std::string& remote_task::get_extended_file_name()const
 		{
-			return this->extended_task_data;
+			return this->extended_file_name;
+		}
+
+		inline void remote_task::set_mode(mode_t mode)
+		{
+			this->mode=mode;
+		}
+
+		inline mode_t remote_task::get_mode()
+		{
+			return this->mode;
 		}
 
 		inline int CBB_remote_task::remote_task_enqueue(remote_task* new_task)

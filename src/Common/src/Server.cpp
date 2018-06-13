@@ -165,7 +165,7 @@ input_from_network(comm_handle_t handle,
 			CBB_communication_thread::receive_message(handle, new_task);
 
 			//tmp code
-			start_recording(this);
+			//start_recording(this);
 
 			output_queue->task_enqueue_signal_notification();
 		}
@@ -221,7 +221,10 @@ int Server::input_from_producer(communication_queue_t* input_queue)
 #ifdef CCI
 				if(0 != new_task->get_extended_data_size())
 				{
+					//start_recording(this);
 					send_rma(new_task);
+					//end_recording(this, 0, READ_FILE);
+					//print_log("send rma", "", 0, 0);
 				}
 				else
 				{
