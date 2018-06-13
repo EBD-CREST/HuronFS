@@ -190,6 +190,7 @@ namespace CBB
 				int _close_remote_file(file* file_stat,
 						       int   mode);
 				bool open_too_many_files()const;
+				int _check_directory(const std::string& real_path)const;
 
 				//private member
 			private:
