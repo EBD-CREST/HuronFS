@@ -40,6 +40,7 @@
 #include <sys/epoll.h>
 #include <regex>
 #include <fcntl.h>
+#include <dirent.h>
 
 #include "IOnode.h"
 #include "CBB_const.h"
@@ -887,17 +888,27 @@ _open_remote_file(
 		if(!this->open_too_many_files())
 		{
 			this->open_file_count += 1;
+			int ret=0;
+			while(-1 == (ret=_check_directory(real_path)));
+			if( 0 != ret)
+			{
+				file_stat->unlock();
+				throw std::runtime_error("Open Dir\n");
+			}
+
 			*fd = open64(real_path.c_str(),open_mode, 0600);
 			if(-1 == *fd)
 			{
 				perror("Open File");
 				_DEBUG("path %s\n", real_path.c_str());
+				file_stat->unlock();
 				throw std::runtime_error("Open File Error\n");
 			}
 			_DEBUG("opening %d path %s\n", *fd, real_path.c_str());
 		}
 		else
 		{
+			file_stat->unlock();
 			throw std::runtime_error("Open too many files\n");
 		}
 
@@ -1668,4 +1679,30 @@ free_data(block* data)
 	data->metaunlock();
 	_DEBUG("freed size %ld\n", ret);
 	return ret;
+}
+
+int IOnode::
+_check_directory(const std::string& real_path)const
+{
+	DIR* dir=opendir(real_path.substr(0, real_path.find_last_of("/\\")).c_str());
+	if(nullptr == dir)
+	{
+		if(ENOENT == errno)
+		{
+			return -1;
+		}
+		else if(EACCES == errno)
+		{
+			return -2;
+		}
+		else
+		{
+			return -3;
+		}
+	}
+	else
+	{
+		closedir(dir);
+		return 0;
+	}
 }
