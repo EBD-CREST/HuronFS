@@ -133,7 +133,7 @@ const int MAX_BLOCK_NUMBER = 1000;
 //the size of block used by all the file
 //important
 const size_t BLOCK_SIZE = 1*MiB;
-//const size_t BLOCK_SIZE = 16*KiB;
+//const size_t BLOCK_SIZE = 4*KiB;
 //the maximum file size supported;
 //the number = block size * max block number
 //not used
@@ -167,8 +167,8 @@ const int MAX_CONNECT_TIME = 10;
 const int CONNECT_WAIT_TIME=1000;
 //the size of IO buffer in each Client
 //used in buffered IO
-//const size_t STREAM_BUFFER_SIZE = BLOCK_SIZE;
-const size_t STREAM_BUFFER_SIZE = 1*MiB;
+const size_t STREAM_BUFFER_SIZE = BLOCK_SIZE;
+//const size_t STREAM_BUFFER_SIZE = 1*MiB;
 //the maximum size of data in each transfer 
 const size_t MAX_TRANSFER_SIZE = STREAM_BUFFER_SIZE;
 

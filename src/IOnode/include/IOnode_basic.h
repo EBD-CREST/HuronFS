@@ -124,7 +124,11 @@ namespace CBB
 			if(0 != pthread_rwlock_tryrdlock(&data_rwlock))
 			{
 				gettimeofday(&st, nullptr);
-				while(0 != pthread_rwlock_tryrdlock(&data_rwlock));
+				while(0 != pthread_rwlock_tryrdlock(&data_rwlock))
+				{
+					this->metaunlock();
+					this->metalock();
+				}
 				gettimeofday(&et, nullptr);
 				_LOG("read lock %p for time %f\n", this, TIME(st, et));
 			}
@@ -138,7 +142,13 @@ namespace CBB
 			if(0 != pthread_rwlock_trywrlock(&data_rwlock))
 			{
 				gettimeofday(&st, nullptr);
-				while(0 != pthread_rwlock_trywrlock(&data_rwlock));
+				//bad hack 
+				//find a good way to remove this metalock -> datalock deadlock
+				while(0 != pthread_rwlock_trywrlock(&data_rwlock))
+				{
+					this->metaunlock();
+					this->metalock();
+				}
 				gettimeofday(&et, nullptr);
 				_LOG("write lock %p for time %f\n", this, TIME(st, et));
 			}
